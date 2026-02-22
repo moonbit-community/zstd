@@ -297,8 +297,8 @@ fn choose_offset_source_mode_with_repcodes(
 
   // Compressed mode (10)
   if level >= 13 {
-    let compressed = build_compressed_sequence_source(
-      off_values, sequence_symbol_offset,
+    let compressed = build_compressed_offset_sequence_source_with_repcodes(
+      off_values, ll_values, rep1, rep2, rep3,
     )
     match compressed {
       (

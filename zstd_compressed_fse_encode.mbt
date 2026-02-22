@@ -53,6 +53,144 @@ fn encode_symbol_for_value(
 }
 
 ///|
+fn collect_compressed_offset_symbol_candidates_for_context(
+  value : Int,
+  ll0 : Bool,
+  r1 : Int,
+  r2 : Int,
+  r3 : Int,
+  symbols : Array[Int],
+  extras : Array[UInt],
+  nb_add_bits : Array[Int],
+  out_r1 : Array[Int],
+  out_r2 : Array[Int],
+  out_r3 : Array[Int],
+) -> Unit raise ZstdError {
+  let mut symbol = 0
+  while symbol <= 31 {
+    let base = offset_base_from_code(symbol.reinterpret_as_uint())
+    if symbol > 1 {
+      let span = (((1 : UInt64) << symbol) - (1 : UInt64)).to_int()
+      let limit = base + span
+      if value >= base && value <= limit {
+        symbols.push(symbol)
+        extras.push((value - base).reinterpret_as_uint())
+        nb_add_bits.push(symbol)
+        out_r1.push(value)
+        out_r2.push(r1)
+        out_r3.push(r2)
+      }
+    } else if symbol == 0 {
+      let decoded = if ll0 { r2 } else { r1 }
+      if decoded == value && decoded > 0 {
+        symbols.push(0)
+        extras.push((0 : UInt))
+        nb_add_bits.push(0)
+        out_r1.push(decoded)
+        out_r2.push(if ll0 { r1 } else { r2 })
+        out_r3.push(r3)
+      }
+    } else {
+      let mut low = 0
+      while low <= 1 {
+        let offset_code = base + (if ll0 { 1 } else { 0 }) + low
+        let (ok, decoded, nr1, nr2, nr3) = if offset_code == 1 {
+          (r2 > 0, r2, r2, r1, r3)
+        } else if offset_code == 2 {
+          (r3 > 0, r3, r3, r1, r2)
+        } else if offset_code == 3 {
+          let v = r1 - 1
+          (v > 0, v, v, r1, r2)
+        } else {
+          (false, 0, 0, 0, 0)
+        }
+        if ok && decoded == value {
+          symbols.push(1)
+          extras.push(low.reinterpret_as_uint())
+          nb_add_bits.push(1)
+          out_r1.push(nr1)
+          out_r2.push(nr2)
+          out_r3.push(nr3)
+        }
+        low = low + 1
+      }
+    }
+    symbol = symbol + 1
+  }
+}
+
+///|
+fn choose_offset_symbols_with_repcodes(
+  off_values : Array[Int],
+  ll_values : Array[Int],
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (Bool, Array[Int], Array[UInt], Array[Int]) raise ZstdError {
+  if off_values.length() <= 0 || ll_values.length() != off_values.length() {
+    return (false, Array::new(), Array::new(), Array::new())
+  }
+  let symbols : Array[Int] = Array::new()
+  let extras : Array[UInt] = Array::new()
+  let extra_bits : Array[Int] = Array::new()
+  let mut r1 = rep1
+  let mut r2 = rep2
+  let mut r3 = rep3
+
+  let mut i = 0
+  while i < off_values.length() {
+    let cand_symbols : Array[Int] = Array::new()
+    let cand_extras : Array[UInt] = Array::new()
+    let cand_add_bits : Array[Int] = Array::new()
+    let cand_out_r1 : Array[Int] = Array::new()
+    let cand_out_r2 : Array[Int] = Array::new()
+    let cand_out_r3 : Array[Int] = Array::new()
+    collect_compressed_offset_symbol_candidates_for_context(
+      off_values[i],
+      ll_values[i] == 0,
+      r1,
+      r2,
+      r3,
+      cand_symbols,
+      cand_extras,
+      cand_add_bits,
+      cand_out_r1,
+      cand_out_r2,
+      cand_out_r3,
+    )
+    if cand_symbols.length() == 0 {
+      return (false, Array::new(), Array::new(), Array::new())
+    }
+    let mut best = 0
+    let mut c = 1
+    while c < cand_symbols.length() {
+      if cand_add_bits[c] < cand_add_bits[best] ||
+        (
+          cand_add_bits[c] == cand_add_bits[best] &&
+          (
+            cand_symbols[c] < cand_symbols[best] ||
+            (
+              cand_symbols[c] == cand_symbols[best] &&
+              cand_extras[c] < cand_extras[best]
+            )
+          )
+        ) {
+        best = c
+      }
+      c = c + 1
+    }
+    symbols.push(cand_symbols[best])
+    extras.push(cand_extras[best])
+    extra_bits.push(cand_add_bits[best])
+    r1 = cand_out_r1[best]
+    r2 = cand_out_r2[best]
+    r3 = cand_out_r3[best]
+    i = i + 1
+  }
+  (true, symbols, extras, extra_bits)
+}
+
+///|
 fn normalize_symbol_frequencies(
   freq : Array[Int],
   max_symbol : Int,
@@ -389,28 +527,11 @@ fn build_compressed_sequence_source(
   values : Array[Int],
   symbol_type : Int,
 ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
-  let n = values.length()
-  if n <= 0 {
-    return (
-      false,
-      b"",
-      0,
-      0,
-      Array::new(),
-      Array::new(),
-      Array::new(),
-      Array::new(),
-    )
-  }
-
-  let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
-  let freq = Array::make(max_symbol + 1, 0)
   let symbols : Array[Int] = Array::new()
   let extras : Array[UInt] = Array::new()
   let extra_bits : Array[Int] = Array::new()
-
   let mut i = 0
-  while i < n {
+  while i < values.length() {
     let (ok, sym, extra, add_bits) = encode_symbol_for_value(
       symbol_type,
       values[i],
@@ -430,6 +551,80 @@ fn build_compressed_sequence_source(
     symbols.push(sym)
     extras.push(extra)
     extra_bits.push(add_bits)
+    i = i + 1
+  }
+  build_compressed_sequence_source_from_symbols(
+    symbol_type, symbols, extras, extra_bits,
+  )
+}
+
+///|
+fn build_compressed_offset_sequence_source_with_repcodes(
+  off_values : Array[Int],
+  ll_values : Array[Int],
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  let (ok, symbols, extras, extra_bits) = choose_offset_symbols_with_repcodes(
+    off_values, ll_values, rep1, rep2, rep3,
+  )
+  if !ok {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  build_compressed_sequence_source_from_symbols(
+    sequence_symbol_offset, symbols, extras, extra_bits,
+  )
+}
+
+///|
+fn build_compressed_sequence_source_from_symbols(
+  symbol_type : Int,
+  symbols : Array[Int],
+  extras : Array[UInt],
+  extra_bits : Array[Int],
+) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  let n = symbols.length()
+  if n <= 0 || extras.length() != n || extra_bits.length() != n {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+
+  let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
+  let freq = Array::make(max_symbol + 1, 0)
+
+  let mut i = 0
+  while i < n {
+    let sym = symbols[i]
+    if sym < 0 || sym > max_symbol {
+      return (
+        false,
+        b"",
+        0,
+        0,
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+      )
+    }
     freq[sym] = freq[sym] + 1
     i = i + 1
   }
@@ -527,6 +722,9 @@ fn build_general_compressed_fse_payload(
   dictionary_history? : Bytes = b"",
   max_match_offset? : Int = 0,
   enable_long_distance_matching? : Bool = false,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
 ) -> Bytes raise ZstdError {
   if level < 13 || block_len < 96 {
     return b""
@@ -581,7 +779,9 @@ fn build_general_compressed_fse_payload(
     off_extra_bits,
     off_trans_bits,
     off_trans_nb_bits,
-  ) = build_compressed_sequence_source(off_values, sequence_symbol_offset)
+  ) = build_compressed_offset_sequence_source_with_repcodes(
+    off_values, ll_values, rep1, rep2, rep3,
+  )
   if !off_ok {
     return b""
   }

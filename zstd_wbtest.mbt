@@ -2373,6 +2373,70 @@ test "single-match repcode offset encoding covers rep3 and ll0 variants" {
 }
 
 ///|
+test "compressed FSE offset symbol chooser can follow repcode state transitions" {
+  let off_values = [17, 5, 4]
+  let ll_values = [4, 0, 0]
+  let result = try? choose_offset_symbols_with_repcodes(
+    off_values, ll_values, 5, 9, 17,
+  )
+  match result {
+    Ok((ok, symbols, extras, extra_bits)) => {
+      assert_true(ok)
+      assert_eq(symbols.length(), off_values.length())
+      assert_eq(extras.length(), off_values.length())
+      assert_eq(extra_bits.length(), off_values.length())
+
+      assert_eq(symbols[0], 1)
+      assert_eq(extras[0], (1 : UInt))
+      assert_eq(extra_bits[0], 1)
+
+      assert_eq(symbols[1], 0)
+      assert_eq(extras[1], (0 : UInt))
+      assert_eq(extra_bits[1], 0)
+
+      assert_eq(symbols[2], 1)
+      assert_eq(extras[2], (1 : UInt))
+      assert_eq(extra_bits[2], 1)
+    }
+    Err(_) => fail("failed to choose repcode-aware compressed OF symbols")
+  }
+}
+
+///|
+test "compressed FSE offset source builder can encode repcode-special symbols" {
+  let off_values = [17, 5, 4]
+  let ll_values = [4, 0, 0]
+  let result = try? build_compressed_offset_sequence_source_with_repcodes(
+    off_values, ll_values, 5, 9, 17,
+  )
+  match result {
+    Ok((ok, header, _, table_log, extras, extra_bits, _, _)) => {
+      assert_true(ok)
+      assert_true(header.length() > 0)
+      assert_true(table_log >= fse_min_table_log)
+      assert_eq(extras.length(), off_values.length())
+      assert_eq(extra_bits.length(), off_values.length())
+      assert_eq(extra_bits[0], 1)
+      assert_eq(extra_bits[1], 0)
+      assert_eq(extra_bits[2], 1)
+
+      let parsed = try? read_fse_ncount_header(
+        header,
+        0,
+        header.length(),
+        31,
+        8,
+      )
+      match parsed {
+        Ok((_, _, max_symbol, _)) => assert_true(max_symbol <= 1)
+        Err(_) => fail("failed to parse compressed OF ncount header")
+      }
+    }
+    Err(_) => fail("failed to build repcode-aware compressed OF source")
+  }
+}
+
+///|
 test "single-match predefined offset chooser is repcode-aware" {
   let rep1 = 5
   let rep2 = 9
