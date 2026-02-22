@@ -529,6 +529,9 @@ fn append_compressed_repeat_block(
   last_block : Bool,
   level : Int,
   dictionary_history : Bytes,
+  dictionary_rep1 : Int,
+  dictionary_rep2 : Int,
+  dictionary_rep3 : Int,
   enable_long_distance_matching : Bool,
   target_compressed_block_size : Int,
   prev_rle_valid : Ref[Bool],
@@ -565,6 +568,9 @@ fn append_compressed_repeat_block(
     start,
     block_len,
     dictionary_history,
+    rep1=dictionary_rep1,
+    rep2=dictionary_rep2,
+    rep3=dictionary_rep3,
     search_limit~,
   )
   let max_offset = ll + dictionary_history.length()

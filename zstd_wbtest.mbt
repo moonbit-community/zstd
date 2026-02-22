@@ -1519,9 +1519,95 @@ test "parse standard dictionary fixture state" {
       assert_true(state.ll_valid)
       assert_true(state.off_valid)
       assert_true(state.ml_valid)
+      assert_true(state.huf_tree_desc.length() > 0)
+      assert_true(state.ll_header.length() > 0)
+      assert_true(state.off_header.length() > 0)
+      assert_true(state.ml_header.length() > 0)
+      assert_eq(state.rep1, 1)
+      assert_eq(state.rep2, 4)
+      assert_eq(state.rep3, 8)
     }
     Err(_) => fail("expected dictionary parser success")
   }
+}
+
+///|
+test "dictionary sequence headers can seed repeat-mode rewrite for first payload" {
+  let parsed = try? parse_dictionary_state(
+    wb_standard_dictionary_fixture_dictionary(),
+  )
+  let state = match parsed {
+    Ok(v) => v
+    Err(_) => fail("parse_dictionary_state failed")
+  }
+  let payload_arr : Array[Byte] = Array::new()
+  payload_arr.push((0 : UInt).to_byte()) // raw literals, empty
+  payload_arr.push((1 : UInt).to_byte()) // sequence count = 1
+  payload_arr.push((0xA8 : UInt).to_byte()) // all mode2 sequence sources
+  append_bytes(payload_arr, state.ll_header, 0, state.ll_header.length())
+  append_bytes(payload_arr, state.off_header, 0, state.off_header.length())
+  append_bytes(payload_arr, state.ml_header, 0, state.ml_header.length())
+  payload_arr.push((1 : UInt).to_byte()) // reverse bitstream terminator byte
+  let payload = Bytes::from_array(payload_arr)
+
+  let prev_rle_valid : Ref[Bool] = { val: false }
+  let prev_ll_code : Ref[UInt] = { val: 0 }
+  let prev_off_code : Ref[UInt] = { val: 0 }
+  let prev_ml_code : Ref[UInt] = { val: 0 }
+  let prev_predefined_valid : Ref[Bool] = { val: false }
+  let prev_compressed_valid : Ref[Bool] = { val: true }
+  let prev_ll_header : Ref[Bytes] = { val: state.ll_header }
+  let prev_off_header : Ref[Bytes] = { val: state.off_header }
+  let prev_ml_header : Ref[Bytes] = { val: state.ml_header }
+  let rewritten = maybe_rewrite_sequence_modes_to_repeat(
+    payload, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+    prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+  )
+  let modes_pos = payload_sequence_modes_offset(rewritten)
+  assert_true(modes_pos >= 0)
+  assert_eq(rewritten[modes_pos].to_uint(), 0xFC)
+  assert_eq(
+    rewritten.length(),
+    payload.length() -
+    state.ll_header.length() -
+    state.off_header.length() -
+    state.ml_header.length(),
+  )
+}
+
+///|
+test "dictionary Huffman tree can seed treeless literals rewrite for first payload" {
+  let parsed = try? parse_dictionary_state(
+    wb_standard_dictionary_fixture_dictionary(),
+  )
+  let state = match parsed {
+    Ok(v) => v
+    Err(_) => fail("parse_dictionary_state failed")
+  }
+  let lit_size = 1
+  let lit_c_size = state.huf_tree_desc.length() + 1
+  let header : UInt = ((lit_size.reinterpret_as_uint() & 0x3FF) << 4) +
+    ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
+    2
+  let payload_arr : Array[Byte] = Array::new()
+  append_u24_le(payload_arr, header)
+  append_bytes(
+    payload_arr,
+    state.huf_tree_desc,
+    0,
+    state.huf_tree_desc.length(),
+  )
+  payload_arr.push((1 : UInt).to_byte()) // synthetic compressed literal bitstream
+  payload_arr.push((0 : UInt).to_byte()) // sequence count = 0
+  let payload = Bytes::from_array(payload_arr)
+
+  let prev_huf_valid : Ref[Bool] = { val: true }
+  let prev_huf_tree_desc : Ref[Bytes] = { val: state.huf_tree_desc }
+  let rewritten = rewrite_literals_section_to_treeless_if_repeat(
+    payload, prev_huf_valid, prev_huf_tree_desc,
+  )
+  assert_eq(rewritten[0].to_uint() & 0x3, 3)
+  assert_eq(rewritten.length(), payload.length() - state.huf_tree_desc.length())
 }
 
 ///|

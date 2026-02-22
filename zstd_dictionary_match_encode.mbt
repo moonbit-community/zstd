@@ -14,6 +14,9 @@ fn detect_best_single_match_with_dictionary_history(
   start : Int,
   block_len : Int,
   history : Bytes,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
   search_limit? : Int = 8192,
 ) -> (Int, Int, Int) {
   let (best_ll0, best_offset0, best_ml0) = detect_best_single_match(
@@ -60,14 +63,37 @@ fn detect_best_single_match_with_dictionary_history(
       while ml < max_ml && history[cand + ml] == src[p + ml] {
         ml = ml + 1
       }
-      if ml > best_ml || (ml == best_ml && (best_ml == 0 || ll < best_ll)) {
+      let candidate_offset = history_len + ll - cand
+      let candidate_rep = is_dictionary_rep_offset(
+        candidate_offset, rep1, rep2, rep3,
+      )
+      let best_rep = is_dictionary_rep_offset(best_offset, rep1, rep2, rep3)
+      if ml > best_ml ||
+        (
+          ml == best_ml &&
+          (
+            best_ml == 0 ||
+            (candidate_rep && !best_rep) ||
+            (candidate_rep == best_rep && ll < best_ll)
+          )
+        ) {
         best_ll = ll
         best_ml = ml
-        best_offset = history_len + ll - cand
+        best_offset = candidate_offset
       }
     }
     ll = ll + 1
   }
 
   (best_ll, best_offset, best_ml)
+}
+
+///|
+fn is_dictionary_rep_offset(
+  offset : Int,
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> Bool {
+  offset > 0 && (offset == rep1 || offset == rep2 || offset == rep3)
 }

@@ -108,22 +108,34 @@ fn append_frame_blocks_minimal(
   out : Array[Byte],
   src : Bytes,
   level : Int,
-  dictionary_history? : Bytes = b"",
+  dictionary_state? : DictionaryState = empty_dictionary_state(),
   enable_long_distance_matching? : Bool = false,
   target_compressed_block_size? : Int = 0,
 ) -> Unit raise ZstdError {
+  let seed_has_sequence_headers = dictionary_state.ll_kind ==
+    sequence_table_kind_compressed &&
+    dictionary_state.off_kind == sequence_table_kind_compressed &&
+    dictionary_state.ml_kind == sequence_table_kind_compressed &&
+    dictionary_state.ll_header.length() > 0 &&
+    dictionary_state.off_header.length() > 0 &&
+    dictionary_state.ml_header.length() > 0
   let src_len = src.length()
   let prev_rle_valid : Ref[Bool] = { val: false }
   let prev_predefined_valid : Ref[Bool] = { val: false }
-  let prev_compressed_valid : Ref[Bool] = { val: false }
+  let prev_compressed_valid : Ref[Bool] = { val: seed_has_sequence_headers }
   let prev_ll_code : Ref[UInt] = { val: 0 }
   let prev_off_code : Ref[UInt] = { val: 0 }
   let prev_ml_code : Ref[UInt] = { val: 0 }
-  let prev_ll_header : Ref[Bytes] = { val: b"" }
-  let prev_off_header : Ref[Bytes] = { val: b"" }
-  let prev_ml_header : Ref[Bytes] = { val: b"" }
-  let prev_lit_huf_valid : Ref[Bool] = { val: false }
-  let prev_lit_huf_tree_desc : Ref[Bytes] = { val: b"" }
+  let prev_ll_header : Ref[Bytes] = { val: dictionary_state.ll_header }
+  let prev_off_header : Ref[Bytes] = { val: dictionary_state.off_header }
+  let prev_ml_header : Ref[Bytes] = { val: dictionary_state.ml_header }
+  let prev_lit_huf_valid : Ref[Bool] = {
+    val: dictionary_state.huf_valid &&
+    dictionary_state.huf_tree_desc.length() > 0,
+  }
+  let prev_lit_huf_tree_desc : Ref[Bytes] = {
+    val: dictionary_state.huf_tree_desc,
+  }
   let mut pos = 0
   while pos < src_len {
     let remaining = src_len - pos
@@ -140,9 +152,24 @@ fn append_frame_blocks_minimal(
         last_block,
         level,
         if pos == 0 {
-          dictionary_history
+          dictionary_state.history
         } else {
           b""
+        },
+        if pos == 0 {
+          dictionary_state.rep1
+        } else {
+          1
+        },
+        if pos == 0 {
+          dictionary_state.rep2
+        } else {
+          4
+        },
+        if pos == 0 {
+          dictionary_state.rep3
+        } else {
+          8
         },
         enable_long_distance_matching,
         target_compressed_block_size,

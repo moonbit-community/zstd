@@ -129,7 +129,7 @@ pub fn compress_with_dictionary_and_options(
     out,
     src,
     normalized_options.level,
-    dictionary_history=dictionary_state.history,
+    dictionary_state~,
     enable_long_distance_matching=normalized_options.enable_long_distance_matching,
     target_compressed_block_size=normalized_options.target_compressed_block_size,
   )

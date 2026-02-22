@@ -58,6 +58,9 @@ assert_eq(restored, input)
     - `compress_with_dictionary` / `new_compressor_with_dictionary`
     - emits frame `dictID` for standard zstd dictionaries
     - can use dictionary history for first-block single-match encoding
+    - seeds first-block entropy state from standard dictionary tables:
+      - sequence-table headers can be reused as repeat-mode sources
+      - literal Huffman tree can be reused as treeless literals source
   - supports options-based tuning via `CompressOptions`:
     - `enable_long_distance_matching` increases single-match search range
     - `target_compressed_block_size` bounds emitted compressed-block payload size (falls back to raw when exceeded)
