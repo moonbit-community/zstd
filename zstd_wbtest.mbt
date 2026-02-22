@@ -721,6 +721,60 @@ test "compressed literals support four-stream size_format=3 roundtrip" {
 }
 
 ///|
+test "huffman weights FSE payload can roundtrip and beat direct length on sparse prefix" {
+  let values = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+  let payload = try? build_huffman_weights_fse_payload(values)
+  match payload {
+    Ok(data) => {
+      assert_true(data.length() > 0)
+      let decoded = try? read_huffman_weights_fse(data, 0, data.length())
+      match decoded {
+        Ok(weights) => {
+          assert_eq(weights.length(), values.length())
+          let mut i = 0
+          while i < values.length() {
+            assert_eq(weights[i], values[i])
+            i = i + 1
+          }
+        }
+        Err(_) => fail("failed to decode emitted FSE payload")
+      }
+      let direct_len = 1 + ((values.length() + 1) >> 1)
+      assert_true(data.length() + 1 < direct_len)
+    }
+    Err(_) => fail("failed to build FSE payload for sparse prefix")
+  }
+}
+
+///|
+test "huffman weights FSE description prefixes payload size and roundtrips payload decode" {
+  let weights = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+  let desc = try? try_build_huffman_fse_weights_description(weights, 11)
+  match desc {
+    Ok(data) => {
+      assert_true(data.length() > 1)
+      let payload_size = data[0].to_uint().reinterpret_as_int()
+      assert_true(payload_size > 0)
+      assert_eq(payload_size + 1, data.length())
+      let decoded = try? read_huffman_weights_fse(data, 1, data.length())
+      match decoded {
+        Ok(values) => {
+          assert_eq(values.length(), weights.length())
+          let mut i = 0
+          while i < weights.length() {
+            assert_eq(values[i], weights[i])
+            i = i + 1
+          }
+        }
+        Err(_) =>
+          fail("failed to decode payload behind FSE weights description")
+      }
+    }
+    Err(_) => fail("failed to build FSE weights description")
+  }
+}
+
+///|
 fn encode_sequence_count_for_test(seq_count : Int) -> Bytes raise ZstdError {
   let payload : Array[Byte] = Array::new()
   append_sequence_count(payload, seq_count)

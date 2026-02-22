@@ -485,7 +485,21 @@ fn try_build_compressed_literals_section(
   if !ok {
     return b""
   }
-  let tree_desc = build_huffman_direct_weights_description(weights, last_symbol)
+  let direct_tree_desc = build_huffman_direct_weights_description(
+    weights, last_symbol,
+  )
+  let fse_tree_desc = try_build_huffman_fse_weights_description(
+    weights, last_symbol,
+  )
+  let tree_desc = if direct_tree_desc.length() == 0 {
+    fse_tree_desc
+  } else if fse_tree_desc.length() == 0 {
+    direct_tree_desc
+  } else if fse_tree_desc.length() < direct_tree_desc.length() {
+    fse_tree_desc
+  } else {
+    direct_tree_desc
+  }
   if tree_desc.length() == 0 {
     return b""
   }
