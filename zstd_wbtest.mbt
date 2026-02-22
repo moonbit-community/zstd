@@ -551,6 +551,88 @@ test "best literals section falls back to raw when direct-weight range is unsupp
 }
 
 ///|
+test "treeless literals rewrite emits type3 on repeated Huffman tree" {
+  let literals = Bytes::makei(512, fn(i) {
+    if i % 31 == 0 {
+      b"C"[0]
+    } else if i % 7 == 0 {
+      b"B"[0]
+    } else {
+      b"A"[0]
+    }
+  })
+  let encoded1 = try? try_build_compressed_literals_section(literals)
+  let encoded2 = try? try_build_compressed_literals_section(literals)
+  match encoded1 {
+    Ok(section1) =>
+      match encoded2 {
+        Ok(section2) => {
+          assert_true(section1.length() > 0)
+          assert_true(section2.length() > 0)
+          assert_eq(section1[0].to_uint() & 0x3, 2)
+          assert_eq(section2[0].to_uint() & 0x3, 2)
+
+          let prev_tree_valid : Ref[Bool] = { val: false }
+          let prev_tree_desc : Ref[Bytes] = { val: b"" }
+          let rewritten1 = rewrite_literals_section_to_treeless_if_repeat(
+            section1, prev_tree_valid, prev_tree_desc,
+          )
+          let rewritten2 = rewrite_literals_section_to_treeless_if_repeat(
+            section2, prev_tree_valid, prev_tree_desc,
+          )
+          let first_payload = rewritten1
+          let second_payload = rewritten2
+          assert_eq(first_payload[0].to_uint() & 0x3, 2)
+          assert_eq(second_payload[0].to_uint() & 0x3, 3)
+          assert_true(second_payload.length() < section2.length())
+
+          let prev_huf_valid : Ref[Bool] = { val: false }
+          let prev_huf_max_bits : Ref[Int] = { val: 0 }
+          let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+          let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+          let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+          let decoded1 = try? decode_literals_section_minimal(
+            first_payload,
+            0,
+            first_payload.length(),
+            prev_huf_valid,
+            prev_huf_max_bits,
+            prev_huf_left,
+            prev_huf_right,
+            prev_huf_symbol,
+          )
+          let decoded2 = try? decode_literals_section_minimal(
+            second_payload,
+            0,
+            second_payload.length(),
+            prev_huf_valid,
+            prev_huf_max_bits,
+            prev_huf_left,
+            prev_huf_right,
+            prev_huf_symbol,
+          )
+          match decoded1 {
+            Ok((next1, out1)) => {
+              assert_eq(next1, first_payload.length())
+              assert_eq(out1, literals)
+            }
+            Err(_) => fail("failed to decode first payload")
+          }
+          match decoded2 {
+            Ok((next2, out2)) => {
+              assert_eq(next2, second_payload.length())
+              assert_eq(out2, literals)
+            }
+            Err(_) => fail("failed to decode treeless rewritten payload")
+          }
+        }
+        Err(_) => fail("failed to build second compressed literals section")
+      }
+    Err(_) => fail("failed to build first compressed literals section")
+  }
+}
+
+///|
 fn encode_sequence_count_for_test(seq_count : Int) -> Bytes raise ZstdError {
   let payload : Array[Byte] = Array::new()
   append_sequence_count(payload, seq_count)
