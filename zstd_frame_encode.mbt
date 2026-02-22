@@ -235,58 +235,153 @@ fn append_frame_blocks_minimal(
   let prev_lit_huf_tree_desc : Ref[Bytes] = {
     val: dictionary_state.huf_tree_desc,
   }
+  let sim_out : Array[Byte] = Array::new()
+  let mut sim_rep1 = dictionary_state.rep1
+  let mut sim_rep2 = dictionary_state.rep2
+  let mut sim_rep3 = dictionary_state.rep3
+  let sim_prev_huf_valid : Ref[Bool] = { val: dictionary_state.huf_valid }
+  let sim_prev_huf_max_bits : Ref[Int] = { val: dictionary_state.huf_max_bits }
+  let sim_prev_huf_left : Ref[Array[Int]] = { val: dictionary_state.huf_left }
+  let sim_prev_huf_right : Ref[Array[Int]] = { val: dictionary_state.huf_right }
+  let sim_prev_huf_symbol : Ref[Array[Int]] = {
+    val: dictionary_state.huf_symbol,
+  }
+  let sim_prev_ll_valid : Ref[Bool] = { val: dictionary_state.ll_valid }
+  let sim_prev_ll_kind : Ref[Int] = { val: dictionary_state.ll_kind }
+  let sim_prev_ll_code : Ref[UInt] = { val: dictionary_state.ll_code }
+  let sim_prev_ll_table_log : Ref[Int] = { val: dictionary_state.ll_table_log }
+  let sim_prev_ll_table_next_state : Ref[Array[Int]] = {
+    val: dictionary_state.ll_table_next_state,
+  }
+  let sim_prev_ll_table_nb_add_bits : Ref[Array[Int]] = {
+    val: dictionary_state.ll_table_nb_add_bits,
+  }
+  let sim_prev_ll_table_nb_bits : Ref[Array[Int]] = {
+    val: dictionary_state.ll_table_nb_bits,
+  }
+  let sim_prev_ll_table_base_values : Ref[Array[Int]] = {
+    val: dictionary_state.ll_table_base_values,
+  }
+  let sim_prev_off_valid : Ref[Bool] = { val: dictionary_state.off_valid }
+  let sim_prev_off_kind : Ref[Int] = { val: dictionary_state.off_kind }
+  let sim_prev_off_code : Ref[UInt] = { val: dictionary_state.off_code }
+  let sim_prev_off_table_log : Ref[Int] = {
+    val: dictionary_state.off_table_log,
+  }
+  let sim_prev_off_table_next_state : Ref[Array[Int]] = {
+    val: dictionary_state.off_table_next_state,
+  }
+  let sim_prev_off_table_nb_add_bits : Ref[Array[Int]] = {
+    val: dictionary_state.off_table_nb_add_bits,
+  }
+  let sim_prev_off_table_nb_bits : Ref[Array[Int]] = {
+    val: dictionary_state.off_table_nb_bits,
+  }
+  let sim_prev_off_table_base_values : Ref[Array[Int]] = {
+    val: dictionary_state.off_table_base_values,
+  }
+  let sim_prev_ml_valid : Ref[Bool] = { val: dictionary_state.ml_valid }
+  let sim_prev_ml_kind : Ref[Int] = { val: dictionary_state.ml_kind }
+  let sim_prev_ml_code : Ref[UInt] = { val: dictionary_state.ml_code }
+  let sim_prev_ml_table_log : Ref[Int] = { val: dictionary_state.ml_table_log }
+  let sim_prev_ml_table_next_state : Ref[Array[Int]] = {
+    val: dictionary_state.ml_table_next_state,
+  }
+  let sim_prev_ml_table_nb_add_bits : Ref[Array[Int]] = {
+    val: dictionary_state.ml_table_nb_add_bits,
+  }
+  let sim_prev_ml_table_nb_bits : Ref[Array[Int]] = {
+    val: dictionary_state.ml_table_nb_bits,
+  }
+  let sim_prev_ml_table_base_values : Ref[Array[Int]] = {
+    val: dictionary_state.ml_table_base_values,
+  }
   let mut pos = 0
   while pos < src_len {
     let remaining = src_len - pos
     let block_len = if remaining > 128 << 10 { 128 << 10 } else { remaining }
     let last_block = pos + block_len == src_len
+    let selected_payload : Ref[Bytes] = { val: b"" }
+    let frame_history = if pos > 0 { src[:pos].to_bytes() } else { b"" }
+    let compression_history = if dictionary_state.history.length() == 0 {
+      frame_history
+    } else if frame_history.length() == 0 {
+      dictionary_state.history
+    } else {
+      dictionary_state.history + frame_history
+    }
     if is_rle_block(src, pos, block_len) {
       append_rle_block(out, src[pos], block_len, last_block)
+      let mut i = 0
+      while i < block_len {
+        sim_out.push(src[pos + i])
+        i = i + 1
+      }
     } else if level >= 10 &&
       append_compressed_repeat_block(
-        out,
-        src,
-        pos,
-        block_len,
-        last_block,
-        level,
-        if pos == 0 {
-          dictionary_state.history
-        } else {
-          b""
-        },
-        if pos == 0 {
-          dictionary_state.rep1
-        } else {
-          1
-        },
-        if pos == 0 {
-          dictionary_state.rep2
-        } else {
-          4
-        },
-        if pos == 0 {
-          dictionary_state.rep3
-        } else {
-          8
-        },
-        enable_long_distance_matching,
-        target_compressed_block_size,
-        prev_rle_valid,
-        prev_ll_code,
-        prev_off_code,
-        prev_ml_code,
-        prev_predefined_valid,
-        prev_compressed_valid,
-        prev_ll_header,
-        prev_off_header,
-        prev_ml_header,
-        prev_lit_huf_valid,
-        prev_lit_huf_tree_desc,
+        out, src, pos, block_len, last_block, level, compression_history, sim_rep1,
+        sim_rep2, sim_rep3, enable_long_distance_matching, target_compressed_block_size,
+        prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header, prev_lit_huf_valid,
+        prev_lit_huf_tree_desc, selected_payload,
       ) {
-      ()
+      let (next_pos, produced, next_rep1, next_rep2, next_rep3) = decode_compressed_block_minimal(
+        selected_payload.val,
+        0,
+        selected_payload.val.length(),
+        sim_out,
+        0,
+        dictionary_state.history,
+        sim_rep1,
+        sim_rep2,
+        sim_rep3,
+        sim_prev_huf_valid,
+        sim_prev_huf_max_bits,
+        sim_prev_huf_left,
+        sim_prev_huf_right,
+        sim_prev_huf_symbol,
+        sim_prev_ll_valid,
+        sim_prev_ll_kind,
+        sim_prev_ll_code,
+        sim_prev_ll_table_log,
+        sim_prev_ll_table_next_state,
+        sim_prev_ll_table_nb_add_bits,
+        sim_prev_ll_table_nb_bits,
+        sim_prev_ll_table_base_values,
+        sim_prev_off_valid,
+        sim_prev_off_kind,
+        sim_prev_off_code,
+        sim_prev_off_table_log,
+        sim_prev_off_table_next_state,
+        sim_prev_off_table_nb_add_bits,
+        sim_prev_off_table_nb_bits,
+        sim_prev_off_table_base_values,
+        sim_prev_ml_valid,
+        sim_prev_ml_kind,
+        sim_prev_ml_code,
+        sim_prev_ml_table_log,
+        sim_prev_ml_table_next_state,
+        sim_prev_ml_table_nb_add_bits,
+        sim_prev_ml_table_nb_bits,
+        sim_prev_ml_table_base_values,
+      )
+      if next_pos != selected_payload.val.length() ||
+        produced != block_len.to_uint64() {
+        raise CorruptionDetected
+      }
+      let mut i = 0
+      while i < block_len {
+        if sim_out[sim_out.length() - block_len + i] != src[pos + i] {
+          raise CorruptionDetected
+        }
+        i = i + 1
+      }
+      sim_rep1 = next_rep1
+      sim_rep2 = next_rep2
+      sim_rep3 = next_rep3
     } else {
       append_raw_block(out, src, pos, block_len, last_block)
+      append_bytes(sim_out, src, pos, block_len)
     }
     pos = pos + block_len
   }

@@ -601,7 +601,9 @@ fn append_compressed_repeat_block(
   prev_ml_header : Ref[Bytes],
   prev_lit_huf_valid : Ref[Bool],
   prev_lit_huf_tree_desc : Ref[Bytes],
+  selected_payload : Ref[Bytes],
 ) -> Bool raise ZstdError {
+  selected_payload.val = b""
   let periodic_payload = build_best_periodic_payload(
     src, start, block_len, level,
   )
@@ -776,5 +778,6 @@ fn append_compressed_repeat_block(
     last_block_bit
   append_u24_le(out, block_header)
   append_bytes(out, payload, 0, payload.length())
+  selected_payload.val = payload
   true
 }

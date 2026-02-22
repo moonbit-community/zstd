@@ -413,6 +413,30 @@ test "compress emits rle blocks across 128k boundary" {
 }
 
 ///|
+test "compress can use previous block history for second block" {
+  let block1 = Bytes::makei(128 << 10, i => {
+    ((i * 73 + 19) % 251 + 1).reinterpret_as_uint().to_byte()
+  })
+  let shared = block1[block1.length() - 7000:].to_bytes()
+  let tail = Bytes::makei(64, i => {
+    ((i * 97 + 13) % 251 + 2).reinterpret_as_uint().to_byte()
+  })
+  let input = block1 + shared + tail
+
+  let frame = compress(input, level=14)
+  assert_eq(decompress(frame), input)
+
+  let block1_header = read_u24_le_test(frame, 9)
+  let block1_type = ((block1_header >> 1) & 0x3).reinterpret_as_int()
+  let block1_size = (block1_header >> 3).reinterpret_as_int()
+  let block1_payload_size = if block1_type == 1 { 1 } else { block1_size }
+  let block2_pos = 9 + 3 + block1_payload_size
+  let block2_header = read_u24_le_test(frame, block2_pos)
+  assert_eq(block2_header & 1, 1)
+  assert_eq((block2_header >> 1) & 0x3, 2)
+}
+
+///|
 test "compress emits compressed block for periodic payload at higher level" {
   let input = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
 
