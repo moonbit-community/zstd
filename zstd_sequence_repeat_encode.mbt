@@ -1,5 +1,26 @@
 ///|
 fn payload_sequence_modes_offset(payload : Bytes) -> Int {
+  let seq_count_pos = payload_sequence_count_offset(payload)
+  if seq_count_pos < 0 {
+    return -1
+  }
+  let seq0 = payload[seq_count_pos].to_uint()
+  let seq_count_header_len = if seq0 < 128 {
+    1
+  } else if seq0 < 255 {
+    2
+  } else {
+    3
+  }
+  let modes_pos = seq_count_pos + seq_count_header_len
+  if modes_pos >= payload.length() {
+    return -1
+  }
+  modes_pos
+}
+
+///|
+fn payload_sequence_count_offset(payload : Bytes) -> Int {
   if payload.length() == 0 {
     return -1
   }
@@ -36,18 +57,7 @@ fn payload_sequence_modes_offset(payload : Bytes) -> Int {
   if seq0 == 0 {
     return -1
   }
-  let seq_count_header_len = if seq0 < 128 {
-    1
-  } else if seq0 < 255 {
-    2
-  } else {
-    3
-  }
-  let modes_pos = seq_count_pos + seq_count_header_len
-  if modes_pos >= payload.length() {
-    return -1
-  }
-  modes_pos
+  seq_count_pos
 }
 
 ///|

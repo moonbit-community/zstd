@@ -245,6 +245,103 @@ test "sequence_count encoding rejects values above max supported range" {
 }
 
 ///|
+test "predefined state path selection keeps valid transitions" {
+  let ll_values = [64, 4096, 96]
+  let ll = try? select_predefined_state_path(
+    ll_values, sequence_symbol_literal_length,
+  )
+  match ll {
+    Ok((ok, states, _, _, _, _)) => {
+      assert_true(ok)
+      assert_eq(states.length(), ll_values.length())
+      let mut i = 0
+      while i + 1 < states.length() {
+        let entry = try? predefined_sequence_entry(
+          sequence_symbol_literal_length,
+          states[i],
+        )
+        match entry {
+          Ok((next_state, _, state_bits, _)) => {
+            let range = if state_bits == 0 { 1 } else { 1 << state_bits }
+            assert_true(states[i + 1] >= next_state)
+            assert_true(states[i + 1] < next_state + range)
+          }
+          Err(_) => fail("failed to read LL predefined entry")
+        }
+        i = i + 1
+      }
+    }
+    Err(_) => fail("failed to select LL predefined state path")
+  }
+
+  let off_values = [128, 8192, 256]
+  let off = try? select_predefined_state_path(
+    off_values, sequence_symbol_offset,
+  )
+  match off {
+    Ok((ok, states, _, off_extra_bits, _, _)) => {
+      assert_true(ok)
+      assert_eq(states.length(), off_values.length())
+      let mut i = 0
+      while i < off_extra_bits.length() {
+        assert_true(off_extra_bits[i] > 1)
+        i = i + 1
+      }
+      i = 0
+      while i + 1 < states.length() {
+        let entry = try? predefined_sequence_entry(
+          sequence_symbol_offset,
+          states[i],
+        )
+        match entry {
+          Ok((next_state, _, state_bits, _)) => {
+            let range = if state_bits == 0 { 1 } else { 1 << state_bits }
+            assert_true(states[i + 1] >= next_state)
+            assert_true(states[i + 1] < next_state + range)
+          }
+          Err(_) => fail("failed to read OF predefined entry")
+        }
+        i = i + 1
+      }
+    }
+    Err(_) => fail("failed to select OF predefined state path")
+  }
+}
+
+///|
+test "general predefined payload builder emits parseable multi-sequence payload" {
+  let prefix = Bytes::makei(80, i => {
+    ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()
+  })
+  let chunk = Bytes::makei(96, i => {
+    ((i * 13 + 7) % 241).reinterpret_as_uint().to_byte()
+  })
+  let mid = Bytes::makei(6000, i => {
+    ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
+  })
+  let src = prefix + chunk + b"#" + chunk + mid + chunk + b"@" + chunk
+
+  let payload = try? build_general_predefined_payload(src, 0, src.length(), 14)
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      let modes_pos = payload_sequence_modes_offset(v)
+      assert_true(modes_pos >= 0)
+      assert_eq(v[modes_pos].to_uint(), 0)
+
+      let seq_count_pos = payload_sequence_count_offset(v)
+      assert_true(seq_count_pos >= 0)
+      let parsed = try? parse_sequence_count(v, seq_count_pos, v.length())
+      match parsed {
+        Ok((count, _)) => assert_true(count.reinterpret_as_int() >= 2)
+        Err(_) => fail("failed to parse sequence_count from predefined payload")
+      }
+    }
+    Err(_) => fail("failed to build general predefined payload")
+  }
+}
+
+///|
 test "decode literals section with 4 Huffman streams" {
   let frame = b"\x28\xb5\x2f\xfd\x64\x08\x06\x05\x03\x00\x96\x50\x13\x82\x11\x10\x11\x00\x11\x00\x11\x00\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\x41\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x5b\x01\x00\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x01\x81\x00\x98\x10\xf0\x07\x00\x10\x12\x3f\xd5\xaa\x55\xeb\x14\xa4\xfd\xf8\x0e\xdf"
   let prev_huf_valid : Ref[Bool] = { val: false }
