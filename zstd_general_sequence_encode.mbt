@@ -54,8 +54,18 @@ fn collect_greedy_sequences(
   off_values : Array[Int],
   ml_values : Array[Int],
   max_sequences : Int,
+  history? : Bytes = b"",
 ) -> Unit {
+  let history_len = history.length()
   let hash_table : Array[Int] = Array::make(1 << 15, -1)
+  if history_len >= 4 {
+    let mut dict_pos = 0
+    while dict_pos + 4 <= history_len {
+      let h = hash4_bytes(history, dict_pos)
+      hash_table[h] = dict_pos
+      dict_pos = dict_pos + 1
+    }
+  }
   let mut pos = 0
   let mut anchor = 0
 
@@ -63,18 +73,40 @@ fn collect_greedy_sequences(
     let abs_pos = start + pos
     let h = hash4_bytes(src, abs_pos)
     let prev_pos = hash_table[h]
-    hash_table[h] = pos
+    hash_table[h] = history_len + pos
 
     let mut matched = false
     if prev_pos >= 0 {
-      let offset = pos - prev_pos
+      let offset = history_len + pos - prev_pos
       if offset > 0 &&
-        src[start + prev_pos] == src[abs_pos] &&
-        src[start + prev_pos + 1] == src[abs_pos + 1] &&
-        src[start + prev_pos + 2] == src[abs_pos + 2] {
+        virtual_match_source_byte(history, src, start, history_len, prev_pos) ==
+        src[abs_pos] &&
+        virtual_match_source_byte(
+          history,
+          src,
+          start,
+          history_len,
+          prev_pos + 1,
+        ) ==
+        src[abs_pos + 1] &&
+        virtual_match_source_byte(
+          history,
+          src,
+          start,
+          history_len,
+          prev_pos + 2,
+        ) ==
+        src[abs_pos + 2] {
         let mut ml = 3
         while pos + ml < block_len &&
-              src[start + prev_pos + ml] == src[start + pos + ml] {
+              virtual_match_source_byte(
+                history,
+                src,
+                start,
+                history_len,
+                prev_pos + ml,
+              ) ==
+              src[start + pos + ml] {
           ml = ml + 1
         }
         if ml >= 3 {
@@ -85,7 +117,7 @@ fn collect_greedy_sequences(
           let mut update_pos = pos + 1
           while update_pos + 4 <= end_pos {
             let hu = hash4_bytes(src, start + update_pos)
-            hash_table[hu] = update_pos
+            hash_table[hu] = history_len + update_pos
             update_pos = update_pos + 1
           }
           pos = end_pos
@@ -106,6 +138,7 @@ fn build_general_rle_payload(
   start : Int,
   block_len : Int,
   level : Int,
+  dictionary_history? : Bytes = b"",
 ) -> Bytes raise ZstdError {
   if level < 11 || block_len < 32 {
     return b""
@@ -115,7 +148,14 @@ fn build_general_rle_payload(
   let ml_values : Array[Int] = Array::new()
   let max_sequences = general_rle_sequence_cap(level, block_len)
   collect_greedy_sequences(
-    src, start, block_len, ll_values, off_values, ml_values, max_sequences,
+    src,
+    start,
+    block_len,
+    ll_values,
+    off_values,
+    ml_values,
+    max_sequences,
+    history=dictionary_history,
   )
   let seq_count = ll_values.length()
   if seq_count == 0 {
@@ -177,4 +217,19 @@ fn build_general_rle_payload(
   payload.push(ml_code.to_byte())
   append_bytes(payload, bitstream, 0, bitstream.length())
   Bytes::from_array(payload)
+}
+
+///|
+fn virtual_match_source_byte(
+  history : Bytes,
+  src : Bytes,
+  start : Int,
+  history_len : Int,
+  virtual_pos : Int,
+) -> Byte {
+  if virtual_pos < history_len {
+    history[virtual_pos]
+  } else {
+    src[start + virtual_pos - history_len]
+  }
 }

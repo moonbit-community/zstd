@@ -2261,3 +2261,36 @@ test "sequence cap policy is bounded by block length" {
   assert_true(mixed_sequence_cap(22, 18) <= 6)
   assert_true(predefined_multi_sequence_cap(20, 15) <= 5)
 }
+
+///|
+test "greedy collector can capture multiple dictionary-backed matches" {
+  let part_a = Bytes::makei(96, i => {
+    ((i * 7 + 1) % 113 + 16).reinterpret_as_uint().to_byte()
+  })
+  let part_b = Bytes::makei(96, i => {
+    ((i * 9 + 5) % 109 + 130).reinterpret_as_uint().to_byte()
+  })
+  let prefix = Bytes::makei(64, _ => b"\xF0"[0])
+  let mid = Bytes::makei(64, _ => b"\xE1"[0])
+  let tail = Bytes::makei(64, _ => b"\xD2"[0])
+  let dict = prefix + part_a + mid + part_b + tail
+  let src = part_a + b"@" + part_b + b"#"
+  let ll_values : Array[Int] = Array::new()
+  let off_values : Array[Int] = Array::new()
+  let ml_values : Array[Int] = Array::new()
+  collect_greedy_sequences(
+    src,
+    0,
+    src.length(),
+    ll_values,
+    off_values,
+    ml_values,
+    16,
+    history=dict,
+  )
+  assert_true(ll_values.length() >= 2)
+  assert_true(off_values[0] > ll_values[0])
+  assert_true(off_values[1] > ll_values[1])
+  assert_true(ml_values[0] >= 80)
+  assert_true(ml_values[1] >= 80)
+}

@@ -207,6 +207,7 @@ fn build_general_mixed_sequence_payload(
   start : Int,
   block_len : Int,
   level : Int,
+  dictionary_history? : Bytes = b"",
 ) -> Bytes raise ZstdError {
   if level < 15 || block_len < 96 {
     return b""
@@ -216,7 +217,14 @@ fn build_general_mixed_sequence_payload(
   let ml_values : Array[Int] = Array::new()
   let max_sequences = mixed_sequence_cap(level, block_len)
   collect_greedy_sequences(
-    src, start, block_len, ll_values, off_values, ml_values, max_sequences,
+    src,
+    start,
+    block_len,
+    ll_values,
+    off_values,
+    ml_values,
+    max_sequences,
+    history=dictionary_history,
   )
   let seq_count = ll_values.length()
   if seq_count < 2 {

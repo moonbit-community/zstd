@@ -246,6 +246,7 @@ fn build_general_predefined_payload(
   start : Int,
   block_len : Int,
   level : Int,
+  dictionary_history? : Bytes = b"",
   rep1? : Int = 1,
   rep2? : Int = 4,
   rep3? : Int = 8,
@@ -259,7 +260,14 @@ fn build_general_predefined_payload(
   let ml_values : Array[Int] = Array::new()
   let max_sequences = predefined_multi_sequence_cap(level, block_len)
   collect_greedy_sequences(
-    src, start, block_len, ll_values, off_values, ml_values, max_sequences,
+    src,
+    start,
+    block_len,
+    ll_values,
+    off_values,
+    ml_values,
+    max_sequences,
+    history=dictionary_history,
   )
   let seq_count = ll_values.length()
   if seq_count < 2 {

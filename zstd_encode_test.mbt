@@ -332,6 +332,29 @@ test "compress_with_dictionary can use first-block dictionary single match" {
 }
 
 ///|
+test "compress_with_dictionary can use multi-sequence dictionary matches" {
+  let part_a = Bytes::makei(96, i => {
+    ((i * 7 + 1) % 113 + 16).reinterpret_as_uint().to_byte()
+  })
+  let part_b = Bytes::makei(96, i => {
+    ((i * 9 + 5) % 109 + 130).reinterpret_as_uint().to_byte()
+  })
+  let prefix = Bytes::makei(64, _ => b"\xF0"[0])
+  let mid = Bytes::makei(64, _ => b"\xE1"[0])
+  let tail = Bytes::makei(64, _ => b"\xD2"[0])
+  let dict = prefix + part_a + mid + part_b + tail
+  let input = part_a + b"@" + part_b + b"#"
+
+  let frame_without = compress(input, level=20)
+  let frame_with = compress_with_dictionary(input, dict, level=20)
+  assert_eq(first_block_type_encode_test(frame_with), 2)
+  assert_true(frame_with.length() < frame_without.length())
+  let seq_count = read_first_block_sequence_count(frame_with)
+  assert_true(seq_count >= 2)
+  assert_eq(decompress_with_dictionary(frame_with, dict), input)
+}
+
+///|
 test "compress_with_options can force raw block via target_compressed_block_size" {
   let input = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
   let compressed_default = compress(input, level=10)

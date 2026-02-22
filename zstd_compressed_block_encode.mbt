@@ -601,20 +601,35 @@ fn append_compressed_repeat_block(
     start,
     block_len,
     level,
+    dictionary_history~,
     rep1=dictionary_rep1,
     rep2=dictionary_rep2,
     rep3=dictionary_rep3,
   )
   let compressed_fse_payload = build_general_compressed_fse_payload(
-    src, start, block_len, level,
+    src,
+    start,
+    block_len,
+    level,
+    dictionary_history~,
   )
   let mixed_payload = build_general_mixed_sequence_payload(
-    src, start, block_len, level,
+    src,
+    start,
+    block_len,
+    level,
+    dictionary_history~,
   )
   let literals_only_payload = build_literals_only_payload(
     src, start, block_len, level,
   )
-  let general_payload = build_general_rle_payload(src, start, block_len, level)
+  let general_payload = build_general_rle_payload(
+    src,
+    start,
+    block_len,
+    level,
+    dictionary_history~,
+  )
   let search_limit = if enable_long_distance_matching {
     block_len
   } else {
