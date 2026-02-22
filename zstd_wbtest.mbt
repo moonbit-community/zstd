@@ -2437,3 +2437,39 @@ test "greedy sequence depth policy increases under long-distance mode" {
     greedy_sequence_search_depth(22, 40000, enable_long_distance_matching=false),
   )
 }
+
+///|
+test "general RLE offset symbol selection can choose repcode off_code0" {
+  let values : Array[Int] = Array::new()
+  let ll_values : Array[Int] = Array::new()
+  values.push(5)
+  ll_values.push(3)
+  values.push(9)
+  ll_values.push(0)
+  let (ok, code, extras, bits) = try_encode_common_offset_symbol_with_repcodes(
+    values, ll_values, 5, 9, 17,
+  )
+  assert_true(ok)
+  assert_eq(code, (0 : UInt))
+  assert_eq(bits, 0)
+  assert_eq(extras.length(), 2)
+}
+
+///|
+test "general RLE offset symbol selection can choose repcode off_code1" {
+  let values : Array[Int] = Array::new()
+  let ll_values : Array[Int] = Array::new()
+  values.push(17)
+  ll_values.push(0)
+  values.push(9)
+  ll_values.push(4)
+  let (ok, code, extras, bits) = try_encode_common_offset_symbol_with_repcodes(
+    values, ll_values, 5, 9, 17,
+  )
+  assert_true(ok)
+  assert_eq(code, (1 : UInt))
+  assert_eq(bits, 1)
+  assert_eq(extras.length(), 2)
+  assert_eq(extras[0], (0 : UInt))
+  assert_eq(extras[1], (0 : UInt))
+}

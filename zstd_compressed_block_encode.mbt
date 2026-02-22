@@ -647,6 +647,9 @@ fn append_compressed_repeat_block(
     dictionary_history~,
     max_match_offset=sequence_max_offset,
     enable_long_distance_matching~,
+    rep1=dictionary_rep1,
+    rep2=dictionary_rep2,
+    rep3=dictionary_rep3,
   )
   let search_limit = if enable_long_distance_matching {
     block_len

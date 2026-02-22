@@ -46,6 +46,71 @@ fn try_encode_common_offset_symbol(
 }
 
 ///|
+fn try_encode_common_offset_symbol_with_repcodes(
+  values : Array[Int],
+  literal_lengths : Array[Int],
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (Bool, UInt, Array[UInt], Int) raise ZstdError {
+  if values.length() != literal_lengths.length() {
+    return (false, 0, Array::new(), 0)
+  }
+
+  let extras_code0 : Array[UInt] = Array::new()
+  let mut ok_code0 = true
+  let mut i = 0
+  while i < values.length() {
+    let ll = literal_lengths[i]
+    let off = values[i]
+    let expected = if ll == 0 { rep2 } else { rep1 }
+    if off != expected {
+      ok_code0 = false
+      i = values.length()
+    } else {
+      extras_code0.push((0 : UInt))
+      i = i + 1
+    }
+  }
+  if ok_code0 {
+    return (true, 0, extras_code0, 0)
+  }
+
+  let extras_code1 : Array[UInt] = Array::new()
+  let mut ok_code1 = true
+  i = 0
+  while i < values.length() {
+    let ll = literal_lengths[i]
+    let off = values[i]
+    if ll == 0 {
+      if off == rep3 {
+        extras_code1.push((0 : UInt))
+      } else if rep1 > 1 && off == rep1 - 1 {
+        extras_code1.push((1 : UInt))
+      } else {
+        ok_code1 = false
+        i = values.length()
+      }
+    } else if off == rep2 {
+      extras_code1.push((0 : UInt))
+    } else if off == rep3 {
+      extras_code1.push((1 : UInt))
+    } else {
+      ok_code1 = false
+      i = values.length()
+    }
+    if ok_code1 {
+      i = i + 1
+    }
+  }
+  if ok_code1 {
+    return (true, 1, extras_code1, 1)
+  }
+
+  try_encode_common_offset_symbol(values)
+}
+
+///|
 fn collect_greedy_sequences(
   src : Bytes,
   start : Int,
@@ -158,6 +223,9 @@ fn build_general_rle_payload(
   dictionary_history? : Bytes = b"",
   max_match_offset? : Int = 0,
   enable_long_distance_matching? : Bool = false,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
 ) -> Bytes raise ZstdError {
   if level < 11 || block_len < 32 {
     return b""
@@ -194,8 +262,8 @@ fn build_general_rle_payload(
   if !ll_ok {
     return b""
   }
-  let (off_ok, off_code, off_extras, off_bits) = try_encode_common_offset_symbol(
-    off_values,
+  let (off_ok, off_code, off_extras, off_bits) = try_encode_common_offset_symbol_with_repcodes(
+    off_values, ll_values, rep1, rep2, rep3,
   )
   if !off_ok {
     return b""
