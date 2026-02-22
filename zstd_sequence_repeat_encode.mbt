@@ -20,6 +20,27 @@ fn payload_sequence_modes_offset(payload : Bytes) -> Int {
 }
 
 ///|
+fn payload_sequence_count_header_len(
+  payload : Bytes,
+  seq_count_pos : Int,
+) -> Int {
+  if seq_count_pos < 0 || seq_count_pos >= payload.length() {
+    return -1
+  }
+  let seq0 = payload[seq_count_pos].to_uint()
+  if seq0 == 0 {
+    return -1
+  }
+  if seq0 < 128 {
+    1
+  } else if seq0 < 255 {
+    2
+  } else {
+    3
+  }
+}
+
+///|
 fn payload_sequence_count_offset(payload : Bytes) -> Int {
   if payload.length() == 0 {
     return -1
@@ -61,6 +82,71 @@ fn payload_sequence_count_offset(payload : Bytes) -> Int {
 }
 
 ///|
+fn copy_bytes_range(
+  src : Bytes,
+  start : Int,
+  len : Int,
+) -> Bytes raise ZstdError {
+  ensure_range(src.length(), start, len)
+  let out : Array[Byte] = Array::new()
+  append_bytes(out, src, start, len)
+  Bytes::from_array(out)
+}
+
+///|
+fn parse_mode2_sequence_headers(
+  payload : Bytes,
+) -> (Int, Bytes, Bytes, Bytes, Int) raise ZstdError {
+  let seq_count_pos = payload_sequence_count_offset(payload)
+  let seq_count_header_len = payload_sequence_count_header_len(
+    payload, seq_count_pos,
+  )
+  if seq_count_pos < 0 || seq_count_header_len <= 0 {
+    raise CorruptionDetected
+  }
+  let modes_pos = seq_count_pos + seq_count_header_len
+  if modes_pos < 0 || modes_pos >= payload.length() {
+    raise CorruptionDetected
+  }
+  if payload[modes_pos].to_uint() != 0xA8 {
+    raise CorruptionDetected
+  }
+  let mut pos = modes_pos + 1
+
+  let (ll_header_size, _, _, _) = read_fse_ncount_header(
+    payload,
+    pos,
+    payload.length(),
+    35,
+    9,
+  )
+  let ll_header = copy_bytes_range(payload, pos, ll_header_size)
+  pos = pos + ll_header_size
+
+  let (off_header_size, _, _, _) = read_fse_ncount_header(
+    payload,
+    pos,
+    payload.length(),
+    31,
+    8,
+  )
+  let off_header = copy_bytes_range(payload, pos, off_header_size)
+  pos = pos + off_header_size
+
+  let (ml_header_size, _, _, _) = read_fse_ncount_header(
+    payload,
+    pos,
+    payload.length(),
+    52,
+    9,
+  )
+  let ml_header = copy_bytes_range(payload, pos, ml_header_size)
+  pos = pos + ml_header_size
+
+  (modes_pos, ll_header, off_header, ml_header, pos)
+}
+
+///|
 fn maybe_rewrite_sequence_modes_to_repeat(
   payload : Bytes,
   prev_rle_valid : Ref[Bool],
@@ -68,6 +154,10 @@ fn maybe_rewrite_sequence_modes_to_repeat(
   prev_off_code : Ref[UInt],
   prev_ml_code : Ref[UInt],
   prev_predefined_valid : Ref[Bool],
+  prev_compressed_valid : Ref[Bool],
+  prev_ll_header : Ref[Bytes],
+  prev_off_header : Ref[Bytes],
+  prev_ml_header : Ref[Bytes],
 ) -> Bytes {
   let modes_pos = payload_sequence_modes_offset(payload)
   if modes_pos < 0 {
@@ -89,6 +179,7 @@ fn maybe_rewrite_sequence_modes_to_repeat(
     }
     prev_predefined_valid.val = true
     prev_rle_valid.val = false
+    prev_compressed_valid.val = false
     return payload
   }
   if modes == 0x54 {
@@ -115,15 +206,52 @@ fn maybe_rewrite_sequence_modes_to_repeat(
     }
     prev_rle_valid.val = true
     prev_predefined_valid.val = false
+    prev_compressed_valid.val = false
     prev_ll_code.val = ll_code
     prev_off_code.val = off_code
     prev_ml_code.val = ml_code
     return payload
+  }
+  if modes == 0xA8 {
+    let parsed = try? parse_mode2_sequence_headers(payload)
+    match parsed {
+      Ok((mode_pos, ll_header, off_header, ml_header, bitstream_start)) => {
+        if prev_compressed_valid.val &&
+          ll_header == prev_ll_header.val &&
+          off_header == prev_off_header.val &&
+          ml_header == prev_ml_header.val {
+          let out : Array[Byte] = Array::new()
+          append_bytes(out, payload, 0, mode_pos)
+          out.push((0xFC : UInt).to_byte()) // all repeat sequence modes
+          append_bytes(
+            out,
+            payload,
+            bitstream_start,
+            payload.length() - bitstream_start,
+          )
+          return Bytes::from_array(out)
+        }
+        prev_compressed_valid.val = true
+        prev_rle_valid.val = false
+        prev_predefined_valid.val = false
+        prev_ll_header.val = ll_header
+        prev_off_header.val = off_header
+        prev_ml_header.val = ml_header
+        return payload
+      }
+      Err(_) => {
+        prev_rle_valid.val = false
+        prev_predefined_valid.val = false
+        prev_compressed_valid.val = false
+        return payload
+      }
+    }
   }
   if modes == 0xFC {
     return payload
   }
   prev_rle_valid.val = false
   prev_predefined_valid.val = false
+  prev_compressed_valid.val = false
   payload
 }

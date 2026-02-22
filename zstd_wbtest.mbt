@@ -151,9 +151,14 @@ test "rewrite RLE sequence modes to repeat after prior-state warmup" {
       let prev_off_code : Ref[UInt] = { val: 0 }
       let prev_ml_code : Ref[UInt] = { val: 0 }
       let prev_predefined_valid : Ref[Bool] = { val: false }
+      let prev_compressed_valid : Ref[Bool] = { val: false }
+      let prev_ll_header : Ref[Bytes] = { val: b"" }
+      let prev_off_header : Ref[Bytes] = { val: b"" }
+      let prev_ml_header : Ref[Bytes] = { val: b"" }
 
       let first = maybe_rewrite_sequence_modes_to_repeat(
         v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
       )
       let first_modes_pos = payload_sequence_modes_offset(first)
       assert_true(first_modes_pos >= 0)
@@ -161,6 +166,7 @@ test "rewrite RLE sequence modes to repeat after prior-state warmup" {
 
       let second = maybe_rewrite_sequence_modes_to_repeat(
         v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
       )
       let second_modes_pos = payload_sequence_modes_offset(second)
       assert_true(second_modes_pos >= 0)
@@ -193,9 +199,14 @@ test "rewrite predefined sequence modes to repeat after prior-state warmup" {
       let prev_off_code : Ref[UInt] = { val: 0 }
       let prev_ml_code : Ref[UInt] = { val: 0 }
       let prev_predefined_valid : Ref[Bool] = { val: false }
+      let prev_compressed_valid : Ref[Bool] = { val: false }
+      let prev_ll_header : Ref[Bytes] = { val: b"" }
+      let prev_off_header : Ref[Bytes] = { val: b"" }
+      let prev_ml_header : Ref[Bytes] = { val: b"" }
 
       let first = maybe_rewrite_sequence_modes_to_repeat(
         v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
       )
       let first_modes_pos = payload_sequence_modes_offset(first)
       assert_true(first_modes_pos >= 0)
@@ -203,6 +214,7 @@ test "rewrite predefined sequence modes to repeat after prior-state warmup" {
 
       let second = maybe_rewrite_sequence_modes_to_repeat(
         v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
       )
       let second_modes_pos = payload_sequence_modes_offset(second)
       assert_true(second_modes_pos >= 0)
@@ -211,6 +223,62 @@ test "rewrite predefined sequence modes to repeat after prior-state warmup" {
     }
     Err(_) =>
       fail("failed to build predefined payload for repeat-mode rewrite test")
+  }
+}
+
+///|
+test "rewrite compressed mode2 sequence modes to repeat after prior-state warmup" {
+  let prefix = Bytes::makei(80, i => {
+    ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()
+  })
+  let a = Bytes::makei(180, i => {
+    ((i * 13 + 7) % 241).reinterpret_as_uint().to_byte()
+  })
+  let b = Bytes::makei(220, i => {
+    ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
+  })
+  let tail = Bytes::makei(32, i => {
+    ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
+  })
+  let src = prefix + a + b + b + a + b + a + b + b + tail
+  let payload = try? build_general_compressed_fse_payload(
+    src,
+    0,
+    src.length(),
+    14,
+  )
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      let prev_rle_valid : Ref[Bool] = { val: false }
+      let prev_ll_code : Ref[UInt] = { val: 0 }
+      let prev_off_code : Ref[UInt] = { val: 0 }
+      let prev_ml_code : Ref[UInt] = { val: 0 }
+      let prev_predefined_valid : Ref[Bool] = { val: false }
+      let prev_compressed_valid : Ref[Bool] = { val: false }
+      let prev_ll_header : Ref[Bytes] = { val: b"" }
+      let prev_off_header : Ref[Bytes] = { val: b"" }
+      let prev_ml_header : Ref[Bytes] = { val: b"" }
+
+      let first = maybe_rewrite_sequence_modes_to_repeat(
+        v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+      )
+      let first_modes_pos = payload_sequence_modes_offset(first)
+      assert_true(first_modes_pos >= 0)
+      assert_eq(first[first_modes_pos].to_uint(), 0xA8)
+
+      let second = maybe_rewrite_sequence_modes_to_repeat(
+        v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+      )
+      let second_modes_pos = payload_sequence_modes_offset(second)
+      assert_true(second_modes_pos >= 0)
+      assert_eq(second[second_modes_pos].to_uint(), 0xFC)
+      assert_true(second.length() < first.length())
+    }
+    Err(_) =>
+      fail("failed to build compressed payload for repeat-mode rewrite test")
   }
 }
 
