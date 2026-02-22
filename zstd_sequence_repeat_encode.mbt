@@ -216,19 +216,50 @@ fn maybe_rewrite_sequence_modes_to_repeat(
     let parsed = try? parse_mode2_sequence_headers(payload)
     match parsed {
       Ok((mode_pos, ll_header, off_header, ml_header, bitstream_start)) => {
-        if prev_compressed_valid.val &&
-          ll_header == prev_ll_header.val &&
-          off_header == prev_off_header.val &&
+        let ll_mode : UInt = if prev_compressed_valid.val &&
+          ll_header == prev_ll_header.val {
+          3
+        } else {
+          2
+        }
+        let off_mode : UInt = if prev_compressed_valid.val &&
+          off_header == prev_off_header.val {
+          3
+        } else {
+          2
+        }
+        let ml_mode : UInt = if prev_compressed_valid.val &&
           ml_header == prev_ml_header.val {
+          3
+        } else {
+          2
+        }
+        let new_modes = (ll_mode << 6) + (off_mode << 4) + (ml_mode << 2)
+        if new_modes != 0xA8 {
           let out : Array[Byte] = Array::new()
           append_bytes(out, payload, 0, mode_pos)
-          out.push((0xFC : UInt).to_byte()) // all repeat sequence modes
+          out.push(new_modes.to_byte())
+          if ll_mode == 2 {
+            append_bytes(out, ll_header, 0, ll_header.length())
+          }
+          if off_mode == 2 {
+            append_bytes(out, off_header, 0, off_header.length())
+          }
+          if ml_mode == 2 {
+            append_bytes(out, ml_header, 0, ml_header.length())
+          }
           append_bytes(
             out,
             payload,
             bitstream_start,
             payload.length() - bitstream_start,
           )
+          prev_compressed_valid.val = true
+          prev_rle_valid.val = false
+          prev_predefined_valid.val = false
+          prev_ll_header.val = ll_header
+          prev_off_header.val = off_header
+          prev_ml_header.val = ml_header
           return Bytes::from_array(out)
         }
         prev_compressed_valid.val = true

@@ -283,6 +283,73 @@ test "rewrite compressed mode2 sequence modes to repeat after prior-state warmup
 }
 
 ///|
+test "rewrite compressed mode2 supports partial repeat per sequence source" {
+  let prefix = Bytes::makei(80, i => {
+    ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()
+  })
+  let a = Bytes::makei(180, i => {
+    ((i * 13 + 7) % 241).reinterpret_as_uint().to_byte()
+  })
+  let b = Bytes::makei(220, i => {
+    ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
+  })
+  let tail = Bytes::makei(32, i => {
+    ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
+  })
+  let src = prefix + a + b + b + a + b + a + b + b + tail
+  let payload = try? build_general_compressed_fse_payload(
+    src,
+    0,
+    src.length(),
+    14,
+  )
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      let parsed = try? parse_mode2_sequence_headers(v)
+      match parsed {
+        Ok((_, _, off_header, ml_header, _)) => {
+          let prev_rle_valid : Ref[Bool] = { val: false }
+          let prev_ll_code : Ref[UInt] = { val: 0 }
+          let prev_off_code : Ref[UInt] = { val: 0 }
+          let prev_ml_code : Ref[UInt] = { val: 0 }
+          let prev_predefined_valid : Ref[Bool] = { val: false }
+          let prev_compressed_valid : Ref[Bool] = { val: false }
+          let prev_ll_header : Ref[Bytes] = { val: b"" }
+          let prev_off_header : Ref[Bytes] = { val: b"" }
+          let prev_ml_header : Ref[Bytes] = { val: b"" }
+
+          let warmup = maybe_rewrite_sequence_modes_to_repeat(
+            v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+            prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+          )
+          let warmup_modes = payload_sequence_modes_offset(warmup)
+          assert_true(warmup_modes >= 0)
+          assert_eq(warmup[warmup_modes].to_uint(), 0xA8)
+
+          // Force LL table mismatch while keeping OF/ML matches.
+          prev_ll_header.val = b"\x00"
+          let partial = maybe_rewrite_sequence_modes_to_repeat(
+            v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+            prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+          )
+          let partial_modes = payload_sequence_modes_offset(partial)
+          assert_true(partial_modes >= 0)
+          assert_eq(partial[partial_modes].to_uint(), 0xBC)
+          assert_eq(
+            partial.length(),
+            v.length() - off_header.length() - ml_header.length(),
+          )
+        }
+        Err(_) =>
+          fail("failed to parse compressed mode2 headers for partial test")
+      }
+    }
+    Err(_) => fail("failed to build compressed payload for partial repeat test")
+  }
+}
+
+///|
 test "single-match payload uses RLE literals section when literals are single-value" {
   let src = Bytes::makei(12, _ => b"x"[0])
   let payload = try? build_single_match_payload_rle(src, 0, 12, 4, 4, 4)
