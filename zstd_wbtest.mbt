@@ -2661,3 +2661,67 @@ test "general RLE repcode selection tracks dynamic rep state across sequences" {
   assert_eq(extras1[0], (0 : UInt))
   assert_eq(extras1[1], (0 : UInt))
 }
+
+///|
+fn build_non_single_segment_frame_from_payload(
+  payload : Bytes,
+  window_descriptor : UInt,
+) -> Bytes {
+  let frame : Array[Byte] = Array::new()
+  append_u32_le(frame, zstd_magic_number)
+  frame.push((0 : UInt).to_byte()) // no fcs/checksum/dict_id, non-single-segment
+  frame.push(window_descriptor.to_byte())
+  let header : UInt = (payload.length().reinterpret_as_uint() << 3) +
+    ((2 : UInt) << 1) +
+    (1 : UInt)
+  append_u24_le(frame, header)
+  append_bytes(frame, payload, 0, payload.length())
+  Bytes::from_array(frame)
+}
+
+///|
+test "non-single-segment decode rejects offsets above declared window size" {
+  let payload = try? build_single_match_payload_rle(
+    b"abc", 0, 3, 0, 1500, 3, 1500, 1, 4, 8,
+  )
+  match payload {
+    Ok(p) => {
+      assert_true(p.length() > 0)
+      let frame = build_non_single_segment_frame_from_payload(
+        p,
+        (0 : UInt), // window size = 1024
+      )
+      let dict = Bytes::makei(2048, i => {
+        ((i * 29 + 7) % 251 + 1).reinterpret_as_uint().to_byte()
+      })
+      let result = try? decompress_with_dictionary(frame, dict)
+      assert_true(result is Err(CorruptionDetected))
+    }
+    Err(_) => fail("failed to build single-match payload for window-limit test")
+  }
+}
+
+///|
+test "non-single-segment decode accepts offsets within declared window size" {
+  let payload = try? build_single_match_payload_rle(
+    b"abc", 0, 3, 0, 512, 3, 512, 1, 4, 8,
+  )
+  match payload {
+    Ok(p) => {
+      assert_true(p.length() > 0)
+      let frame = build_non_single_segment_frame_from_payload(
+        p,
+        (0 : UInt), // window size = 1024
+      )
+      let dict = Bytes::makei(2048, i => {
+        ((i * 29 + 7) % 251 + 1).reinterpret_as_uint().to_byte()
+      })
+      let result = try? decompress_with_dictionary(frame, dict)
+      match result {
+        Ok(out) => assert_eq(out.length(), 3)
+        Err(_) => fail("decode failed for in-window offset")
+      }
+    }
+    Err(_) => fail("failed to build single-match payload for window-pass test")
+  }
+}

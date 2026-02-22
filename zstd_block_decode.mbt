@@ -47,6 +47,7 @@ fn decode_compressed_block_minimal(
   prev_ml_table_nb_add_bits : Ref[Array[Int]],
   prev_ml_table_nb_bits : Ref[Array[Int]],
   prev_ml_table_base_values : Ref[Array[Int]],
+  window_size? : Int = 0,
 ) -> (Int, UInt64, Int, Int, Int) raise ZstdError {
   let src_len = src.length()
   if frame_out_start < 0 || frame_out_start > out.length() {
@@ -289,7 +290,13 @@ fn decode_compressed_block_minimal(
 
     let mut match_i = 0
     while match_i < match_len {
-      let value = read_match_byte(out, frame_out_start, history, offset)
+      let value = read_match_byte(
+        out,
+        frame_out_start,
+        history,
+        offset,
+        window_size~,
+      )
       out.push(value)
       match_i = match_i + 1
     }
@@ -331,8 +338,12 @@ fn read_match_byte(
   frame_out_start : Int,
   history : Bytes,
   offset : Int,
+  window_size? : Int = 0,
 ) -> Byte raise ZstdError {
   if offset <= 0 || frame_out_start < 0 || frame_out_start > out.length() {
+    raise CorruptionDetected
+  }
+  if window_size > 0 && offset > window_size {
     raise CorruptionDetected
   }
   let produced = out.length() - frame_out_start

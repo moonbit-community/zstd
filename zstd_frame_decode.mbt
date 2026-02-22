@@ -75,9 +75,15 @@ fn decode_frame_into_with_dictionary_state(
   let dict_id_flag = descriptor & 0x3
 
   let mut pos = start + 5
+  let mut frame_window_size = 0
   if !single_segment {
     ensure_range(src_len, pos, 1)
-    pos = pos + 1 // window descriptor
+    let window_size_u = window_size_from_descriptor(src[pos].to_uint())
+    if window_size_u == 0 || window_size_u > (1 : UInt64) << 62 {
+      raise CorruptionDetected
+    }
+    frame_window_size = window_size_u.to_int()
+    pos = pos + 1
   }
 
   let dict_size = dict_id_size(dict_id_flag)
@@ -270,6 +276,7 @@ fn decode_frame_into_with_dictionary_state(
           prev_ml_table_nb_add_bits,
           prev_ml_table_nb_bits,
           prev_ml_table_base_values,
+          window_size=frame_window_size,
         )
         pos = next_pos
         decoded_size = decoded_size + produced
