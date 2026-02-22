@@ -1,33 +1,61 @@
 ///|
-fn detect_repeat_prefix(
+fn detect_repeat_window(
   src : Bytes,
   start : Int,
   block_len : Int,
-) -> (Int, Int) {
+) -> (Int, Int, Int) {
   if block_len < 5 {
-    return (0, 0)
+    return (0, 0, 0)
   }
-  let max_period = if block_len - 3 < 64 { block_len - 3 } else { 64 }
+  let max_prefix = if block_len - 5 < 256 { block_len - 5 } else { 256 }
+  let max_period = 64
+
+  let mut best_prefix = 0
   let mut best_period = 0
   let mut best_run_len = 0
-  let mut period = 2
-  while period <= max_period {
-    let mut run_len = period
-    while run_len < block_len &&
-          src[start + run_len] == src[start + run_len % period] {
-      run_len = run_len + 1
+
+  let mut prefix = 0
+  while prefix <= max_prefix {
+    let remain = block_len - prefix
+    if remain >= 5 {
+      let period_max = if remain - 3 < max_period {
+        remain - 3
+      } else {
+        max_period
+      }
+      let mut period = 2
+      while period <= period_max {
+        let mut run_len = period
+        while prefix + run_len < block_len &&
+              src[start + prefix + run_len] ==
+              src[start + prefix + run_len % period] {
+          run_len = run_len + 1
+        }
+
+        let score = run_len - period
+        let best_score = best_run_len - best_period
+        if run_len >= period + 3 &&
+          (
+            best_period == 0 ||
+            score > best_score ||
+            (
+              score == best_score &&
+              (
+                prefix < best_prefix ||
+                (prefix == best_prefix && period < best_period)
+              )
+            )
+          ) {
+          best_prefix = prefix
+          best_period = period
+          best_run_len = run_len
+        }
+        period = period + 1
+      }
     }
-    if run_len >= period + 3 &&
-      (
-        run_len > best_run_len ||
-        (run_len == best_run_len && (best_period == 0 || period < best_period))
-      ) {
-      best_period = period
-      best_run_len = run_len
-    }
-    period = period + 1
+    prefix = prefix + 1
   }
-  (best_period, best_run_len)
+  (best_prefix, best_period, best_run_len)
 }
 
 ///|
@@ -209,32 +237,37 @@ fn build_periodic_literals(
   src : Bytes,
   start : Int,
   block_len : Int,
+  prefix_len : Int,
   run_len : Int,
   period : Int,
   match_lengths : Array[Int],
 ) -> Bytes raise ZstdError {
   let literals : Array[Byte] = Array::new()
-  let mut produced = 0
+  if prefix_len > 0 {
+    append_bytes(literals, src, start, prefix_len)
+  }
+
+  let mut produced = prefix_len
   let mut i = 0
   while i < match_lengths.length() {
     let seq_start = start + produced
-    if seq_start + period > start + run_len {
+    if seq_start + period > start + prefix_len + run_len {
       raise CorruptionDetected
     }
     append_bytes(literals, src, seq_start, period)
     produced = produced + period + match_lengths[i]
     i = i + 1
   }
-  if produced > run_len {
+  if produced > prefix_len + run_len {
     raise CorruptionDetected
   }
-  let run_remainder = run_len - produced
+  let run_remainder = prefix_len + run_len - produced
   if run_remainder > 0 {
     append_bytes(literals, src, start + produced, run_remainder)
   }
-  let tail_len = block_len - run_len
+  let tail_len = block_len - (prefix_len + run_len)
   if tail_len > 0 {
-    append_bytes(literals, src, start + run_len, tail_len)
+    append_bytes(literals, src, start + prefix_len + run_len, tail_len)
   }
   Bytes::from_array(literals)
 }
@@ -244,6 +277,7 @@ fn build_repeat_payload(
   src : Bytes,
   start : Int,
   block_len : Int,
+  prefix_len : Int,
   period : Int,
   run_len : Int,
   seq_count : Int,
@@ -260,7 +294,11 @@ fn build_repeat_payload(
   let ll_values : Array[Int] = Array::new()
   let mut i = 0
   while i < seq_count {
-    ll_values.push(period)
+    if i == 0 {
+      ll_values.push(prefix_len + period)
+    } else {
+      ll_values.push(period)
+    }
     i = i + 1
   }
   let (ll_ok, ll_code, ll_extras, ll_bits) = try_encode_common_symbol(
@@ -287,7 +325,7 @@ fn build_repeat_payload(
   }
   let bitstream = build_reverse_bitstream(extra_bits)
   let literals = build_periodic_literals(
-    src, start, block_len, run_len, period, match_lengths,
+    src, start, block_len, prefix_len, run_len, period, match_lengths,
   )
 
   let payload : Array[Byte] = Array::new()
@@ -310,17 +348,23 @@ fn append_compressed_repeat_block(
   last_block : Bool,
   level : Int,
 ) -> Bool raise ZstdError {
-  let (period, run_len) = detect_repeat_prefix(src, start, block_len)
+  let (prefix_len, period, run_len) = detect_repeat_window(
+    src, start, block_len,
+  )
   if period == 0 {
     return false
   }
 
-  let target_seq_count = choose_target_seq_count(level)
+  let target_seq_count = if prefix_len == 0 {
+    choose_target_seq_count(level)
+  } else {
+    1
+  }
   let mut seq_count = target_seq_count
   let mut payload = b""
   while seq_count >= 1 {
     let candidate = build_repeat_payload(
-      src, start, block_len, period, run_len, seq_count,
+      src, start, block_len, prefix_len, period, run_len, seq_count,
     )
     if candidate.length() > 0 {
       payload = candidate

@@ -26,11 +26,11 @@ Pinned upstream:
 - One-shot codec subset:
   - `compress(Bytes)` writing raw/rle-block zstd frames
   - high-level (`level >= 10`) pure-MoonBit path can emit minimal compressed
-    blocks for repeated-prefix payloads with period `2..64` using one-sequence
-    RLE-table encoding, and may keep a literal tail in the same block
+    blocks for repeated-window payloads with period `2..64` using RLE-table
+    sequence encoding, including literal prefixes/tails in the same block
     (no C dependency).
   - very-high-level (`level >= 18`) path can emit multi-sequence (`2..4`)
-    variants of this periodic-prefix subset.
+    variants of this periodic-window subset.
   - `decompress(Bytes)` supporting:
     - raw and rle block decoding
     - compressed blocks with literals:

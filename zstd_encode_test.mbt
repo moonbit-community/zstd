@@ -111,6 +111,26 @@ test "compress periodic prefix with literal tail emits compressed block" {
 }
 
 ///|
+test "compress can use periodic window after literal prefix" {
+  let prefix = b"HEADER:"
+  let window = Bytes::makei(360, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
+  let tail = b":END"
+  let input = prefix + window + tail
+
+  let frame_low = compress(input, level=3)
+  let frame_high = compress(input, level=10)
+  let block_high = read_u24_le_test(frame_high, 9)
+  assert_eq((block_high >> 1) & 0x3, 2)
+  assert_true(frame_high.length() < frame_low.length())
+  assert_eq(decompress(frame_high), input)
+
+  // For this shape encoder falls back to single sequence due prefixed literals.
+  // literals = prefix(7) + period(2) + tail(4) => 13 bytes, raw literals header is 1 byte.
+  let seq_count_pos = 12 + 1 + 13
+  assert_eq(frame_high[seq_count_pos].to_uint(), 1)
+}
+
+///|
 test "compress very high level can emit two-sequence periodic block" {
   let head = Bytes::makei(200, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
   let tail = b"XYZ"
