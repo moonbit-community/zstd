@@ -175,7 +175,7 @@ fn build_general_rle_payload(
   let bitstream = build_reverse_bitstream(extra_bits)
 
   let payload : Array[Byte] = Array::new()
-  append_raw_literals_section(payload, Bytes::from_array(literals))
+  append_best_literals_section(payload, Bytes::from_array(literals))
   append_sequence_count(payload, seq_count)
   payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
   payload.push(ll_code.to_byte())

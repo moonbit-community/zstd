@@ -172,6 +172,32 @@ test "rewrite RLE sequence modes to repeat after prior-state warmup" {
 }
 
 ///|
+test "single-match payload uses RLE literals section when literals are single-value" {
+  let src = Bytes::makei(12, _ => b"x"[0])
+  let payload = try? build_single_match_payload_rle(src, 0, 12, 4, 4, 4)
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      assert_eq(v[0].to_uint() & 0x3, 1)
+    }
+    Err(_) => fail("failed to build single-match payload")
+  }
+}
+
+///|
+test "single-match payload keeps raw literals section for mixed literals" {
+  let src = b"abcabczzz"
+  let payload = try? build_single_match_payload_rle(src, 0, 9, 3, 3, 3)
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      assert_eq(v[0].to_uint() & 0x3, 0)
+    }
+    Err(_) => fail("failed to build mixed-literals payload")
+  }
+}
+
+///|
 test "decode literals section with 4 Huffman streams" {
   let frame = b"\x28\xb5\x2f\xfd\x64\x08\x06\x05\x03\x00\x96\x50\x13\x82\x11\x10\x11\x00\x11\x00\x11\x00\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\x41\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x5b\x01\x00\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x01\x81\x00\x98\x10\xf0\x07\x00\x10\x12\x3f\xd5\xaa\x55\xeb\x14\xa4\xfd\xf8\x0e\xdf"
   let prev_huf_valid : Ref[Bool] = { val: false }

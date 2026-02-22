@@ -133,7 +133,7 @@ fn build_single_match_payload_predefined(
   let bitstream = build_reverse_bitstream(extra_bits)
 
   let payload : Array[Byte] = Array::new()
-  append_raw_literals_section(payload, literals)
+  append_best_literals_section(payload, literals)
   append_sequence_count(payload, 1)
   payload.push((0 : UInt).to_byte()) // all predefined sequence modes
   append_bytes(payload, bitstream, 0, bitstream.length())

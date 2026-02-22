@@ -259,27 +259,6 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
 }
 
 ///|
-fn append_raw_literals_section(
-  out : Array[Byte],
-  literals : Bytes,
-) -> Unit raise ZstdError {
-  let lit_len = literals.length()
-  if lit_len <= 31 {
-    out.push((lit_len.reinterpret_as_uint() << 3).to_byte())
-  } else if lit_len <= 4095 {
-    out.push((((lit_len & 0xF).reinterpret_as_uint() << 4) + 0x04).to_byte())
-    out.push(((lit_len >> 4).reinterpret_as_uint() & 0xFF).to_byte())
-  } else if lit_len <= 131072 {
-    out.push((((lit_len & 0xF).reinterpret_as_uint() << 4) + 0x0C).to_byte())
-    out.push(((lit_len >> 4).reinterpret_as_uint() & 0xFF).to_byte())
-    out.push(((lit_len >> 12).reinterpret_as_uint() & 0xFF).to_byte())
-  } else {
-    raise CorruptionDetected
-  }
-  append_bytes(out, literals, 0, lit_len)
-}
-
-///|
 fn append_sequence_count(
   payload : Array[Byte],
   seq_count : Int,
@@ -387,7 +366,7 @@ fn build_repeat_payload(
   )
 
   let payload : Array[Byte] = Array::new()
-  append_raw_literals_section(payload, literals)
+  append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
   payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
   payload.push(ll_code.to_byte())
@@ -451,7 +430,7 @@ fn build_single_match_payload_rle(
   let bitstream = build_reverse_bitstream(extra_bits)
 
   let payload : Array[Byte] = Array::new()
-  append_raw_literals_section(payload, literals)
+  append_best_literals_section(payload, literals)
   append_sequence_count(payload, 1)
   payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
   payload.push(ll_code.to_byte())
