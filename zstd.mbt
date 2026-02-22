@@ -60,22 +60,32 @@ pub fn compress_bound(src_size : UInt64) -> UInt64 raise ZstdError {
 /// Pure MoonBit one-shot compressor.
 /// Current subset: emits valid zstd frames with raw/rle blocks and a minimal
 /// compressed-block path for periodic payloads at higher levels.
-pub fn compress(src : Bytes, level? : Int = 3) -> Bytes raise ZstdError {
+pub fn compress(
+  src : Bytes,
+  level? : Int = 3,
+  checksum? : Bool = false,
+) -> Bytes raise ZstdError {
   let src_len = src.length()
   if src_len.to_uint64() >= max_input_size {
     raise SrcSizeTooLarge(src_len.to_uint64())
   }
   let out : Array[Byte] = Array::new()
 
-  append_frame_header(out, src_len)
+  append_frame_header(out, src_len, checksum)
 
   if src_len == 0 {
     // last=1, blockType=raw(0), blockSize=0
     append_u24_le(out, 1)
+    if checksum {
+      append_frame_checksum(out, src)
+    }
     return Bytes::from_array(out)
   }
 
   append_frame_blocks_minimal(out, src, level)
+  if checksum {
+    append_frame_checksum(out, src)
+  }
 
   Bytes::from_array(out)
 }

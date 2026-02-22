@@ -44,6 +44,21 @@ test "compress emits raw block for mixed payload" {
 }
 
 ///|
+test "compress can emit frame checksum when requested" {
+  let input = b"checksum-enabled-payload"
+  let frame = compress(input, checksum=true)
+  // Descriptor bit2 is checksum flag.
+  assert_eq(frame[4].to_uint() & 0x4, 0x4)
+  assert_eq(decompress(frame), input)
+}
+
+///|
+test "compress default keeps checksum disabled" {
+  let frame = compress(b"no-checksum-default")
+  assert_eq(frame[4].to_uint() & 0x4, 0)
+}
+
+///|
 test "compress emits rle blocks across 128k boundary" {
   let input = Bytes::makei((128 << 10) + 97, _ => b"x"[0])
   let frame = compress(input)
