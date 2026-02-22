@@ -31,6 +31,19 @@ fn detect_repeat_prefix(
 }
 
 ///|
+fn choose_target_seq_count(level : Int) -> Int {
+  if level >= 24 {
+    4
+  } else if level >= 22 {
+    3
+  } else if level >= 18 {
+    2
+  } else {
+    1
+  }
+}
+
+///|
 fn encode_offset_symbol(offset : Int) -> (UInt, UInt, Int) raise ZstdError {
   if offset <= 0 {
     raise CorruptionDetected
@@ -51,28 +64,57 @@ fn encode_offset_symbol(offset : Int) -> (UInt, UInt, Int) raise ZstdError {
 }
 
 ///|
-fn encode_sequence_length_symbol(
+fn try_encode_common_symbol(
   symbol_type : Int,
   max_code : Int,
-  value : Int,
-) -> (UInt, UInt, Int) raise ZstdError {
+  values : Array[Int],
+) -> (Bool, UInt, Array[UInt], Int) raise ZstdError {
   let mut code = 0
   while code <= max_code {
     let (base, nb_bits) = sequence_symbol_base_additional_bits(
       symbol_type, code,
     )
-    let width = if nb_bits == 0 { 1 } else { (1 : Int) << nb_bits }
+    let width = if nb_bits == 0 { 1 } else { 1 << nb_bits }
     let limit = base + width - 1
-    if value >= base && value <= limit {
-      return (
-        code.reinterpret_as_uint(),
-        (value - base).reinterpret_as_uint(),
-        nb_bits,
-      )
+    let extras : Array[UInt] = Array::new()
+    let mut ok = true
+    let mut i = 0
+    while i < values.length() {
+      let v = values[i]
+      if v < base || v > limit {
+        ok = false
+        i = values.length()
+      } else {
+        extras.push((v - base).reinterpret_as_uint())
+        i = i + 1
+      }
+    }
+    if ok {
+      return (true, code.reinterpret_as_uint(), extras, nb_bits)
     }
     code = code + 1
   }
-  raise CorruptionDetected
+  (false, 0, Array::new(), 0)
+}
+
+///|
+fn split_match_lengths(total_match : Int, seq_count : Int) -> Array[Int] {
+  let out : Array[Int] = Array::new()
+  if seq_count <= 0 || total_match < seq_count * 3 {
+    return out
+  }
+  let base = total_match / seq_count
+  let rem = total_match % seq_count
+  let mut i = 0
+  while i < seq_count {
+    let value = base + (if i < rem { 1 } else { 0 })
+    if value < 3 {
+      return Array::new()
+    }
+    out.push(value)
+    i = i + 1
+  }
+  out
 }
 
 ///|
@@ -121,7 +163,6 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
     out.push(packed_full[i].to_byte())
     i = i - 1
   }
-
   let last_byte = if rem_bits == 0 {
     (1 : UInt)
   } else {
@@ -170,27 +211,26 @@ fn build_periodic_literals(
   block_len : Int,
   run_len : Int,
   period : Int,
-  seq_count : Int,
-  chunk_match_len : Int,
+  match_lengths : Array[Int],
 ) -> Bytes raise ZstdError {
   let literals : Array[Byte] = Array::new()
-  let seq_span = period + chunk_match_len
-  let mut s = 0
-  while s < seq_count {
-    let seq_start = start + s * seq_span
+  let mut produced = 0
+  let mut i = 0
+  while i < match_lengths.length() {
+    let seq_start = start + produced
     if seq_start + period > start + run_len {
       raise CorruptionDetected
     }
     append_bytes(literals, src, seq_start, period)
-    s = s + 1
+    produced = produced + period + match_lengths[i]
+    i = i + 1
   }
-  let produced_by_sequences = seq_count * seq_span
-  if produced_by_sequences > run_len {
+  if produced > run_len {
     raise CorruptionDetected
   }
-  let run_remainder = run_len - produced_by_sequences
+  let run_remainder = run_len - produced
   if run_remainder > 0 {
-    append_bytes(literals, src, start + produced_by_sequences, run_remainder)
+    append_bytes(literals, src, start + produced, run_remainder)
   }
   let tail_len = block_len - run_len
   if tail_len > 0 {
@@ -207,35 +247,47 @@ fn build_repeat_payload(
   period : Int,
   run_len : Int,
   seq_count : Int,
-  chunk_match_len : Int,
 ) -> Bytes raise ZstdError {
-  if seq_count <= 0 || chunk_match_len < 3 {
+  if seq_count <= 0 {
     return b""
   }
-  let produced_by_sequences = seq_count * (period + chunk_match_len)
-  if produced_by_sequences > run_len {
+  let total_match = run_len - seq_count * period
+  let match_lengths = split_match_lengths(total_match, seq_count)
+  if match_lengths.length() != seq_count {
     return b""
   }
 
-  let (ll_code, ll_extra, ll_bits) = encode_sequence_length_symbol(
-    sequence_symbol_literal_length, 35, period,
+  let ll_values : Array[Int] = Array::new()
+  let mut i = 0
+  while i < seq_count {
+    ll_values.push(period)
+    i = i + 1
+  }
+  let (ll_ok, ll_code, ll_extras, ll_bits) = try_encode_common_symbol(
+    sequence_symbol_literal_length, 35, ll_values,
   )
-  let (ml_code, ml_extra, ml_bits) = encode_sequence_length_symbol(
-    sequence_symbol_match_length, 52, chunk_match_len,
+  if !ll_ok {
+    return b""
+  }
+  let (ml_ok, ml_code, ml_extras, ml_bits) = try_encode_common_symbol(
+    sequence_symbol_match_length, 52, match_lengths,
   )
+  if !ml_ok {
+    return b""
+  }
   let (off_code, off_extra, off_bits) = encode_offset_symbol(period)
 
   let extra_bits : Array[Int] = Array::new()
-  let mut i = 0
+  i = 0
   while i < seq_count {
     append_bits_be(extra_bits, off_extra, off_bits)
-    append_bits_be(extra_bits, ml_extra, ml_bits)
-    append_bits_be(extra_bits, ll_extra, ll_bits)
+    append_bits_be(extra_bits, ml_extras[i], ml_bits)
+    append_bits_be(extra_bits, ll_extras[i], ll_bits)
     i = i + 1
   }
   let bitstream = build_reverse_bitstream(extra_bits)
   let literals = build_periodic_literals(
-    src, start, block_len, run_len, period, seq_count, chunk_match_len,
+    src, start, block_len, run_len, period, match_lengths,
   )
 
   let payload : Array[Byte] = Array::new()
@@ -262,32 +314,24 @@ fn append_compressed_repeat_block(
   if period == 0 {
     return false
   }
-  let single_match_len = run_len - period
-  if single_match_len < 3 {
-    return false
-  }
 
-  let payload_single = build_repeat_payload(
-    src, start, block_len, period, run_len, 1, single_match_len,
-  )
-  if payload_single.length() == 0 {
-    return false
-  }
-
-  let payload = if level >= 18 && run_len >= 2 * (period + 3) {
-    let half_chunk = run_len / 2 - period
-    let payload_multi = build_repeat_payload(
-      src, start, block_len, period, run_len, 2, half_chunk,
+  let target_seq_count = choose_target_seq_count(level)
+  let mut seq_count = target_seq_count
+  let mut payload = b""
+  while seq_count >= 1 {
+    let candidate = build_repeat_payload(
+      src, start, block_len, period, run_len, seq_count,
     )
-    if payload_multi.length() > 0 {
-      payload_multi
+    if candidate.length() > 0 {
+      payload = candidate
+      seq_count = 0
     } else {
-      payload_single
+      seq_count = seq_count - 1
     }
-  } else {
-    payload_single
   }
-
+  if payload.length() == 0 {
+    return false
+  }
   if payload.length() >= block_len || payload.length() > 128 << 10 {
     return false
   }

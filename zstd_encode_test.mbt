@@ -125,3 +125,19 @@ test "compress very high level can emit two-sequence periodic block" {
   let seq_count_pos = 12 + 1 + 7
   assert_eq(frame[seq_count_pos].to_uint(), 2)
 }
+
+///|
+test "compress ultra level can emit four-sequence periodic block" {
+  let head = Bytes::makei(240, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
+  let tail = b"Q"
+  let input = head + tail
+
+  let frame = compress(input, level=24)
+  let block_header = read_u24_le_test(frame, 9)
+  assert_eq((block_header >> 1) & 0x3, 2)
+  assert_eq(decompress(frame), input)
+
+  // literals length = 2 * 4 + 1 = 9, raw literals header size is 1 byte.
+  let seq_count_pos = 12 + 1 + 9
+  assert_eq(frame[seq_count_pos].to_uint(), 4)
+}

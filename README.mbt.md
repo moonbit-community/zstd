@@ -43,7 +43,7 @@ assert_eq(restored, input)
 - Compression:
   - emits valid zstd frames using raw/rle blocks
   - at higher levels (`level >= 10`), can emit compressed blocks for repeated-prefix payloads with short periods (`2..64`), with optional literal tails (pure MoonBit subset)
-  - at very high levels (`level >= 18`), may emit a 2-sequence variant for the periodic-prefix compressed-block subset
+  - at very high levels (`level >= 18`), may emit multi-sequence variants (`2..4` sequences) for this periodic-prefix subset
 - Decompression:
   - supports raw blocks and rle blocks
   - supports compressed blocks where:

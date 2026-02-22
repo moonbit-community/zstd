@@ -29,8 +29,8 @@ Pinned upstream:
     blocks for repeated-prefix payloads with period `2..64` using one-sequence
     RLE-table encoding, and may keep a literal tail in the same block
     (no C dependency).
-  - very-high-level (`level >= 18`) path can emit a 2-sequence variant of this
-    periodic-prefix subset.
+  - very-high-level (`level >= 18`) path can emit multi-sequence (`2..4`)
+    variants of this periodic-prefix subset.
   - `decompress(Bytes)` supporting:
     - raw and rle block decoding
     - compressed blocks with literals:
