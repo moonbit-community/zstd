@@ -63,6 +63,7 @@ assert_eq(restored, input)
     - seeds first-block entropy state from standard dictionary tables:
       - sequence-table headers can be reused as repeat-mode sources
       - literal Huffman tree can be reused as treeless literals source
+      - mode selection can prefer candidates with smaller seeded-rewrite size (repeat/treeless aware)
   - supports options-based tuning via `CompressOptions`:
     - `enable_long_distance_matching` increases single-match search range
       - long-distance search window now scales with block length (instead of fixed 32768)

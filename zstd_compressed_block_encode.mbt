@@ -659,7 +659,29 @@ fn append_compressed_repeat_block(
     best
   }
   let mut payload0 = payload_pref
-  if literals_only_payload.length() > 0 &&
+  if prev_compressed_valid.val || prev_lit_huf_valid.val {
+    payload0 = choose_seeded_best_payload(
+      payload_pref,
+      periodic_payload,
+      predefined_payload,
+      compressed_fse_payload,
+      mixed_payload,
+      single_payload,
+      general_payload,
+      literals_only_payload,
+      prev_rle_valid.val,
+      prev_ll_code.val,
+      prev_off_code.val,
+      prev_ml_code.val,
+      prev_predefined_valid.val,
+      prev_compressed_valid.val,
+      prev_ll_header.val,
+      prev_off_header.val,
+      prev_ml_header.val,
+      prev_lit_huf_valid.val,
+      prev_lit_huf_tree_desc.val,
+    )
+  } else if literals_only_payload.length() > 0 &&
     (
       payload0.length() == 0 ||
       literals_only_payload.length() < payload0.length()

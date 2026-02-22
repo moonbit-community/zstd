@@ -1593,6 +1593,19 @@ fn wb_standard_dictionary_fixture_frame() -> Bytes {
 }
 
 ///|
+fn wb_seeded_mode2_payload_from_state(state : DictionaryState) -> Bytes {
+  let out : Array[Byte] = Array::new()
+  out.push((0 : UInt).to_byte()) // raw literals, empty
+  out.push((1 : UInt).to_byte()) // sequence count
+  out.push((0xA8 : UInt).to_byte()) // all mode2 sequence sources
+  append_bytes(out, state.ll_header, 0, state.ll_header.length())
+  append_bytes(out, state.off_header, 0, state.off_header.length())
+  append_bytes(out, state.ml_header, 0, state.ml_header.length())
+  out.push((1 : UInt).to_byte()) // reverse bitstream terminator
+  Bytes::from_array(out)
+}
+
+///|
 test "parse standard dictionary fixture state" {
   let dict = wb_standard_dictionary_fixture_dictionary()
   let result = try? parse_dictionary_state(dict)
@@ -1615,6 +1628,41 @@ test "parse standard dictionary fixture state" {
     }
     Err(_) => fail("expected dictionary parser success")
   }
+}
+
+///|
+test "seeded payload chooser prefers candidate with smaller rewritten size" {
+  let parsed = try? parse_dictionary_state(
+    wb_standard_dictionary_fixture_dictionary(),
+  )
+  let state = match parsed {
+    Ok(v) => v
+    Err(_) => fail("parse_dictionary_state failed")
+  }
+  let payload_pref = b"\x00\x01\x54\x01\x02\x03\x01"
+  let candidate_mode2 = wb_seeded_mode2_payload_from_state(state)
+  let chosen = choose_seeded_best_payload(
+    payload_pref,
+    b"",
+    b"",
+    candidate_mode2,
+    b"",
+    b"",
+    b"",
+    b"",
+    false,
+    (0 : UInt),
+    (0 : UInt),
+    (0 : UInt),
+    false,
+    true,
+    state.ll_header,
+    state.off_header,
+    state.ml_header,
+    false,
+    b"",
+  )
+  assert_eq(chosen, candidate_mode2)
 }
 
 ///|
