@@ -465,7 +465,7 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
 test "single-match payload uses RLE literals section when literals are single-value" {
   let src = Bytes::makei(12, _ => b"x"[0])
   let payload = try? build_single_match_payload_rle(
-    src, 0, 12, 4, 4, 4, 4, 1, 4,
+    src, 0, 12, 4, 4, 4, 4, 1, 4, 8,
   )
   match payload {
     Ok(v) => {
@@ -479,7 +479,9 @@ test "single-match payload uses RLE literals section when literals are single-va
 ///|
 test "single-match payload keeps raw literals section for mixed literals" {
   let src = b"abcabczzz"
-  let payload = try? build_single_match_payload_rle(src, 0, 9, 3, 3, 3, 3, 1, 4)
+  let payload = try? build_single_match_payload_rle(
+    src, 0, 9, 3, 3, 3, 3, 1, 4, 8,
+  )
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -492,7 +494,9 @@ test "single-match payload keeps raw literals section for mixed literals" {
 ///|
 test "single-match payload can encode dictionary rep2 with ll=0 as off_code0" {
   let src = b"abcdZ"
-  let payload = try? build_single_match_payload_rle(src, 0, 5, 0, 4, 4, 8, 1, 4)
+  let payload = try? build_single_match_payload_rle(
+    src, 0, 5, 0, 4, 4, 8, 1, 4, 8,
+  )
   match payload {
     Ok(v) => {
       assert_true(v.length() >= 4)
@@ -2293,4 +2297,41 @@ test "greedy collector can capture multiple dictionary-backed matches" {
   assert_true(off_values[1] > ll_values[1])
   assert_true(ml_values[0] >= 80)
   assert_true(ml_values[1] >= 80)
+}
+
+///|
+test "single-match repcode offset encoding covers rep3 and ll0 variants" {
+  let rep1 = 5
+  let rep2 = 9
+  let rep3 = 17
+
+  let (c1, e1, b1) = encode_offset_symbol_with_repcodes(5, 4, rep1, rep2, rep3)
+  assert_eq(c1, (0 : UInt))
+  assert_eq(e1, (0 : UInt))
+  assert_eq(b1, 0)
+
+  let (c2, e2, b2) = encode_offset_symbol_with_repcodes(9, 4, rep1, rep2, rep3)
+  assert_eq(c2, (1 : UInt))
+  assert_eq(e2, (0 : UInt))
+  assert_eq(b2, 1)
+
+  let (c3, e3, b3) = encode_offset_symbol_with_repcodes(17, 4, rep1, rep2, rep3)
+  assert_eq(c3, (1 : UInt))
+  assert_eq(e3, (1 : UInt))
+  assert_eq(b3, 1)
+
+  let (c4, e4, b4) = encode_offset_symbol_with_repcodes(9, 0, rep1, rep2, rep3)
+  assert_eq(c4, (0 : UInt))
+  assert_eq(e4, (0 : UInt))
+  assert_eq(b4, 0)
+
+  let (c5, e5, b5) = encode_offset_symbol_with_repcodes(17, 0, rep1, rep2, rep3)
+  assert_eq(c5, (1 : UInt))
+  assert_eq(e5, (0 : UInt))
+  assert_eq(b5, 1)
+
+  let (c6, e6, b6) = encode_offset_symbol_with_repcodes(4, 0, rep1, rep2, rep3)
+  assert_eq(c6, (1 : UInt))
+  assert_eq(e6, (1 : UInt))
+  assert_eq(b6, 1)
 }

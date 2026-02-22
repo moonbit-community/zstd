@@ -89,6 +89,7 @@ fn encode_offset_symbol_with_repcodes(
   literal_length : Int,
   rep1 : Int,
   rep2 : Int,
+  rep3 : Int,
 ) -> (UInt, UInt, Int) raise ZstdError {
   if offset <= 0 {
     raise CorruptionDetected
@@ -96,6 +97,9 @@ fn encode_offset_symbol_with_repcodes(
   if literal_length == 0 {
     if offset == rep2 {
       return (0, 0, 0)
+    }
+    if offset == rep3 {
+      return (1, 0, 1)
     }
     if rep1 > 1 && offset == rep1 - 1 {
       return (1, 1, 1)
@@ -105,6 +109,9 @@ fn encode_offset_symbol_with_repcodes(
       return (0, 0, 0)
     }
     if offset == rep2 {
+      return (1, 0, 1)
+    }
+    if offset == rep3 {
       return (1, 1, 1)
     }
   }
@@ -464,6 +471,7 @@ fn build_single_match_payload_rle(
   max_offset : Int,
   rep1 : Int,
   rep2 : Int,
+  rep3 : Int,
 ) -> Bytes raise ZstdError {
   if ll < 0 ||
     offset <= 0 ||
@@ -485,7 +493,7 @@ fn build_single_match_payload_rle(
     return b""
   }
   let (off_code, off_extra, off_bits) = encode_offset_symbol_with_repcodes(
-    offset, ll, rep1, rep2,
+    offset, ll, rep1, rep2, rep3,
   )
   let literals = build_single_match_literals(src, start, block_len, ll, ml)
 
@@ -517,9 +525,10 @@ fn build_single_match_payload(
   max_offset : Int,
   rep1 : Int,
   rep2 : Int,
+  rep3 : Int,
 ) -> Bytes raise ZstdError {
   let rle_payload = build_single_match_payload_rle(
-    src, start, block_len, ll, offset, ml, max_offset, rep1, rep2,
+    src, start, block_len, ll, offset, ml, max_offset, rep1, rep2, rep3,
   )
   let predefined_payload = build_single_match_payload_predefined(
     src, start, block_len, ll, offset, ml, max_offset,
@@ -653,6 +662,7 @@ fn append_compressed_repeat_block(
   let single_payload = if ml >= 3 {
     build_single_match_payload(
       src, start, block_len, ll, offset, ml, max_offset, dictionary_rep1, dictionary_rep2,
+      dictionary_rep3,
     )
   } else {
     b""
