@@ -246,6 +246,9 @@ fn build_general_predefined_payload(
   start : Int,
   block_len : Int,
   level : Int,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
 ) -> Bytes raise ZstdError {
   if level < 12 || block_len < 64 {
     return b""
@@ -281,7 +284,9 @@ fn build_general_predefined_payload(
     off_extra_bits,
     off_trans_bits,
     off_trans_nb_bits,
-  ) = select_predefined_state_path(off_values, sequence_symbol_offset)
+  ) = select_predefined_offset_state_path(
+    off_values, ll_values, rep1, rep2, rep3,
+  )
   if !off_ok {
     return b""
   }

@@ -584,7 +584,13 @@ fn append_compressed_repeat_block(
     src, start, block_len, level,
   )
   let predefined_payload = build_general_predefined_payload(
-    src, start, block_len, level,
+    src,
+    start,
+    block_len,
+    level,
+    rep1=dictionary_rep1,
+    rep2=dictionary_rep2,
+    rep3=dictionary_rep3,
   )
   let compressed_fse_payload = build_general_compressed_fse_payload(
     src, start, block_len, level,

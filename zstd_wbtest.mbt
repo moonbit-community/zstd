@@ -1077,6 +1077,73 @@ test "predefined state path selection keeps valid transitions" {
 }
 
 ///|
+test "predefined offset path can encode rep3 and ll0 repcode combos" {
+  let off_values = [300, 302]
+  let ll_values = [1, 0]
+  let result = try? select_predefined_offset_state_path(
+    off_values, ll_values, 301, 302, 300,
+  )
+  match result {
+    Ok((ok, states, extras, off_extra_bits, _, _)) => {
+      assert_true(ok)
+      assert_eq(states.length(), off_values.length())
+      assert_eq(extras.length(), off_values.length())
+      assert_eq(off_extra_bits.length(), off_values.length())
+      assert_true(off_extra_bits[0] <= 1)
+      assert_true(off_extra_bits[1] <= 1)
+
+      let mut r1 = 301
+      let mut r2 = 302
+      let mut r3 = 300
+      let mut i = 0
+      while i < states.length() {
+        let ll0 = ll_values[i] == 0
+        let entry = try? of_predefined_entry(states[i])
+        let (_, add_bits, _, base) = match entry {
+          Ok(v) => v
+          Err(_) => fail("failed to read OF predefined entry")
+        }
+        let extra = extras[i].reinterpret_as_int()
+        let offset = if add_bits > 1 {
+          let value = base + extra
+          r3 = r2
+          r2 = r1
+          r1 = value
+          value
+        } else if add_bits == 0 {
+          let value = if ll0 { r2 } else { r1 }
+          if ll0 {
+            r2 = r1
+          }
+          r1 = value
+          value
+        } else {
+          let offset_code = base + (if ll0 { 1 } else { 0 }) + extra
+          let value = if offset_code == 1 {
+            r2
+          } else if offset_code == 2 {
+            r3
+          } else if offset_code == 3 {
+            r1 - 1
+          } else {
+            fail("invalid rep offset_code")
+          }
+          if offset_code != 1 {
+            r3 = r2
+          }
+          r2 = r1
+          r1 = value
+          value
+        }
+        assert_eq(offset, off_values[i])
+        i = i + 1
+      }
+    }
+    Err(_) => fail("failed to select rep-aware predefined offset path")
+  }
+}
+
+///|
 test "general predefined payload builder emits parseable multi-sequence payload" {
   let prefix = Bytes::makei(80, i => {
     ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()

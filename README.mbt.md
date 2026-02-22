@@ -59,6 +59,7 @@ assert_eq(restored, input)
     - emits frame `dictID` for standard zstd dictionaries
     - can use dictionary history for first-block single-match encoding
     - single-match offset symbol encoding is repcode-aware (rep1/rep2 when applicable)
+    - predefined multi-sequence offset path is repcode-aware (including `rep3` and `ll=0` combinations)
     - seeds first-block entropy state from standard dictionary tables:
       - sequence-table headers can be reused as repeat-mode sources
       - literal Huffman tree can be reused as treeless literals source
