@@ -34,3 +34,68 @@ test "stream parity: dictionary decoder handles concatenated dictionary frames" 
   )
   assert_eq(dec.pending_input(), 0)
 }
+
+///|
+fn decode_stream_chunks(frame : Bytes, chunk_step : Int) -> Bytes raise Error {
+  let dec = new_decompressor()
+  let mut pos = 0
+  while pos < frame.length() {
+    let remain = frame.length() - pos
+    let size = if remain < chunk_step { remain } else { chunk_step }
+    dec.push(frame[pos:pos + size].to_bytes())
+    pos = pos + size
+  }
+  let out = dec.pull()
+  let tail = dec.finish()
+  assert_eq(dec.pending_input(), 0)
+  out + tail
+}
+
+///|
+fn decode_stream_chunks_with_dictionary(
+  frame : Bytes,
+  dictionary : Bytes,
+  chunk_step : Int,
+) -> Bytes raise Error {
+  let dec = new_decompressor_with_dictionary(dictionary)
+  let mut pos = 0
+  while pos < frame.length() {
+    let remain = frame.length() - pos
+    let size = if remain < chunk_step { remain } else { chunk_step }
+    dec.push(frame[pos:pos + size].to_bytes())
+    pos = pos + size
+  }
+  let out = dec.pull()
+  let tail = dec.finish()
+  assert_eq(dec.pending_input(), 0)
+  out + tail
+}
+
+///|
+test "stream parity: matrix plain long27 frame decodes across small chunks" {
+  let frame = rv_up_matrix_http_x420_frame_l9_long27()
+  let out = decode_stream_chunks(frame, 9)
+  assert_eq(out, rv_up_extra_http_x420_payload())
+}
+
+///|
+test "stream parity: matrix dictionary long27 frame decodes across small chunks" {
+  let frame = rv_up_matrix_http_x420_dict_frame_l9_long27()
+  let out = decode_stream_chunks_with_dictionary(
+    frame,
+    rv_up_gdict_http_dict(),
+    11,
+  )
+  assert_eq(out, rv_up_extra_http_x420_payload())
+}
+
+///|
+test "stream parity: matrix plain concatenated frames decode in chunked flow" {
+  let frame = rv_up_matrix_http_x420_frame_l9() +
+    rv_up_matrix_http_x420_frame_l9_nocheck()
+  let out = decode_stream_chunks(frame, 13)
+  assert_eq(
+    out,
+    rv_up_extra_http_x420_payload() + rv_up_extra_http_x420_payload(),
+  )
+}
