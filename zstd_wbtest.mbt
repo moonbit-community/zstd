@@ -2383,3 +2383,45 @@ test "greedy collector hash-chain depth can recover older longer candidate" {
   assert_true(ml_deep[0] >= older.length())
   assert_true(off_deep[0] > ll_deep[0])
 }
+
+///|
+test "greedy collector max-match-offset can bound dictionary matches" {
+  let dict = b"ABCDabcdefghijklmnop"
+  let src = dict + b"!"
+
+  let ll_limited : Array[Int] = Array::new()
+  let off_limited : Array[Int] = Array::new()
+  let ml_limited : Array[Int] = Array::new()
+  collect_greedy_sequences(
+    src,
+    0,
+    src.length(),
+    ll_limited,
+    off_limited,
+    ml_limited,
+    1,
+    history=dict,
+    search_depth=12,
+    max_match_offset=8,
+  )
+
+  let ll_unlimited : Array[Int] = Array::new()
+  let off_unlimited : Array[Int] = Array::new()
+  let ml_unlimited : Array[Int] = Array::new()
+  collect_greedy_sequences(
+    src,
+    0,
+    src.length(),
+    ll_unlimited,
+    off_unlimited,
+    ml_unlimited,
+    1,
+    history=dict,
+    search_depth=12,
+  )
+
+  assert_eq(ll_limited.length(), 0)
+  assert_eq(ll_unlimited.length(), 1)
+  assert_true(off_unlimited[0] > 8)
+  assert_true(ml_unlimited[0] >= dict.length())
+}

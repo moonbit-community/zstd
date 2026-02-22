@@ -247,6 +247,7 @@ fn build_general_predefined_payload(
   block_len : Int,
   level : Int,
   dictionary_history? : Bytes = b"",
+  max_match_offset? : Int = 0,
   rep1? : Int = 1,
   rep2? : Int = 4,
   rep3? : Int = 8,
@@ -270,6 +271,7 @@ fn build_general_predefined_payload(
     max_sequences,
     history=dictionary_history,
     search_depth~,
+    max_match_offset~,
   )
   let seq_count = ll_values.length()
   if seq_count < 2 {

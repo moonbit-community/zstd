@@ -56,6 +56,7 @@ fn collect_greedy_sequences(
   max_sequences : Int,
   history? : Bytes = b"",
   search_depth? : Int = 1,
+  max_match_offset? : Int = 0,
 ) -> Unit {
   let history_len = history.length()
   let virtual_len = history_len + block_len
@@ -86,12 +87,19 @@ fn collect_greedy_sequences(
     let mut matched = false
     let mut best_ml = 0
     let mut best_offset = 0
+    let window_limit = history_len + pos
+    let effective_max_offset = if max_match_offset > 0 &&
+      max_match_offset < window_limit {
+      max_match_offset
+    } else {
+      window_limit
+    }
     let mut cand = prev_pos
     let mut depth = 0
     while cand >= 0 && depth < depth_limit {
       let offset = current_virtual - cand
       if offset > 0 &&
-        offset <= history_len + pos &&
+        offset <= effective_max_offset &&
         virtual_match_source_byte(history, src, start, history_len, cand) ==
         src[abs_pos] &&
         virtual_match_source_byte(history, src, start, history_len, cand + 1) ==
@@ -148,6 +156,7 @@ fn build_general_rle_payload(
   block_len : Int,
   level : Int,
   dictionary_history? : Bytes = b"",
+  max_match_offset? : Int = 0,
 ) -> Bytes raise ZstdError {
   if level < 11 || block_len < 32 {
     return b""
@@ -167,6 +176,7 @@ fn build_general_rle_payload(
     max_sequences,
     history=dictionary_history,
     search_depth~,
+    max_match_offset~,
   )
   let seq_count = ll_values.length()
   if seq_count == 0 {

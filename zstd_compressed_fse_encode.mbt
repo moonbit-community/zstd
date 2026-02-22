@@ -525,6 +525,7 @@ fn build_general_compressed_fse_payload(
   block_len : Int,
   level : Int,
   dictionary_history? : Bytes = b"",
+  max_match_offset? : Int = 0,
 ) -> Bytes raise ZstdError {
   if level < 13 || block_len < 96 {
     return b""
@@ -544,6 +545,7 @@ fn build_general_compressed_fse_payload(
     max_sequences,
     history=dictionary_history,
     search_depth~,
+    max_match_offset~,
   )
   let seq_count = ll_values.length()
   if seq_count < 3 {
