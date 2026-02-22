@@ -58,6 +58,7 @@ assert_eq(restored, input)
     - `compress_with_dictionary` / `new_compressor_with_dictionary`
     - emits frame `dictID` for standard zstd dictionaries
     - can use dictionary history for first-block single-match encoding
+    - single-match offset symbol encoding is repcode-aware (rep1/rep2 when applicable)
     - seeds first-block entropy state from standard dictionary tables:
       - sequence-table headers can be reused as repeat-mode sources
       - literal Huffman tree can be reused as treeless literals source

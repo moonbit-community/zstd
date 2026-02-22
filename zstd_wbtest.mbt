@@ -375,6 +375,9 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
   )
   match payload {
     Ok(v) => {
+      if v.length() == 0 {
+        fail("rep2 payload unexpectedly empty")
+      }
       let parsed = try? parse_sequence_mode_sources(v)
       match parsed {
         Ok(
@@ -461,7 +464,9 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
 ///|
 test "single-match payload uses RLE literals section when literals are single-value" {
   let src = Bytes::makei(12, _ => b"x"[0])
-  let payload = try? build_single_match_payload_rle(src, 0, 12, 4, 4, 4, 4)
+  let payload = try? build_single_match_payload_rle(
+    src, 0, 12, 4, 4, 4, 4, 1, 4,
+  )
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -474,13 +479,27 @@ test "single-match payload uses RLE literals section when literals are single-va
 ///|
 test "single-match payload keeps raw literals section for mixed literals" {
   let src = b"abcabczzz"
-  let payload = try? build_single_match_payload_rle(src, 0, 9, 3, 3, 3, 3)
+  let payload = try? build_single_match_payload_rle(src, 0, 9, 3, 3, 3, 3, 1, 4)
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
       assert_eq(v[0].to_uint() & 0x3, 0)
     }
     Err(_) => fail("failed to build mixed-literals payload")
+  }
+}
+
+///|
+test "single-match payload can encode dictionary rep2 with ll=0 as off_code0" {
+  let src = b"abcdZ"
+  let payload = try? build_single_match_payload_rle(src, 0, 5, 0, 4, 4, 8, 1, 4)
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() >= 4)
+      assert_eq(v[v.length() - 4].to_uint(), 0x54)
+      assert_eq(v[v.length() - 2].to_uint(), 0) // off_code
+    }
+    Err(_) => fail("failed to build rep2 single-match payload")
   }
 }
 

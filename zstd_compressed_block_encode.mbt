@@ -92,6 +92,34 @@ fn encode_offset_symbol(offset : Int) -> (UInt, UInt, Int) raise ZstdError {
 }
 
 ///|
+fn encode_offset_symbol_with_repcodes(
+  offset : Int,
+  literal_length : Int,
+  rep1 : Int,
+  rep2 : Int,
+) -> (UInt, UInt, Int) raise ZstdError {
+  if offset <= 0 {
+    raise CorruptionDetected
+  }
+  if literal_length == 0 {
+    if offset == rep2 {
+      return (0, 0, 0)
+    }
+    if rep1 > 1 && offset == rep1 - 1 {
+      return (1, 1, 1)
+    }
+  } else {
+    if offset == rep1 {
+      return (0, 0, 0)
+    }
+    if offset == rep2 {
+      return (1, 1, 1)
+    }
+  }
+  encode_offset_symbol(offset)
+}
+
+///|
 fn try_encode_common_symbol(
   symbol_type : Int,
   max_code : Int,
@@ -421,6 +449,8 @@ fn build_single_match_payload_rle(
   offset : Int,
   ml : Int,
   max_offset : Int,
+  rep1 : Int,
+  rep2 : Int,
 ) -> Bytes raise ZstdError {
   if ll < 0 ||
     offset <= 0 ||
@@ -441,7 +471,9 @@ fn build_single_match_payload_rle(
   if !ml_ok {
     return b""
   }
-  let (off_code, off_extra, off_bits) = encode_offset_symbol(offset)
+  let (off_code, off_extra, off_bits) = encode_offset_symbol_with_repcodes(
+    offset, ll, rep1, rep2,
+  )
   let literals = build_single_match_literals(src, start, block_len, ll, ml)
 
   let extra_bits : Array[Int] = Array::new()
@@ -470,9 +502,11 @@ fn build_single_match_payload(
   offset : Int,
   ml : Int,
   max_offset : Int,
+  rep1 : Int,
+  rep2 : Int,
 ) -> Bytes raise ZstdError {
   let rle_payload = build_single_match_payload_rle(
-    src, start, block_len, ll, offset, ml, max_offset,
+    src, start, block_len, ll, offset, ml, max_offset, rep1, rep2,
   )
   let predefined_payload = build_single_match_payload_predefined(
     src, start, block_len, ll, offset, ml, max_offset,
@@ -576,7 +610,7 @@ fn append_compressed_repeat_block(
   let max_offset = ll + dictionary_history.length()
   let single_payload = if ml >= 3 {
     build_single_match_payload(
-      src, start, block_len, ll, offset, ml, max_offset,
+      src, start, block_len, ll, offset, ml, max_offset, dictionary_rep1, dictionary_rep2,
     )
   } else {
     b""
