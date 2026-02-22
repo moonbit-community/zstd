@@ -633,6 +633,94 @@ test "treeless literals rewrite emits type3 on repeated Huffman tree" {
 }
 
 ///|
+test "compressed literals support four-stream size_format=2 roundtrip" {
+  let literals = Bytes::makei(2048, fn(i) {
+    if i % 29 == 0 {
+      b"C"[0]
+    } else if i % 5 == 0 {
+      b"B"[0]
+    } else {
+      b"A"[0]
+    }
+  })
+  let encoded = try? try_build_compressed_literals_section(literals)
+  match encoded {
+    Ok(section) => {
+      assert_true(section.length() > 0)
+      assert_eq(section[0].to_uint() & 0x3, 2)
+      assert_eq((section[0].to_uint() >> 2) & 0x3, 2)
+      let prev_huf_valid : Ref[Bool] = { val: false }
+      let prev_huf_max_bits : Ref[Int] = { val: 0 }
+      let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+      let decoded = try? decode_literals_section_minimal(
+        section,
+        0,
+        section.length(),
+        prev_huf_valid,
+        prev_huf_max_bits,
+        prev_huf_left,
+        prev_huf_right,
+        prev_huf_symbol,
+      )
+      match decoded {
+        Ok((next_pos, restored)) => {
+          assert_eq(next_pos, section.length())
+          assert_eq(restored, literals)
+        }
+        Err(_) => fail("failed to decode size_format=2 literals section")
+      }
+    }
+    Err(_) => fail("failed to encode size_format=2 literals section")
+  }
+}
+
+///|
+test "compressed literals support four-stream size_format=3 roundtrip" {
+  let literals = Bytes::makei(20000, fn(i) {
+    if i % 37 == 0 {
+      b"C"[0]
+    } else if i % 3 == 0 {
+      b"B"[0]
+    } else {
+      b"A"[0]
+    }
+  })
+  let encoded = try? try_build_compressed_literals_section(literals)
+  match encoded {
+    Ok(section) => {
+      assert_true(section.length() > 0)
+      assert_eq(section[0].to_uint() & 0x3, 2)
+      assert_eq((section[0].to_uint() >> 2) & 0x3, 3)
+      let prev_huf_valid : Ref[Bool] = { val: false }
+      let prev_huf_max_bits : Ref[Int] = { val: 0 }
+      let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+      let decoded = try? decode_literals_section_minimal(
+        section,
+        0,
+        section.length(),
+        prev_huf_valid,
+        prev_huf_max_bits,
+        prev_huf_left,
+        prev_huf_right,
+        prev_huf_symbol,
+      )
+      match decoded {
+        Ok((next_pos, restored)) => {
+          assert_eq(next_pos, section.length())
+          assert_eq(restored, literals)
+        }
+        Err(_) => fail("failed to decode size_format=3 literals section")
+      }
+    }
+    Err(_) => fail("failed to encode size_format=3 literals section")
+  }
+}
+
+///|
 fn encode_sequence_count_for_test(seq_count : Int) -> Bytes raise ZstdError {
   let payload : Array[Byte] = Array::new()
   append_sequence_count(payload, seq_count)

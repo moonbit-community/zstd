@@ -234,17 +234,32 @@ fn build_huffman_direct_weights_description(
 }
 
 ///|
-fn encode_literals_huffman_single_stream(
+fn append_u16_le_checked(out : Array[Byte], value : Int) -> Bool {
+  if value < 0 || value > 0xFFFF {
+    return false
+  }
+  out.push((value & 0xFF).reinterpret_as_uint().to_byte())
+  out.push(((value >> 8) & 0xFF).reinterpret_as_uint().to_byte())
+  true
+}
+
+///|
+fn encode_literals_huffman_single_stream_range(
   literals : Bytes,
+  start : Int,
+  len : Int,
   codes : Array[UInt],
   nb_bits : Array[Int],
 ) -> Bytes {
+  if start < 0 || len <= 0 || start + len > literals.length() {
+    return b""
+  }
   if codes.length() != nb_bits.length() {
     return b""
   }
   let bits : Array[Int] = Array::new()
-  let mut i = 0
-  while i < literals.length() {
+  let mut i = start
+  while i < start + len {
     let symbol = literals[i].to_uint().reinterpret_as_int()
     if symbol < 0 || symbol >= nb_bits.length() {
       return b""
@@ -260,10 +275,82 @@ fn encode_literals_huffman_single_stream(
 }
 
 ///|
+fn encode_literals_huffman_single_stream(
+  literals : Bytes,
+  codes : Array[UInt],
+  nb_bits : Array[Int],
+) -> Bytes {
+  encode_literals_huffman_single_stream_range(
+    literals,
+    0,
+    literals.length(),
+    codes,
+    nb_bits,
+  )
+}
+
+///|
+fn encode_literals_huffman_four_stream(
+  literals : Bytes,
+  codes : Array[UInt],
+  nb_bits : Array[Int],
+) -> Bytes {
+  let lit_len = literals.length()
+  if lit_len < 8 {
+    return b""
+  }
+  let segment_size = (lit_len + 3) / 4
+  let out1_size = segment_size
+  let out2_size = segment_size
+  let out3_size = segment_size
+  let out4_size = lit_len - 3 * segment_size
+  if out1_size <= 0 || out2_size <= 0 || out3_size <= 0 || out4_size <= 0 {
+    return b""
+  }
+  let stream1 = encode_literals_huffman_single_stream_range(
+    literals, 0, out1_size, codes, nb_bits,
+  )
+  let stream2 = encode_literals_huffman_single_stream_range(
+    literals, out1_size, out2_size, codes, nb_bits,
+  )
+  let stream3 = encode_literals_huffman_single_stream_range(
+    literals,
+    out1_size + out2_size,
+    out3_size,
+    codes,
+    nb_bits,
+  )
+  let stream4 = encode_literals_huffman_single_stream_range(
+    literals,
+    out1_size + out2_size + out3_size,
+    out4_size,
+    codes,
+    nb_bits,
+  )
+  if stream1.length() == 0 ||
+    stream2.length() == 0 ||
+    stream3.length() == 0 ||
+    stream4.length() == 0 {
+    return b""
+  }
+  let payload : Array[Byte] = Array::new()
+  if !append_u16_le_checked(payload, stream1.length()) ||
+    !append_u16_le_checked(payload, stream2.length()) ||
+    !append_u16_le_checked(payload, stream3.length()) {
+    return b""
+  }
+  append_bytes(payload, stream1, 0, stream1.length())
+  append_bytes(payload, stream2, 0, stream2.length())
+  append_bytes(payload, stream3, 0, stream3.length())
+  append_bytes(payload, stream4, 0, stream4.length())
+  Bytes::from_array(payload)
+}
+
+///|
 fn build_literal_huffman_model(
   literals : Bytes,
 ) -> (Bool, Int, Array[Int], Array[UInt], Array[Int]) raise ZstdError {
-  if literals.length() < 2 || literals.length() > 1023 {
+  if literals.length() < 2 || literals.length() > 128 << 10 {
     return (false, 0, Array::new(), Array::new(), Array::new())
   }
   let freq = Array::make(256, 0)
@@ -329,11 +416,67 @@ fn build_literal_huffman_model(
 }
 
 ///|
+fn build_compressed_literals_section_with_stream_payload(
+  lit_len : Int,
+  tree_desc : Bytes,
+  stream_payload : Bytes,
+  single_stream : Bool,
+) -> Bytes {
+  if lit_len <= 0 || tree_desc.length() == 0 || stream_payload.length() == 0 {
+    return b""
+  }
+  let lit_c_size = tree_desc.length() + stream_payload.length()
+  let literals_block_type : UInt = 2
+  let out : Array[Byte] = Array::new()
+  if single_stream {
+    if lit_len > 1023 || lit_c_size > 1023 {
+      return b""
+    }
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
+      literals_block_type
+    append_u24_le(out, header)
+  } else if lit_len >= 6 && lit_len <= 1023 && lit_c_size <= 1023 {
+    let size_format_1 : UInt = 1
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
+      (size_format_1 << 2) +
+      literals_block_type
+    append_u24_le(out, header)
+  } else if lit_len <= 0x3FFF && lit_c_size <= 0x3FFF {
+    let size_format_2 : UInt = 2
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FFF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FFF) << 18) +
+      (size_format_2 << 2) +
+      literals_block_type
+    append_u32_le(out, header)
+  } else if lit_len <= 0x3FFFF && lit_c_size <= 0x3FFFF {
+    let size_format_3 : UInt = 3
+    let lit_c_low = lit_c_size & 0x3FF
+    let lit_c_high = lit_c_size >> 10
+    if lit_c_high < 0 || lit_c_high > 0xFF {
+      return b""
+    }
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FFFF) << 4) +
+      ((lit_c_low.reinterpret_as_uint() & 0x3FF) << 22) +
+      (size_format_3 << 2) +
+      literals_block_type
+    append_u32_le(out, header)
+    out.push(lit_c_high.reinterpret_as_uint().to_byte())
+  } else {
+    return b""
+  }
+  append_bytes(out, tree_desc, 0, tree_desc.length())
+  append_bytes(out, stream_payload, 0, stream_payload.length())
+  Bytes::from_array(out)
+}
+
+///|
 fn try_build_compressed_literals_section(
   literals : Bytes,
 ) -> Bytes raise ZstdError {
   let lit_len = literals.length()
-  if lit_len < 2 || lit_len > 1023 {
+  if lit_len < 2 || lit_len > 128 << 10 {
     return b""
   }
   let (ok, last_symbol, weights, codes, nb_bits) = build_literal_huffman_model(
@@ -346,23 +489,35 @@ fn try_build_compressed_literals_section(
   if tree_desc.length() == 0 {
     return b""
   }
-  let bitstream = encode_literals_huffman_single_stream(
+  let single_stream_payload = encode_literals_huffman_single_stream(
     literals, codes, nb_bits,
   )
-  if bitstream.length() == 0 {
-    return b""
+  let single_section = if single_stream_payload.length() > 0 {
+    build_compressed_literals_section_with_stream_payload(
+      lit_len, tree_desc, single_stream_payload, true,
+    )
+  } else {
+    b""
   }
-  let lit_c_size = tree_desc.length() + bitstream.length()
-  if lit_c_size <= 0 || lit_c_size > 1023 {
-    return b""
+  let four_stream_payload = encode_literals_huffman_four_stream(
+    literals, codes, nb_bits,
+  )
+  let four_section = if four_stream_payload.length() > 0 {
+    build_compressed_literals_section_with_stream_payload(
+      lit_len, tree_desc, four_stream_payload, false,
+    )
+  } else {
+    b""
   }
-
-  let out : Array[Byte] = Array::new()
-  let header = ((lit_len.reinterpret_as_uint() & 0x3FF) << 4) +
-    ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
-    2
-  append_u24_le(out, header)
-  append_bytes(out, tree_desc, 0, tree_desc.length())
-  append_bytes(out, bitstream, 0, bitstream.length())
-  Bytes::from_array(out)
+  if single_section.length() == 0 {
+    return four_section
+  }
+  if four_section.length() == 0 {
+    return single_section
+  }
+  if four_section.length() < single_section.length() {
+    four_section
+  } else {
+    single_section
+  }
 }
