@@ -59,16 +59,8 @@ fn detect_repeat_window(
 }
 
 ///|
-fn choose_target_seq_count(level : Int) -> Int {
-  if level >= 24 {
-    4
-  } else if level >= 22 {
-    3
-  } else if level >= 18 {
-    2
-  } else {
-    1
-  }
+fn choose_target_seq_count(level : Int, block_len : Int) -> Int {
+  level_periodic_target_seq_count(level, block_len)
 }
 
 ///|
@@ -558,7 +550,7 @@ fn build_best_periodic_payload(
   if period == 0 {
     return b""
   }
-  let target_seq_count = choose_target_seq_count(level)
+  let target_seq_count = choose_target_seq_count(level, block_len)
   let mut seq_count = target_seq_count
   let mut payload = b""
   while seq_count >= 1 {
@@ -650,11 +642,14 @@ fn append_compressed_repeat_block(
   } else {
     b""
   }
-  let payload_pref = if compressed_fse_payload.length() > 0 && level >= 22 {
+  let payload_pref = if compressed_fse_payload.length() > 0 &&
+    prefer_compressed_fse_candidate(level, block_len) {
     compressed_fse_payload
-  } else if mixed_payload.length() > 0 && level >= 20 {
+  } else if mixed_payload.length() > 0 &&
+    prefer_mixed_candidate(level, block_len) {
     mixed_payload
-  } else if periodic_payload.length() > 0 && level >= 18 {
+  } else if periodic_payload.length() > 0 &&
+    prefer_periodic_candidate(level, block_len) {
     periodic_payload
   } else {
     let mut best = b""

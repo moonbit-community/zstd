@@ -257,7 +257,7 @@ fn build_general_predefined_payload(
   let ll_values : Array[Int] = Array::new()
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
-  let max_sequences = if level >= 20 { 24 } else { 12 }
+  let max_sequences = predefined_multi_sequence_cap(level, block_len)
   collect_greedy_sequences(
     src, start, block_len, ll_values, off_values, ml_values, max_sequences,
   )

@@ -2243,3 +2243,21 @@ test "dictionary match can continue beyond dictionary bytes via virtual prefix" 
   assert_eq(offset, dict.length())
   assert_true(ml >= 15)
 }
+
+///|
+test "level policy enables richer candidates only for sufficiently large blocks" {
+  assert_true(!prefer_compressed_fse_candidate(21, 512))
+  assert_true(prefer_compressed_fse_candidate(21, 1400))
+  assert_true(!prefer_mixed_candidate(19, 512))
+  assert_true(prefer_mixed_candidate(19, 900))
+  assert_true(!prefer_periodic_candidate(17, 128))
+  assert_true(prefer_periodic_candidate(17, 512))
+}
+
+///|
+test "sequence cap policy is bounded by block length" {
+  assert_true(general_rle_sequence_cap(20, 30) <= 10)
+  assert_true(compressed_fse_sequence_cap(20, 24) <= 8)
+  assert_true(mixed_sequence_cap(22, 18) <= 6)
+  assert_true(predefined_multi_sequence_cap(20, 15) <= 5)
+}

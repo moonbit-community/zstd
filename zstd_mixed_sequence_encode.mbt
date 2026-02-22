@@ -214,7 +214,7 @@ fn build_general_mixed_sequence_payload(
   let ll_values : Array[Int] = Array::new()
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
-  let max_sequences = if level >= 22 { 32 } else { 20 }
+  let max_sequences = mixed_sequence_cap(level, block_len)
   collect_greedy_sequences(
     src, start, block_len, ll_values, off_values, ml_values, max_sequences,
   )
