@@ -57,57 +57,103 @@ fn try_encode_common_offset_symbol_with_repcodes(
     return (false, 0, Array::new(), 0)
   }
 
-  let extras_code0 : Array[UInt] = Array::new()
-  let mut ok_code0 = true
-  let mut i = 0
-  while i < values.length() {
-    let ll = literal_lengths[i]
-    let off = values[i]
-    let expected = if ll == 0 { rep2 } else { rep1 }
-    if off != expected {
-      ok_code0 = false
-      i = values.length()
-    } else {
-      extras_code0.push((0 : UInt))
-      i = i + 1
-    }
-  }
+  let (ok_code0, extras_code0) = simulate_common_repcode_code0(
+    values, literal_lengths, rep1, rep2, rep3,
+  )
   if ok_code0 {
     return (true, 0, extras_code0, 0)
   }
 
-  let extras_code1 : Array[UInt] = Array::new()
-  let mut ok_code1 = true
-  i = 0
-  while i < values.length() {
-    let ll = literal_lengths[i]
-    let off = values[i]
-    if ll == 0 {
-      if off == rep3 {
-        extras_code1.push((0 : UInt))
-      } else if rep1 > 1 && off == rep1 - 1 {
-        extras_code1.push((1 : UInt))
-      } else {
-        ok_code1 = false
-        i = values.length()
-      }
-    } else if off == rep2 {
-      extras_code1.push((0 : UInt))
-    } else if off == rep3 {
-      extras_code1.push((1 : UInt))
-    } else {
-      ok_code1 = false
-      i = values.length()
-    }
-    if ok_code1 {
-      i = i + 1
-    }
-  }
+  let (ok_code1, extras_code1) = simulate_common_repcode_code1(
+    values, literal_lengths, rep1, rep2, rep3,
+  )
   if ok_code1 {
     return (true, 1, extras_code1, 1)
   }
 
   try_encode_common_offset_symbol(values)
+}
+
+///|
+fn simulate_common_repcode_code0(
+  values : Array[Int],
+  literal_lengths : Array[Int],
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (Bool, Array[UInt]) {
+  let extras : Array[UInt] = Array::new()
+  let mut r1 = rep1
+  let mut r2 = rep2
+  ignore(rep3)
+  let mut i = 0
+  while i < values.length() {
+    let ll0 = literal_lengths[i] == 0
+    let expected = if ll0 { r2 } else { r1 }
+    let off = values[i]
+    if off <= 0 || off != expected {
+      return (false, Array::new())
+    }
+    extras.push((0 : UInt))
+    if ll0 {
+      let old_r1 = r1
+      let old_r2 = r2
+      r1 = old_r2
+      r2 = old_r1
+    } else {
+      r1 = expected
+    }
+    i = i + 1
+  }
+  (true, extras)
+}
+
+///|
+fn simulate_common_repcode_code1(
+  values : Array[Int],
+  literal_lengths : Array[Int],
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (Bool, Array[UInt]) {
+  let extras : Array[UInt] = Array::new()
+  let mut r1 = rep1
+  let mut r2 = rep2
+  let mut r3 = rep3
+  let mut i = 0
+  while i < values.length() {
+    let ll0 = literal_lengths[i] == 0
+    let target = values[i]
+    let mut matched = false
+    let mut low = 0
+    while low <= 1 && !matched {
+      let offset_code = 1 + (if ll0 { 1 } else { 0 }) + low
+      let (ok, decoded, nr1, nr2, nr3) = if offset_code == 1 {
+        (r2 > 0, r2, r2, r1, r3)
+      } else if offset_code == 2 {
+        (r3 > 0, r3, r3, r1, r2)
+      } else if offset_code == 3 {
+        let v = r1 - 1
+        (v > 0, v, v, r1, r2)
+      } else {
+        (false, 0, 0, 0, 0)
+      }
+      if ok && decoded == target {
+        extras.push(low.reinterpret_as_uint())
+        r1 = nr1
+        r2 = nr2
+        r3 = nr3
+        matched = true
+      } else {
+        low = low + 1
+      }
+    }
+    if !matched {
+      return (false, Array::new())
+    }
+    i = i + 1
+  }
+  (true, extras)
 }
 
 ///|

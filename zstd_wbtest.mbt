@@ -2471,5 +2471,38 @@ test "general RLE offset symbol selection can choose repcode off_code1" {
   assert_eq(bits, 1)
   assert_eq(extras.length(), 2)
   assert_eq(extras[0], (0 : UInt))
-  assert_eq(extras[1], (0 : UInt))
+  assert_eq(extras[1], (1 : UInt))
+}
+
+///|
+test "general RLE repcode selection tracks dynamic rep state across sequences" {
+  let values_code0 : Array[Int] = Array::new()
+  let ll_code0 : Array[Int] = Array::new()
+  values_code0.push(9)
+  ll_code0.push(0)
+  values_code0.push(9)
+  ll_code0.push(4)
+  let (ok0, code0, extras0, bits0) = try_encode_common_offset_symbol_with_repcodes(
+    values_code0, ll_code0, 5, 9, 17,
+  )
+  assert_true(ok0)
+  assert_eq(code0, (0 : UInt))
+  assert_eq(bits0, 0)
+  assert_eq(extras0.length(), 2)
+
+  let values_code1 : Array[Int] = Array::new()
+  let ll_code1 : Array[Int] = Array::new()
+  values_code1.push(9)
+  ll_code1.push(4)
+  values_code1.push(5)
+  ll_code1.push(4)
+  let (ok1, code1, extras1, bits1) = try_encode_common_offset_symbol_with_repcodes(
+    values_code1, ll_code1, 5, 9, 17,
+  )
+  assert_true(ok1)
+  assert_eq(code1, (1 : UInt))
+  assert_eq(bits1, 1)
+  assert_eq(extras1.length(), 2)
+  assert_eq(extras1[0], (0 : UInt))
+  assert_eq(extras1[1], (0 : UInt))
 }
