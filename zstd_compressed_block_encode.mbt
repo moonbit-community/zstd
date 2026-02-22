@@ -1,29 +1,38 @@
 ///|
-fn detect_repeat_period(src : Bytes, start : Int, block_len : Int) -> Int {
+fn detect_repeat_prefix(
+  src : Bytes,
+  start : Int,
+  block_len : Int,
+) -> (Int, Int) {
   if block_len < 5 {
-    return 0
+    return (0, 0)
   }
   let max_period = if block_len - 3 < 64 { block_len - 3 } else { 64 }
+  let mut best_period = 0
+  let mut best_run_len = 0
   let mut period = 2
   while period <= max_period {
     if block_len >= period + 3 {
-      let mut ok = true
-      let mut i = period
-      while i < block_len {
-        if src[start + i] != src[start + i % period] {
-          ok = false
-          i = block_len
-        } else {
-          i = i + 1
-        }
+      let mut run_len = period
+      while run_len < block_len &&
+            src[start + run_len] == src[start + run_len % period] {
+        run_len = run_len + 1
       }
-      if ok {
-        return period
+      if run_len >= period + 3 &&
+        (
+          run_len > best_run_len ||
+          (
+            run_len == best_run_len &&
+            (best_period == 0 || period < best_period)
+          )
+        ) {
+        best_period = period
+        best_run_len = run_len
       }
     }
     period = period + 1
   }
-  0
+  (best_period, best_run_len)
 }
 
 ///|
@@ -130,10 +139,9 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
 ///|
 fn append_raw_literals_section(
   out : Array[Byte],
-  src : Bytes,
-  start : Int,
-  lit_len : Int,
+  literals : Bytes,
 ) -> Unit raise ZstdError {
+  let lit_len = literals.length()
   if lit_len < 0 {
     raise CorruptionDetected
   }
@@ -149,7 +157,24 @@ fn append_raw_literals_section(
   } else {
     raise CorruptionDetected
   }
-  append_bytes(out, src, start, lit_len)
+  append_bytes(out, literals, 0, lit_len)
+}
+
+///|
+fn build_periodic_literals(
+  src : Bytes,
+  start : Int,
+  period : Int,
+  run_len : Int,
+  block_len : Int,
+) -> Bytes {
+  let out : Array[Byte] = Array::new()
+  append_bytes(out, src, start, period)
+  let tail_len = block_len - run_len
+  if tail_len > 0 {
+    append_bytes(out, src, start + run_len, tail_len)
+  }
+  Bytes::from_array(out)
 }
 
 ///|
@@ -160,12 +185,12 @@ fn append_compressed_repeat_block(
   block_len : Int,
   last_block : Bool,
 ) -> Bool raise ZstdError {
-  let period = detect_repeat_period(src, start, block_len)
+  let (period, run_len) = detect_repeat_prefix(src, start, block_len)
   if period == 0 {
     return false
   }
   let lit_len = period
-  let match_len = block_len - period
+  let match_len = run_len - period
   if match_len < 3 {
     return false
   }
@@ -186,7 +211,8 @@ fn append_compressed_repeat_block(
   let bitstream = build_reverse_bitstream(extra_bits)
 
   let payload : Array[Byte] = Array::new()
-  append_raw_literals_section(payload, src, start, lit_len)
+  let literals = build_periodic_literals(src, start, period, run_len, block_len)
+  append_raw_literals_section(payload, literals)
   payload.push((1 : UInt).to_byte()) // Number_of_Sequences
   payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
   payload.push(ll_code.to_byte())

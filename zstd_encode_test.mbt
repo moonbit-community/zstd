@@ -87,3 +87,25 @@ test "compress periodic payload with larger period uses higher offset code" {
   let off_code_pos = 12 + 1 + 13 + 1 + 1 + 1
   assert_eq(frame[off_code_pos].to_uint(), 4)
 }
+
+///|
+test "compress periodic prefix with literal tail emits compressed block" {
+  let head = Bytes::makei(480, i => {
+    if i % 3 == 0 {
+      b"a"[0]
+    } else if i % 3 == 1 {
+      b"b"[0]
+    } else {
+      b"c"[0]
+    }
+  })
+  let tail = b"tail-unique-42"
+  let input = head + tail
+
+  let frame_low = compress(input, level=3)
+  let frame_high = compress(input, level=10)
+  let block_high = read_u24_le_test(frame_high, 9)
+  assert_eq((block_high >> 1) & 0x3, 2)
+  assert_true(frame_high.length() < frame_low.length())
+  assert_eq(decompress(frame_high), input)
+}
