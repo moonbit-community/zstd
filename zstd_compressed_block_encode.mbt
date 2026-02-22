@@ -530,6 +530,9 @@ fn append_compressed_repeat_block(
   let predefined_payload = build_general_predefined_payload(
     src, start, block_len, level,
   )
+  let compressed_fse_payload = build_general_compressed_fse_payload(
+    src, start, block_len, level,
+  )
   let general_payload = build_general_rle_payload(src, start, block_len, level)
   let (ll, offset, ml) = detect_best_single_match(src, start, block_len)
   let single_payload = if ll > 0 {
@@ -555,6 +558,10 @@ fn append_compressed_repeat_block(
     if predefined_payload.length() > 0 &&
       (best.length() == 0 || predefined_payload.length() < best.length()) {
       best = predefined_payload
+    }
+    if compressed_fse_payload.length() > 0 &&
+      (best.length() == 0 || compressed_fse_payload.length() < best.length()) {
+      best = compressed_fse_payload
     }
     best
   }

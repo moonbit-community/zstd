@@ -288,6 +288,71 @@ test "sequence_count encoding rejects values above max supported range" {
 }
 
 ///|
+test "write_fse_ncount_header roundtrips sparse counters with zero runs" {
+  let normalized = [20, 0, 0, 8, 0, 0, 0, 36]
+  let header = try? write_fse_ncount_header(normalized, 7, 6)
+  match header {
+    Ok(bytes) => {
+      let parsed = try? read_fse_ncount_header(bytes, 0, bytes.length(), 7, 6)
+      match parsed {
+        Ok((_, parsed_table_log, parsed_max_symbol, decoded_counter)) => {
+          assert_eq(parsed_table_log, 6)
+          assert_eq(parsed_max_symbol, 7)
+          let mut i = 0
+          while i <= 7 {
+            assert_eq(decoded_counter[i], normalized[i])
+            i = i + 1
+          }
+        }
+        Err(_) => fail("failed to parse encoded ncount header")
+      }
+    }
+    Err(_) => fail("failed to write ncount header")
+  }
+}
+
+///|
+test "write_fse_ncount_header roundtrips counters with low-probability symbol" {
+  let normalized = [20, -1, 0, 0, 0, 43]
+  let header = try? write_fse_ncount_header(normalized, 5, 6)
+  match header {
+    Ok(bytes) => {
+      let parsed = try? read_fse_ncount_header(bytes, 0, bytes.length(), 5, 6)
+      match parsed {
+        Ok((_, parsed_table_log, parsed_max_symbol, decoded_counter)) => {
+          assert_eq(parsed_table_log, 6)
+          assert_eq(parsed_max_symbol, 5)
+          let mut i = 0
+          while i <= 5 {
+            assert_eq(decoded_counter[i], normalized[i])
+            i = i + 1
+          }
+        }
+        Err(_) => fail("failed to parse encoded ncount header")
+      }
+    }
+    Err(_) => fail("failed to write ncount header")
+  }
+}
+
+///|
+test "write_fse_ncount_header rejects invalid normalized sum" {
+  let normalized = [10, 10, 10]
+  let result = try? write_fse_ncount_header(normalized, 2, 6)
+  match result {
+    Ok(_) => fail("expected write_fse_ncount_header to reject invalid sum")
+    Err(CorruptionDetected) => ()
+    Err(SrcSizeWrong) => fail("unexpected SrcSizeWrong")
+    Err(BoundOverflow) => fail("unexpected BoundOverflow")
+    Err(SrcSizeTooLarge(_)) => fail("unexpected SrcSizeTooLarge")
+    Err(DictionaryRequired(dict_id)) =>
+      fail("unexpected DictionaryRequired: " + dict_id.to_string())
+    Err(UnsupportedFeature(msg)) =>
+      fail("unexpected UnsupportedFeature: " + msg)
+  }
+}
+
+///|
 test "predefined state path selection keeps valid transitions" {
   let ll_values = [64, 4096, 96]
   let ll = try? select_predefined_state_path(
@@ -381,6 +446,120 @@ test "general predefined payload builder emits parseable multi-sequence payload"
       }
     }
     Err(_) => fail("failed to build general predefined payload")
+  }
+}
+
+///|
+test "general compressed FSE payload builder emits mode2 and decodes" {
+  let prefix = Bytes::makei(80, i => {
+    ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()
+  })
+  let a = Bytes::makei(180, i => {
+    ((i * 13 + 7) % 241).reinterpret_as_uint().to_byte()
+  })
+  let b = Bytes::makei(220, i => {
+    ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
+  })
+  let tail = Bytes::makei(32, i => {
+    ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
+  })
+  let src = prefix + a + b + b + a + b + a + b + b + tail
+
+  let payload = try? build_general_compressed_fse_payload(
+    src,
+    0,
+    src.length(),
+    14,
+  )
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      let modes_pos = payload_sequence_modes_offset(v)
+      assert_true(modes_pos >= 0)
+      assert_eq(v[modes_pos].to_uint(), 0xA8)
+
+      let out : Array[Byte] = Array::new()
+      let prev_huf_valid : Ref[Bool] = { val: false }
+      let prev_huf_max_bits : Ref[Int] = { val: 0 }
+      let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_valid : Ref[Bool] = { val: false }
+      let prev_ll_kind : Ref[Int] = { val: 0 }
+      let prev_ll_code : Ref[UInt] = { val: 0 }
+      let prev_ll_table_log : Ref[Int] = { val: 0 }
+      let prev_ll_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_valid : Ref[Bool] = { val: false }
+      let prev_off_kind : Ref[Int] = { val: 0 }
+      let prev_off_code : Ref[UInt] = { val: 0 }
+      let prev_off_table_log : Ref[Int] = { val: 0 }
+      let prev_off_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_valid : Ref[Bool] = { val: false }
+      let prev_ml_kind : Ref[Int] = { val: 0 }
+      let prev_ml_code : Ref[UInt] = { val: 0 }
+      let prev_ml_table_log : Ref[Int] = { val: 0 }
+      let prev_ml_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+
+      let decoded = try? decode_compressed_block_minimal(
+        v,
+        0,
+        v.length(),
+        out,
+        0,
+        b"",
+        1,
+        4,
+        8,
+        prev_huf_valid,
+        prev_huf_max_bits,
+        prev_huf_left,
+        prev_huf_right,
+        prev_huf_symbol,
+        prev_ll_valid,
+        prev_ll_kind,
+        prev_ll_code,
+        prev_ll_table_log,
+        prev_ll_table_next_state,
+        prev_ll_table_nb_add_bits,
+        prev_ll_table_nb_bits,
+        prev_ll_table_base_values,
+        prev_off_valid,
+        prev_off_kind,
+        prev_off_code,
+        prev_off_table_log,
+        prev_off_table_next_state,
+        prev_off_table_nb_add_bits,
+        prev_off_table_nb_bits,
+        prev_off_table_base_values,
+        prev_ml_valid,
+        prev_ml_kind,
+        prev_ml_code,
+        prev_ml_table_log,
+        prev_ml_table_next_state,
+        prev_ml_table_nb_add_bits,
+        prev_ml_table_nb_bits,
+        prev_ml_table_base_values,
+      )
+      match decoded {
+        Ok((next_pos, produced, _, _, _)) => {
+          assert_eq(next_pos, v.length())
+          assert_eq(produced, src.length().to_uint64())
+          assert_eq(Bytes::from_array(out), src)
+        }
+        Err(_) =>
+          fail("decode_compressed_block_minimal failed on mode2 payload")
+      }
+    }
+    Err(_) => fail("failed to build general compressed FSE payload")
   }
 }
 
