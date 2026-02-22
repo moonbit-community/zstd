@@ -1,0 +1,618 @@
+///|
+test "compress_bound_macro keeps additive bound property around 128KB threshold" {
+  let a : UInt64 = (128 : UInt64) << 10
+  let b : UInt64 = (128 : UInt64) << 10
+  let lhs = compress_bound_macro(a) + compress_bound_macro(b)
+  let rhs = compress_bound_macro(a + b)
+  assert_true(lhs <= rhs)
+}
+
+///|
+test "reverse bitstream init for predefined sequence states" {
+  let src = b"\x00\x10\x02"
+  let br_byte : Ref[Int] = { val: 2 }
+  let br_bit : Ref[Int] = { val: -1 }
+  init_reverse_bit_reader(src, 0, br_byte, br_bit)
+  let ll_state = init_fse_state_reverse(
+    src, 0, br_byte, br_bit, ll_predefined_table_log,
+  )
+  let of_state = init_fse_state_reverse(
+    src, 0, br_byte, br_bit, of_predefined_table_log,
+  )
+  let ml_state = init_fse_state_reverse(
+    src, 0, br_byte, br_bit, ml_predefined_table_log,
+  )
+  assert_eq(ll_state, 2)
+  assert_eq(of_state, 0)
+  assert_eq(ml_state, 0)
+  assert_true(reverse_bits_consumed(0, br_byte, br_bit))
+}
+
+///|
+test "internal decode of predefined sequence compressed payload" {
+  let src = b"\x08\x61\x01\x00\x00\x10\x02"
+  let out : Array[Byte] = Array::new()
+  let prev_huf_valid : Ref[Bool] = { val: false }
+  let prev_huf_max_bits : Ref[Int] = { val: 0 }
+  let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+  let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+  let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ll_valid : Ref[Bool] = { val: false }
+  let prev_ll_kind : Ref[Int] = { val: 0 }
+  let prev_ll_code : Ref[UInt] = { val: 0 }
+  let prev_ll_table_log : Ref[Int] = { val: 0 }
+  let prev_ll_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ll_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+  let prev_off_valid : Ref[Bool] = { val: false }
+  let prev_off_kind : Ref[Int] = { val: 0 }
+  let prev_off_code : Ref[UInt] = { val: 0 }
+  let prev_off_table_log : Ref[Int] = { val: 0 }
+  let prev_off_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+  let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+  let prev_off_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+  let prev_off_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ml_valid : Ref[Bool] = { val: false }
+  let prev_ml_kind : Ref[Int] = { val: 0 }
+  let prev_ml_code : Ref[UInt] = { val: 0 }
+  let prev_ml_table_log : Ref[Int] = { val: 0 }
+  let prev_ml_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+  let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+  let result = try? decode_compressed_block_minimal(
+    src,
+    0,
+    src.length(),
+    out,
+    0,
+    b"",
+    1,
+    4,
+    8,
+    prev_huf_valid,
+    prev_huf_max_bits,
+    prev_huf_left,
+    prev_huf_right,
+    prev_huf_symbol,
+    prev_ll_valid,
+    prev_ll_kind,
+    prev_ll_code,
+    prev_ll_table_log,
+    prev_ll_table_next_state,
+    prev_ll_table_nb_add_bits,
+    prev_ll_table_nb_bits,
+    prev_ll_table_base_values,
+    prev_off_valid,
+    prev_off_kind,
+    prev_off_code,
+    prev_off_table_log,
+    prev_off_table_next_state,
+    prev_off_table_nb_add_bits,
+    prev_off_table_nb_bits,
+    prev_off_table_base_values,
+    prev_ml_valid,
+    prev_ml_kind,
+    prev_ml_code,
+    prev_ml_table_log,
+    prev_ml_table_next_state,
+    prev_ml_table_nb_add_bits,
+    prev_ml_table_nb_bits,
+    prev_ml_table_base_values,
+  )
+  match result {
+    Ok((next_pos, produced, _, _, _)) => {
+      assert_eq(next_pos, src.length())
+      assert_eq(produced, (4 : UInt64))
+      assert_eq(Bytes::from_array(out), b"aaaa")
+    }
+    Err(CorruptionDetected) => fail("unexpected CorruptionDetected")
+    Err(SrcSizeWrong) => fail("unexpected SrcSizeWrong")
+    Err(BoundOverflow) => fail("unexpected BoundOverflow")
+    Err(SrcSizeTooLarge(_)) => fail("unexpected SrcSizeTooLarge")
+    Err(UnsupportedFeature(msg)) =>
+      fail("unexpected UnsupportedFeature: " + msg)
+  }
+}
+
+///|
+test "predefined state init with non-zero bitstream start" {
+  let src = b"\x08\x61\x01\x00\x00\x10\x02"
+  let br_byte : Ref[Int] = { val: src.length() - 1 }
+  let br_bit : Ref[Int] = { val: -1 }
+  init_reverse_bit_reader(src, 4, br_byte, br_bit)
+  let ll_state = init_fse_state_reverse(
+    src, 4, br_byte, br_bit, ll_predefined_table_log,
+  )
+  let of_state = init_fse_state_reverse(
+    src, 4, br_byte, br_bit, of_predefined_table_log,
+  )
+  let ml_state = init_fse_state_reverse(
+    src, 4, br_byte, br_bit, ml_predefined_table_log,
+  )
+  assert_eq(ll_state, 2)
+  assert_eq(of_state, 0)
+  assert_eq(ml_state, 0)
+  assert_true(reverse_bits_consumed(4, br_byte, br_bit))
+}
+
+///|
+test "decode literals section with 4 Huffman streams" {
+  let frame = b"\x28\xb5\x2f\xfd\x64\x08\x06\x05\x03\x00\x96\x50\x13\x82\x11\x10\x11\x00\x11\x00\x11\x00\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\x41\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x5b\x01\x00\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x01\x81\x00\x98\x10\xf0\x07\x00\x10\x12\x3f\xd5\xaa\x55\xeb\x14\xa4\xfd\xf8\x0e\xdf"
+  let prev_huf_valid : Ref[Bool] = { val: false }
+  let prev_huf_max_bits : Ref[Int] = { val: 0 }
+  let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+  let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+  let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+  let result = try? decode_literals_section_minimal(
+    frame, 10, 106, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
+    prev_huf_symbol,
+  )
+  match result {
+    Ok((next_pos, literals)) => {
+      assert_eq(next_pos, 90)
+      assert_eq(literals.length(), 265)
+      assert_true(prev_huf_valid.val)
+    }
+    Err(_) => fail("expected successful literals decode")
+  }
+}
+
+///|
+test "decode FSE-compressed Huffman weights stream" {
+  let frame = b"\x28\xb5\x2f\xfd\x24\x40\x55\x01\x00\x02\x84\x09\x05\x30\xfa\x36\x64\x0b\x57\x73\x78\x62\x90\x58\x55\xcd\x78\x86\xdc\xa9\xfd\xe8\x84\x40\x94\xe7\xdd\x3a\xc3\x8c\x64\x99\xf9\xbb\xfa\xb9\x4e\xb9\xcc\x01\x00\x6b\x71\xa5\xdd"
+  let h = try? read_fse_ncount_header(
+    frame, 13, 18, huf_max_nb_bits, huf_weight_fse_table_log_max,
+  )
+  match h {
+    Ok((header_size, table_log, max_symbol, normalized_counter)) => {
+      let t = try? build_fse_symbol_decode_table(
+        normalized_counter, max_symbol, table_log,
+      )
+      match t {
+        Ok((next_state, nb_bits, symbols)) => {
+          let payload_start = 13 + header_size
+          let d = try? decode_fse_symbol_stream_reverse(
+            frame, payload_start, 18, table_log, next_state, nb_bits, symbols, 255,
+          )
+          match d {
+            Ok(weights) =>
+              assert_eq(weights, [1, 2, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1])
+            Err(_) => fail("decode_fse_symbol_stream_reverse failed")
+          }
+        }
+        Err(_) => fail("build_fse_symbol_decode_table failed")
+      }
+    }
+    Err(_) => fail("read_fse_ncount_header failed")
+  }
+}
+
+///|
+test "decode literals section with FSE-compressed Huffman tree description" {
+  let frame = b"\x28\xb5\x2f\xfd\x24\x40\x55\x01\x00\x02\x84\x09\x05\x30\xfa\x36\x64\x0b\x57\x73\x78\x62\x90\x58\x55\xcd\x78\x86\xdc\xa9\xfd\xe8\x84\x40\x94\xe7\xdd\x3a\xc3\x8c\x64\x99\xf9\xbb\xfa\xb9\x4e\xb9\xcc\x01\x00\x6b\x71\xa5\xdd"
+  let prev_huf_valid : Ref[Bool] = { val: false }
+  let prev_huf_max_bits : Ref[Int] = { val: 0 }
+  let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+  let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+  let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+  let result = try? decode_literals_section_minimal(
+    frame, 9, 51, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
+    prev_huf_symbol,
+  )
+  match result {
+    Ok((next_pos, literals)) => {
+      assert_eq(next_pos, 50)
+      assert_eq(literals.length(), 64)
+    }
+    Err(_) => fail("expected literals decode success")
+  }
+}
+
+///|
+test "read Huffman tree description with FSE-compressed weights" {
+  let frame = b"\x28\xb5\x2f\xfd\x24\x40\x55\x01\x00\x02\x84\x09\x05\x30\xfa\x36\x64\x0b\x57\x73\x78\x62\x90\x58\x55\xcd\x78\x86\xdc\xa9\xfd\xe8\x84\x40\x94\xe7\xdd\x3a\xc3\x8c\x64\x99\xf9\xbb\xfa\xb9\x4e\xb9\xcc\x01\x00\x6b\x71\xa5\xdd"
+  let result = try? read_huffman_tree_description(frame, 12, 50)
+  match result {
+    Ok((tree_size, _, _, _, _)) => assert_eq(tree_size, 6)
+    Err(_) => fail("expected tree description decode success")
+  }
+}
+
+///|
+test "offset code 31 is supported in base calculation" {
+  assert_eq(offset_base_from_code(31), 2147483645)
+  let result = try? offset_base_from_code(32)
+  assert_true(result is Err(CorruptionDetected))
+}
+
+///|
+test "invalid LL and ML code ranges are treated as corruption" {
+  let ll_result = try? literal_length_base_bits(36)
+  assert_true(ll_result is Err(CorruptionDetected))
+  let ml_result = try? match_length_base_bits(53)
+  assert_true(ml_result is Err(CorruptionDetected))
+}
+
+///|
+fn wb_standard_dictionary_fixture_dictionary() -> Bytes {
+  b"\x37\xa4\x30\xec\xdb\xc3\xd0\x3f\x2d\x10\x90\x1d\x3a\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x40\x31\xdb\x14\xb3\x4d\x31\xdb\x14\x1b\xb7\x94\x52\xca\x24\xf5\x15\xa5\x5e" +
+  b"\x51\xea\x15\xa5\xde\xfb\xa3\x04\x00\x00\x00\x2b\xd4\x9c\x00\x00\x00\x34\x60\xc0\x80\x1e\x44\x12\x06\x06\x06\x06\x7a\x06\x08\x06\x98\x06\x83\xc1\x60\x30\x18\x0c\x06\x83\xc1\xcf\x60\x30\x18\x0c" +
+  b"\x06\xc8\x31\x26\x32\xc6\xcc\xcc\xcc\xcc\xb6\x0d\x44\xf3\xca\x36\x0c\xc3\x30\xc6\x18\x63\x8c\x31\xc6\x18\x63\x8c\x31\x33\x33\x33\xb3\x6d\x03\x01\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00" +
+  b"\x30\x31\x32\x33\x34\x35\x36\x37\x38\x39\x61\x62\x63\x64\x65\x66"
+}
+
+///|
+fn wb_standard_dictionary_fixture_frame() -> Bytes {
+  b"\x28\xb5\x2f\xfd\x23\xdb\xc3\xd0\x3f\x03\x3d\x00\x00\x00\x01\x54\x00\x04\x00\x13"
+}
+
+///|
+test "parse standard dictionary fixture state" {
+  let dict = wb_standard_dictionary_fixture_dictionary()
+  let result = try? parse_dictionary_state(dict)
+  match result {
+    Ok(state) => {
+      assert_true(state.has_dictionary)
+      assert_eq(state.dict_id, (0x3FD0C3DB : UInt))
+      assert_true(state.history.length() > 0)
+      assert_true(state.huf_valid)
+      assert_true(state.ll_valid)
+      assert_true(state.off_valid)
+      assert_true(state.ml_valid)
+    }
+    Err(_) => fail("expected dictionary parser success")
+  }
+}
+
+///|
+test "standard dictionary internal paths comparison" {
+  let dict = wb_standard_dictionary_fixture_dictionary()
+  let frame = wb_standard_dictionary_fixture_frame()
+  let parsed_state = try? parse_dictionary_state(dict)
+  let state = match parsed_state {
+    Ok(v) => v
+    Err(_) => fail("parse_dictionary_state failed")
+  }
+
+  let out_history : Array[Byte] = Array::new()
+  let history_result = try? decode_frame_into_with_history(
+    frame,
+    0,
+    out_history,
+    state.history,
+  )
+  let out_dict : Array[Byte] = Array::new()
+  let dict_result = try? decode_frame_into_with_dictionary(
+    frame, 0, out_dict, dict,
+  )
+  assert_true(dict_result is Ok(_))
+  assert_true(history_result is Ok(_))
+}
+
+///|
+test "real dictionary-compressed frame parses sequence header states" {
+  let dict = b"\x37\xa4\x30\xec\xdb\xc3\xd0\x3f\x2d\x10\x90\x1d\x3a\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x40\x31\xdb\x14\xb3\x4d\x31\xdb\x14\x1b\xb7\x94\x52\xca\x24\xf5\x15\xa5\x5e" +
+    b"\x51\xea\x15\xa5\xde\xfb\xa3\x04\x00\x00\x00\x2b\xd4\x9c\x00\x00\x00\x34\x60\xc0\x80\x1e\x44\x12\x06\x06\x06\x06\x7a\x06\x08\x06\x98\x06\x83\xc1\x60\x30\x18\x0c\x06\x83\xc1\xcf\x60\x30\x18\x0c" +
+    b"\x06\xc8\x31\x26\x32\xc6\xcc\xcc\xcc\xcc\xb6\x0d\x44\xf3\xca\x36\x0c\xc3\x30\xc6\x18\x63\x8c\x31\xc6\x18\x63\x8c\x31\x33\x33\x33\xb3\x6d\x03\x01\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00\x6b" +
+    b"\x65\x6e\x2d\x34\x36\x20\x72\x65\x70\x65\x61\x74\x65\x64\x20\x61\x6c\x70\x68\x61\x20\x62\x65\x74\x61\x20\x67\x61\x6d\x6d\x61\x20\x73\x65\x63\x74\x69\x6f\x6e\x2d\x30\x31\x20\x61\x6e\x64\x20\x65" +
+    b"\x78\x6b\x65\x6e\x2d\x33\x39\x20\x72\x65\x70\x65\x61\x74\x65\x64\x20\x61\x6c\x70\x68\x61\x20\x62\x65\x74\x61\x20\x67\x61\x6d\x6d\x61\x20\x73\x65\x63\x74\x69\x6f\x6e\x2d\x30\x33\x20\x61\x6e\x64" +
+    b"\x20\x65\x78\x74\x69\x6f\x6e\x61\x72\x79\x20\x73\x74\x61\x62\x69"
+  let block = b"\xf4\x02\x63\x6f\x6d\x70\x72\x65\x73\x73\x20\x77\x69\x74\x68\x20\x64\x69\x63\x61\x6d\x70\x6c\x65\x20\x70\x61\x79\x6c\x6f\x61\x74\x6f\x6b\x65\x6e\x2d\x30\x35\x35\x72\x61\x20\x77\x6f\x72\x64\x73\x0a\x04\xfc\x62\x8f\x80\xca\x2a\x9b\x8c\x5e\x67\x87\xf3\xc1\xcb\x02"
+  let parsed_state = try? parse_dictionary_state(dict)
+  let state = match parsed_state {
+    Ok(v) => v
+    Err(_) => fail("parse_dictionary_state failed")
+  }
+
+  let prev_huf_valid : Ref[Bool] = { val: state.huf_valid }
+  let prev_huf_max_bits : Ref[Int] = { val: state.huf_max_bits }
+  let prev_huf_left : Ref[Array[Int]] = { val: state.huf_left }
+  let prev_huf_right : Ref[Array[Int]] = { val: state.huf_right }
+  let prev_huf_symbol : Ref[Array[Int]] = { val: state.huf_symbol }
+  let lit = try? decode_literals_section_minimal(
+    block,
+    0,
+    block.length(),
+    prev_huf_valid,
+    prev_huf_max_bits,
+    prev_huf_left,
+    prev_huf_right,
+    prev_huf_symbol,
+  )
+  let (seq_pos0, literals) = match lit {
+    Ok(v) => v
+    Err(_) => fail("decode_literals_section_minimal failed")
+  }
+  let seq_cnt = try? parse_sequence_count(block, seq_pos0, block.length())
+  let (number_of_sequences, seq_pos0_end) = match seq_cnt {
+    Ok(v) => v
+    Err(_) => fail("parse_sequence_count failed")
+  }
+  let modes = block[seq_pos0_end].to_uint()
+  let ll_mode = (modes >> 6) & 0x3
+  let off_mode = (modes >> 4) & 0x3
+  let ml_mode = (modes >> 2) & 0x3
+  assert_eq(ll_mode, (3 : UInt))
+  assert_eq(off_mode, (3 : UInt))
+  assert_eq(ml_mode, (3 : UInt))
+
+  let prev_ll_valid : Ref[Bool] = { val: state.ll_valid }
+  let prev_ll_kind : Ref[Int] = { val: state.ll_kind }
+  let prev_ll_code : Ref[UInt] = { val: state.ll_code }
+  let prev_ll_table_log : Ref[Int] = { val: state.ll_table_log }
+  let prev_ll_table_next_state : Ref[Array[Int]] = {
+    val: state.ll_table_next_state,
+  }
+  let prev_ll_table_nb_add_bits : Ref[Array[Int]] = {
+    val: state.ll_table_nb_add_bits,
+  }
+  let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: state.ll_table_nb_bits }
+  let prev_ll_table_base_values : Ref[Array[Int]] = {
+    val: state.ll_table_base_values,
+  }
+  let prev_off_valid : Ref[Bool] = { val: state.off_valid }
+  let prev_off_kind : Ref[Int] = { val: state.off_kind }
+  let prev_off_code : Ref[UInt] = { val: state.off_code }
+  let prev_off_table_log : Ref[Int] = { val: state.off_table_log }
+  let prev_off_table_next_state : Ref[Array[Int]] = {
+    val: state.off_table_next_state,
+  }
+  let prev_off_table_nb_add_bits : Ref[Array[Int]] = {
+    val: state.off_table_nb_add_bits,
+  }
+  let prev_off_table_nb_bits : Ref[Array[Int]] = {
+    val: state.off_table_nb_bits,
+  }
+  let prev_off_table_base_values : Ref[Array[Int]] = {
+    val: state.off_table_base_values,
+  }
+  let prev_ml_valid : Ref[Bool] = { val: state.ml_valid }
+  let prev_ml_kind : Ref[Int] = { val: state.ml_kind }
+  let prev_ml_code : Ref[UInt] = { val: state.ml_code }
+  let prev_ml_table_log : Ref[Int] = { val: state.ml_table_log }
+  let prev_ml_table_next_state : Ref[Array[Int]] = {
+    val: state.ml_table_next_state,
+  }
+  let prev_ml_table_nb_add_bits : Ref[Array[Int]] = {
+    val: state.ml_table_nb_add_bits,
+  }
+  let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: state.ml_table_nb_bits }
+  let prev_ml_table_base_values : Ref[Array[Int]] = {
+    val: state.ml_table_base_values,
+  }
+
+  let seq_pos_ref : Ref[Int] = { val: seq_pos0_end + 1 }
+  let ll_src = try? decode_sequence_source(
+    block,
+    block.length(),
+    seq_pos_ref,
+    ll_mode,
+    prev_ll_valid,
+    prev_ll_kind,
+    prev_ll_code,
+    prev_ll_table_log,
+    prev_ll_table_next_state,
+    prev_ll_table_nb_add_bits,
+    prev_ll_table_nb_bits,
+    prev_ll_table_base_values,
+    sequence_symbol_literal_length,
+  )
+  let off_src = try? decode_sequence_source(
+    block,
+    block.length(),
+    seq_pos_ref,
+    off_mode,
+    prev_off_valid,
+    prev_off_kind,
+    prev_off_code,
+    prev_off_table_log,
+    prev_off_table_next_state,
+    prev_off_table_nb_add_bits,
+    prev_off_table_nb_bits,
+    prev_off_table_base_values,
+    sequence_symbol_offset,
+  )
+  let ml_src = try? decode_sequence_source(
+    block,
+    block.length(),
+    seq_pos_ref,
+    ml_mode,
+    prev_ml_valid,
+    prev_ml_kind,
+    prev_ml_code,
+    prev_ml_table_log,
+    prev_ml_table_next_state,
+    prev_ml_table_nb_add_bits,
+    prev_ml_table_nb_bits,
+    prev_ml_table_base_values,
+    sequence_symbol_match_length,
+  )
+  assert_true(ll_src is Ok(_))
+  assert_true(off_src is Ok(_))
+  assert_true(ml_src is Ok(_))
+
+  let br_start = seq_pos_ref.val
+  let br_byte : Ref[Int] = { val: block.length() - 1 }
+  let br_bit : Ref[Int] = { val: -1 }
+  init_reverse_bit_reader(block, br_start, br_byte, br_bit)
+
+  let ll_state = try? init_fse_state_reverse(
+    block,
+    br_start,
+    br_byte,
+    br_bit,
+    prev_ll_table_log.val,
+  )
+  let off_state = try? init_fse_state_reverse(
+    block,
+    br_start,
+    br_byte,
+    br_bit,
+    prev_off_table_log.val,
+  )
+  let ml_state = try? init_fse_state_reverse(
+    block,
+    br_start,
+    br_byte,
+    br_bit,
+    prev_ml_table_log.val,
+  )
+  assert_true(ll_state is Ok(_))
+  assert_true(off_state is Ok(_))
+  assert_true(ml_state is Ok(_))
+  let (ll_kind, ll_code) = match ll_src {
+    Ok(v) => v
+    Err(_) => fail("ll_src failed")
+  }
+  let (off_kind, off_code) = match off_src {
+    Ok(v) => v
+    Err(_) => fail("off_src failed")
+  }
+  let (ml_kind, ml_code) = match ml_src {
+    Ok(v) => v
+    Err(_) => fail("ml_src failed")
+  }
+  let ll_state_v = match ll_state {
+    Ok(v) => v
+    Err(_) => fail("ll_state failed")
+  }
+  let off_state_v = match off_state {
+    Ok(v) => v
+    Err(_) => fail("off_state failed")
+  }
+  let ml_state_v = match ml_state {
+    Ok(v) => v
+    Err(_) => fail("ml_state failed")
+  }
+  let ll_entry_result = try? sequence_symbol_entry(
+    ll_kind,
+    ll_code,
+    ll_state_v,
+    prev_ll_table_next_state.val,
+    prev_ll_table_nb_add_bits.val,
+    prev_ll_table_nb_bits.val,
+    prev_ll_table_base_values.val,
+    sequence_symbol_literal_length,
+  )
+  let ml_entry_result = try? sequence_symbol_entry(
+    ml_kind,
+    ml_code,
+    ml_state_v,
+    prev_ml_table_next_state.val,
+    prev_ml_table_nb_add_bits.val,
+    prev_ml_table_nb_bits.val,
+    prev_ml_table_base_values.val,
+    sequence_symbol_match_length,
+  )
+  let off_entry_result = try? sequence_symbol_entry(
+    off_kind,
+    off_code,
+    off_state_v,
+    prev_off_table_next_state.val,
+    prev_off_table_nb_add_bits.val,
+    prev_off_table_nb_bits.val,
+    prev_off_table_base_values.val,
+    sequence_symbol_offset,
+  )
+  assert_true(ll_entry_result is Ok(_))
+  assert_true(ml_entry_result is Ok(_))
+  assert_true(off_entry_result is Ok(_))
+  let (_, ll_nb_add_bits, _, ll_base) = match ll_entry_result {
+    Ok(v) => v
+    Err(_) => fail("ll entry failed")
+  }
+  let (_, ml_nb_add_bits, _, ml_base) = match ml_entry_result {
+    Ok(v) => v
+    Err(_) => fail("ml entry failed")
+  }
+  let (_, off_nb_add_bits, _, off_base) = match off_entry_result {
+    Ok(v) => v
+    Err(_) => fail("off entry failed")
+  }
+  let ll0 = ll_base == 0
+  let first_offset = if off_nb_add_bits > 1 {
+    let off_extra_result = try? read_reverse_bits(
+      block, br_start, br_byte, br_bit, off_nb_add_bits,
+    )
+    let off_extra = match off_extra_result {
+      Ok(v) => v
+      Err(_) => fail("off extra failed")
+    }
+    off_base + off_extra.reinterpret_as_int()
+  } else if off_nb_add_bits == 0 {
+    if ll0 {
+      state.rep2
+    } else {
+      state.rep1
+    }
+  } else {
+    let low_result = try? read_reverse_bits(block, br_start, br_byte, br_bit, 1)
+    let low = match low_result {
+      Ok(v) => v.reinterpret_as_int()
+      Err(_) => fail("off short extra failed")
+    }
+    let idx = off_base + (if ll0 { 1 } else { 0 }) + low
+    if idx == 1 {
+      state.rep1
+    } else if idx == 2 {
+      state.rep2
+    } else if idx == 3 {
+      state.rep1 - 1
+    } else {
+      fail("invalid short rep idx")
+    }
+  }
+  let ml_extra = if ml_nb_add_bits == 0 {
+    (0 : UInt)
+  } else {
+    let ml_extra_result = try? read_reverse_bits(
+      block, br_start, br_byte, br_bit, ml_nb_add_bits,
+    )
+    match ml_extra_result {
+      Ok(v) => v
+      Err(_) => fail("ml extra failed")
+    }
+  }
+  let ll_extra = if ll_nb_add_bits == 0 {
+    (0 : UInt)
+  } else {
+    let ll_extra_result = try? read_reverse_bits(
+      block, br_start, br_byte, br_bit, ll_nb_add_bits,
+    )
+    match ll_extra_result {
+      Ok(v) => v
+      Err(_) => fail("ll extra failed")
+    }
+  }
+  let first_lit_len = ll_base + ll_extra.reinterpret_as_int()
+  let first_match_len = ml_base + ml_extra.reinterpret_as_int()
+  assert_true(first_lit_len >= 0)
+  assert_true(first_match_len > 0)
+  assert_true(first_offset > 0)
+  if first_offset > first_lit_len + state.history.length() {
+    fail(
+      "first_offset=" +
+      first_offset.to_string() +
+      " first_lit_len=" +
+      first_lit_len.to_string() +
+      " history=" +
+      state.history.length().to_string() +
+      " off_nb_add_bits=" +
+      off_nb_add_bits.to_string() +
+      " off_base=" +
+      off_base.to_string() +
+      " ll_nb_add_bits=" +
+      ll_nb_add_bits.to_string() +
+      " ll_base=" +
+      ll_base.to_string() +
+      " ml_nb_add_bits=" +
+      ml_nb_add_bits.to_string() +
+      " ml_base=" +
+      ml_base.to_string(),
+    )
+  }
+  ignore(number_of_sequences)
+  ignore(literals)
+}
