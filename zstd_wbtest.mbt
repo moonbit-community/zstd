@@ -2337,6 +2337,61 @@ test "single-match repcode offset encoding covers rep3 and ll0 variants" {
 }
 
 ///|
+test "single-match predefined offset chooser is repcode-aware" {
+  let rep1 = 5
+  let rep2 = 9
+  let rep3 = 17
+
+  let (ok1, state1, extra1, bits1) = try_choose_predefined_offset_state_with_repcodes(
+    9, 4, rep1, rep2, rep3,
+  )
+  assert_true(ok1)
+  assert_eq(bits1, 1)
+  let entry1 = try? of_predefined_entry(state1)
+  match entry1 {
+    Ok((_, add_bits, _, base)) => {
+      assert_eq(add_bits, bits1)
+      let code = base + extra1.reinterpret_as_int()
+      assert_eq(code, 1)
+    }
+    Err(_) => fail("failed to decode predefined offset entry for rep2")
+  }
+
+  let (ok2, state2, extra2, bits2) = try_choose_predefined_offset_state_with_repcodes(
+    9, 0, rep1, rep2, rep3,
+  )
+  assert_true(ok2)
+  assert_eq(bits2, 0)
+  let entry2 = try? of_predefined_entry(state2)
+  match entry2 {
+    Ok((_, add_bits, _, _)) => assert_eq(add_bits, 0)
+    Err(_) => fail("failed to decode predefined offset entry for ll0 rep2")
+  }
+  assert_eq(extra2, (0 : UInt))
+
+  let (ok3, state3, extra3, bits3) = try_choose_predefined_offset_state_with_repcodes(
+    17, 4, rep1, rep2, rep3,
+  )
+  assert_true(ok3)
+  assert_eq(bits3, 1)
+  let entry3 = try? of_predefined_entry(state3)
+  match entry3 {
+    Ok((_, add_bits, _, base)) => {
+      assert_eq(add_bits, bits3)
+      let code = base + extra3.reinterpret_as_int()
+      assert_eq(code, 2)
+    }
+    Err(_) => fail("failed to decode predefined offset entry for rep3")
+  }
+
+  let (ok4, _state4, _extra4, bits4) = try_choose_predefined_offset_state_with_repcodes(
+    128, 4, rep1, rep2, rep3,
+  )
+  assert_true(ok4)
+  assert_true(bits4 > 1)
+}
+
+///|
 test "greedy collector hash-chain depth can recover older longer candidate" {
   let older = b"ABCDabcdefghijklmnop"
   let gap = Bytes::makei(48, i => {

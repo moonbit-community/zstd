@@ -80,6 +80,55 @@ fn try_choose_predefined_state(
 }
 
 ///|
+fn try_choose_predefined_offset_state_with_repcodes(
+  value : Int,
+  ll : Int,
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (Bool, Int, UInt, Int) raise ZstdError {
+  if value <= 0 {
+    return (false, 0, 0, 0)
+  }
+  let states : Array[Int] = Array::new()
+  let extras : Array[UInt] = Array::new()
+  let nb_add_bits : Array[Int] = Array::new()
+  let next_states : Array[Int] = Array::new()
+  let nb_state_bits : Array[Int] = Array::new()
+  let out_r1 : Array[Int] = Array::new()
+  let out_r2 : Array[Int] = Array::new()
+  let out_r3 : Array[Int] = Array::new()
+  collect_predefined_offset_candidates_for_context(
+    value,
+    ll == 0,
+    rep1,
+    rep2,
+    rep3,
+    states,
+    extras,
+    nb_add_bits,
+    next_states,
+    nb_state_bits,
+    out_r1,
+    out_r2,
+    out_r3,
+  )
+  if states.length() == 0 {
+    return (false, 0, 0, 0)
+  }
+  let mut best_idx = 0
+  let mut i = 1
+  while i < states.length() {
+    if nb_add_bits[i] < nb_add_bits[best_idx] ||
+      (nb_add_bits[i] == nb_add_bits[best_idx] && states[i] < states[best_idx]) {
+      best_idx = i
+    }
+    i = i + 1
+  }
+  (true, states[best_idx], extras[best_idx], nb_add_bits[best_idx])
+}
+
+///|
 fn build_single_match_payload_predefined(
   src : Bytes,
   start : Int,
@@ -88,6 +137,9 @@ fn build_single_match_payload_predefined(
   offset : Int,
   ml : Int,
   max_offset : Int,
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
 ) -> Bytes raise ZstdError {
   if ll < 0 ||
     offset <= 0 ||
@@ -102,8 +154,8 @@ fn build_single_match_payload_predefined(
   if !ll_ok {
     return b""
   }
-  let (off_ok, off_state, off_extra, off_bits) = try_choose_predefined_state(
-    sequence_symbol_offset, offset,
+  let (off_ok, off_state, off_extra, off_bits) = try_choose_predefined_offset_state_with_repcodes(
+    offset, ll, rep1, rep2, rep3,
   )
   if !off_ok {
     return b""

@@ -531,7 +531,7 @@ fn build_single_match_payload(
     src, start, block_len, ll, offset, ml, max_offset, rep1, rep2, rep3,
   )
   let predefined_payload = build_single_match_payload_predefined(
-    src, start, block_len, ll, offset, ml, max_offset,
+    src, start, block_len, ll, offset, ml, max_offset, rep1, rep2, rep3,
   )
   if rle_payload.length() == 0 {
     return predefined_payload
