@@ -1,0 +1,89 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Milky2018/zstd"
+
+// Values
+pub fn compress(Bytes, level? : Int, checksum? : Bool) -> Bytes raise ZstdError
+
+pub fn compress_bound(UInt64) -> UInt64 raise ZstdError
+
+pub fn compress_bound_macro(UInt64) -> UInt64
+
+pub fn compress_with_dictionary(Bytes, Bytes, level? : Int, checksum? : Bool) -> Bytes raise ZstdError
+
+pub fn compress_with_dictionary_and_options(Bytes, Bytes, CompressOptions) -> Bytes raise ZstdError
+
+pub fn compress_with_options(Bytes, CompressOptions) -> Bytes raise ZstdError
+
+pub fn decompress(Bytes) -> Bytes raise ZstdError
+
+pub fn decompress_bound(Bytes) -> UInt64 raise ZstdError
+
+pub fn decompress_with_dictionary(Bytes, Bytes) -> Bytes raise ZstdError
+
+pub fn default_compress_options(level? : Int, checksum? : Bool) -> CompressOptions
+
+pub fn new_compressor(level? : Int) -> Compressor
+
+pub fn new_compressor_with_dictionary(Bytes, level? : Int) -> Compressor
+
+pub fn new_compressor_with_dictionary_and_options(Bytes, CompressOptions) -> Compressor
+
+pub fn new_compressor_with_options(CompressOptions) -> Compressor
+
+pub fn new_decompressor() -> Decompressor
+
+pub fn new_decompressor_with_dictionary(Bytes) -> Decompressor
+
+// Errors
+pub suberror ZstdError {
+  SrcSizeTooLarge(UInt64)
+  SrcSizeWrong
+  CorruptionDetected
+  BoundOverflow
+  DictionaryRequired(UInt)
+  UnsupportedFeature(String)
+}
+
+// Types and methods
+pub struct CompressOptions {
+  level : Int
+  checksum : Bool
+  single_segment : Bool
+  write_content_size : Bool
+  compact_frame_header : Bool
+  window_log : Int
+  enable_long_distance_matching : Bool
+  target_compressed_block_size : Int
+}
+pub fn CompressOptions::with_checksum(Self, Bool) -> Self
+pub fn CompressOptions::with_compact_frame_header(Self, Bool) -> Self
+pub fn CompressOptions::with_content_size(Self, Bool) -> Self
+pub fn CompressOptions::with_level(Self, Int) -> Self
+pub fn CompressOptions::with_long_distance_matching(Self, Bool) -> Self
+pub fn CompressOptions::with_single_segment(Self, Bool) -> Self
+pub fn CompressOptions::with_target_compressed_block_size(Self, Int) -> Self
+pub fn CompressOptions::with_window_log(Self, Int) -> Self
+
+pub struct Compressor {
+  mut input_buffer : Array[Byte]
+  options : CompressOptions
+  dictionary : Bytes
+}
+pub fn Compressor::finish(Self) -> Bytes raise ZstdError
+pub fn Compressor::pending_input(Self) -> Int
+pub fn Compressor::pull(Self) -> Bytes raise ZstdError
+pub fn Compressor::push(Self, Bytes) -> Unit
+
+pub struct Decompressor {
+  mut input_buffer : Array[Byte]
+  dictionary : Bytes
+}
+pub fn Decompressor::finish(Self) -> Bytes raise ZstdError
+pub fn Decompressor::pending_input(Self) -> Int
+pub fn Decompressor::pull(Self) -> Bytes raise ZstdError
+pub fn Decompressor::push(Self, Bytes) -> Unit
+
+// Type aliases
+
+// Traits
+

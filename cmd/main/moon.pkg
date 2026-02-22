@@ -1,0 +1,7 @@
+// import {
+//   "username/zstd" @lib,
+// }
+
+options(
+  "is-main": true,
+)
