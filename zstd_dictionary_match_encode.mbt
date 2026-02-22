@@ -18,10 +18,17 @@ fn detect_best_single_match_with_dictionary_history(
   rep2? : Int = 4,
   rep3? : Int = 8,
   search_limit? : Int = 8192,
+  search_depth? : Int = 0,
   allow_internal? : Bool = true,
 ) -> (Int, Int, Int) {
   let (best_ll0, best_offset0, best_ml0) = if allow_internal {
-    detect_best_single_match(src, start, block_len, search_limit~)
+    detect_best_single_match(
+      src,
+      start,
+      block_len,
+      search_limit~,
+      search_depth~,
+    )
   } else {
     (0, 0, 0)
   }

@@ -196,28 +196,48 @@ fn detect_best_single_match(
   start : Int,
   block_len : Int,
   search_limit? : Int = 8192,
+  search_depth? : Int = 0,
 ) -> (Int, Int, Int) {
   if block_len < 4 {
     return (0, 0, 0)
   }
   let search_cap = if search_limit > 0 { search_limit } else { 8192 }
   let search_len = if block_len < search_cap { block_len } else { search_cap }
+  if search_len < 4 {
+    return (0, 0, 0)
+  }
+  let depth_limit0 = if search_depth > 0 {
+    search_depth
+  } else {
+    single_match_default_search_depth(search_cap)
+  }
+  let depth_limit = if depth_limit0 > 0 { depth_limit0 } else { 1 }
+  let hash_head : Array[Int] = Array::make(1 << 15, -1)
+  let chain : Array[Int] = Array::make(search_len, -1)
   let mut best_ll = 0
   let mut best_offset = 0
   let mut best_ml = 0
 
-  let mut ll = 1
-  while ll + 3 <= search_len {
-    let max_offset = if ll < 2048 { ll } else { 2048 }
-    let mut offset = 1
-    while offset <= max_offset {
-      let p = start + ll
-      if src[p] == src[p - offset] &&
-        src[p + 1] == src[p + 1 - offset] &&
-        src[p + 2] == src[p + 2 - offset] {
+  let mut ll = 0
+  while ll + 4 <= search_len {
+    let p = start + ll
+    let h = hash4_bytes(src, p)
+    let prev = hash_head[h]
+    chain[ll] = prev
+    hash_head[h] = ll
+
+    let mut cand = prev
+    let mut depth = 0
+    while cand >= 0 && depth < depth_limit {
+      let offset = ll - cand
+      if offset > 0 &&
+        offset <= search_cap &&
+        src[start + cand] == src[p] &&
+        src[start + cand + 1] == src[p + 1] &&
+        src[start + cand + 2] == src[p + 2] {
         let mut ml = 3
         while ll + ml < block_len &&
-              src[start + ll + ml] == src[start + ll + ml - offset] {
+              src[start + cand + ml] == src[start + ll + ml] {
           ml = ml + 1
         }
         if ml > best_ml || (ml == best_ml && (best_ll == 0 || ll < best_ll)) {
@@ -226,7 +246,8 @@ fn detect_best_single_match(
           best_ml = ml
         }
       }
-      offset = offset + 1
+      cand = chain[cand]
+      depth = depth + 1
     }
     ll = ll + 1
   }
@@ -607,6 +628,9 @@ fn append_compressed_repeat_block(
   } else {
     8192
   }
+  let search_depth = level_single_match_search_depth(
+    level, enable_long_distance_matching,
+  )
   let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
     src,
     start,
@@ -616,6 +640,7 @@ fn append_compressed_repeat_block(
     rep2=dictionary_rep2,
     rep3=dictionary_rep3,
     search_limit~,
+    search_depth~,
   )
   let max_offset = ll + dictionary_history.length()
   let single_payload = if ml >= 3 {

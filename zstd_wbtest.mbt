@@ -2165,3 +2165,39 @@ test "dictionary single-match wide search reaches matches beyond fixed 32768 pre
   assert_true(ml_wide >= 300)
   assert_true(off_wide > ll_wide)
 }
+
+///|
+test "hash-chain single-match search can find offsets beyond 2048" {
+  let lead = Bytes::makei(6000, i => {
+    let x = i.reinterpret_as_uint() * (1664525 : UInt) + (1013904223 : UInt)
+    ((x >> 24) & 0xFF).to_byte()
+  })
+  let repeated = lead[900:1600].to_bytes()
+  let gap = Bytes::makei(2600, i => {
+    let x = i.reinterpret_as_uint() * (22695477 : UInt) + (1 : UInt)
+    ((x >> 23) & 0xFF).to_byte()
+  })
+  let src = lead + gap + repeated + b"tail"
+  let (ll, offset, ml) = detect_best_single_match(
+    src,
+    0,
+    src.length(),
+    search_limit=src.length(),
+    search_depth=64,
+  )
+  assert_true(ml >= 680)
+  assert_true(offset > 2048)
+  assert_true(offset <= ll)
+}
+
+///|
+test "single-match search depth grows with level and long-distance mode" {
+  assert_true(
+    level_single_match_search_depth(22, false) >
+    level_single_match_search_depth(10, false),
+  )
+  assert_true(
+    level_single_match_search_depth(18, true) >
+    level_single_match_search_depth(18, false),
+  )
+}
