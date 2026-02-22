@@ -695,6 +695,51 @@ test "rewrite predefined sequence modes works with compressed literals payload" 
 }
 
 ///|
+test "literals-only payload encodes sequence_count zero with compressed literals" {
+  let src = Bytes::makei(128, fn(i) {
+    if i % 17 == 0 {
+      b"B"[0]
+    } else {
+      b"A"[0]
+    }
+  })
+  let payload = try? build_literals_only_payload(src, 0, src.length(), 12)
+  match payload {
+    Ok(data) => {
+      assert_true(data.length() > 0)
+      let seq_count_pos = payload_sequence_count_offset(data)
+      assert_true(seq_count_pos >= 0)
+      assert_eq(data[seq_count_pos].to_uint(), 0)
+
+      let prev_huf_valid : Ref[Bool] = { val: false }
+      let prev_huf_max_bits : Ref[Int] = { val: 0 }
+      let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+      let lit = try? decode_literals_section_minimal(
+        data,
+        0,
+        data.length(),
+        prev_huf_valid,
+        prev_huf_max_bits,
+        prev_huf_left,
+        prev_huf_right,
+        prev_huf_symbol,
+      )
+      match lit {
+        Ok((next_pos, literals)) => {
+          assert_eq(next_pos, seq_count_pos)
+          assert_eq(literals, src)
+        }
+        Err(_) =>
+          fail("failed to decode literals-only payload literals section")
+      }
+    }
+    Err(_) => fail("failed to build literals-only payload")
+  }
+}
+
+///|
 test "compressed literals support four-stream size_format=2 roundtrip" {
   let literals = Bytes::makei(2048, fn(i) {
     if i % 29 == 0 {

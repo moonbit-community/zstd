@@ -542,6 +542,9 @@ fn append_compressed_repeat_block(
   let mixed_payload = build_general_mixed_sequence_payload(
     src, start, block_len, level,
   )
+  let literals_only_payload = build_literals_only_payload(
+    src, start, block_len, level,
+  )
   let general_payload = build_general_rle_payload(src, start, block_len, level)
   let (ll, offset, ml) = detect_best_single_match(src, start, block_len)
   let single_payload = if ll > 0 {
@@ -549,7 +552,7 @@ fn append_compressed_repeat_block(
   } else {
     b""
   }
-  let payload0 = if compressed_fse_payload.length() > 0 && level >= 22 {
+  let payload_pref = if compressed_fse_payload.length() > 0 && level >= 22 {
     compressed_fse_payload
   } else if mixed_payload.length() > 0 && level >= 20 {
     mixed_payload
@@ -581,6 +584,14 @@ fn append_compressed_repeat_block(
       best = mixed_payload
     }
     best
+  }
+  let mut payload0 = payload_pref
+  if literals_only_payload.length() > 0 &&
+    (
+      payload0.length() == 0 ||
+      literals_only_payload.length() < payload0.length()
+    ) {
+    payload0 = literals_only_payload
   }
   let payload0_rewrite = maybe_rewrite_sequence_modes_to_repeat(
     payload0, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
