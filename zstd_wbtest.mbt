@@ -198,6 +198,53 @@ test "single-match payload keeps raw literals section for mixed literals" {
 }
 
 ///|
+fn encode_sequence_count_for_test(seq_count : Int) -> Bytes raise ZstdError {
+  let payload : Array[Byte] = Array::new()
+  append_sequence_count(payload, seq_count)
+  Bytes::from_array(payload)
+}
+
+///|
+test "sequence_count encoding supports 1-byte 2-byte and 3-byte forms" {
+  let cases = [0, 1, 127, 128, 255, 256, 0x7EFF, 0x7F00, 0x7F01, 0x17EFF]
+  let mut i = 0
+  while i < cases.length() {
+    let expected = cases[i]
+    let enc = try? encode_sequence_count_for_test(expected)
+    match enc {
+      Ok(data) => {
+        let parsed = try? parse_sequence_count(data, 0, data.length())
+        match parsed {
+          Ok((value, pos)) => {
+            assert_eq(value.reinterpret_as_int(), expected)
+            assert_eq(pos, data.length())
+          }
+          Err(_) => fail("parse_sequence_count failed on encoded value")
+        }
+      }
+      Err(_) => fail("append_sequence_count failed on boundary value")
+    }
+    i = i + 1
+  }
+}
+
+///|
+test "sequence_count encoding rejects values above max supported range" {
+  let result = try? encode_sequence_count_for_test(0x17EFF + 1)
+  match result {
+    Ok(_) => fail("expected append_sequence_count to reject out-of-range value")
+    Err(CorruptionDetected) => ()
+    Err(SrcSizeWrong) => fail("unexpected SrcSizeWrong")
+    Err(BoundOverflow) => fail("unexpected BoundOverflow")
+    Err(SrcSizeTooLarge(_)) => fail("unexpected SrcSizeTooLarge")
+    Err(DictionaryRequired(dict_id)) =>
+      fail("unexpected DictionaryRequired: " + dict_id.to_string())
+    Err(UnsupportedFeature(msg)) =>
+      fail("unexpected UnsupportedFeature: " + msg)
+  }
+}
+
+///|
 test "decode literals section with 4 Huffman streams" {
   let frame = b"\x28\xb5\x2f\xfd\x64\x08\x06\x05\x03\x00\x96\x50\x13\x82\x11\x10\x11\x00\x11\x00\x11\x00\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\x41\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x5b\x01\x00\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x01\x81\x00\x98\x10\xf0\x07\x00\x10\x12\x3f\xd5\xaa\x55\xeb\x14\xa4\xfd\xf8\x0e\xdf"
   let prev_huf_valid : Ref[Bool] = { val: false }

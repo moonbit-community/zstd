@@ -263,10 +263,22 @@ fn append_sequence_count(
   payload : Array[Byte],
   seq_count : Int,
 ) -> Unit raise ZstdError {
-  if seq_count < 0 || seq_count > 127 {
+  if seq_count < 0 {
     raise CorruptionDetected
   }
-  payload.push(seq_count.reinterpret_as_uint().to_byte())
+  if seq_count < 128 {
+    payload.push(seq_count.reinterpret_as_uint().to_byte())
+  } else if seq_count < 0x7F00 {
+    payload.push((0x80 + (seq_count >> 8)).reinterpret_as_uint().to_byte())
+    payload.push((seq_count & 0xFF).reinterpret_as_uint().to_byte())
+  } else if seq_count <= 0x17EFF {
+    let rem = seq_count - 0x7F00
+    payload.push((0xFF : UInt).to_byte())
+    payload.push((rem & 0xFF).reinterpret_as_uint().to_byte())
+    payload.push(((rem >> 8) & 0xFF).reinterpret_as_uint().to_byte())
+  } else {
+    raise CorruptionDetected
+  }
 }
 
 ///|
