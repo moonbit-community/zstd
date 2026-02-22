@@ -29,26 +29,24 @@ fn append_literals_header(
 }
 
 ///|
-fn append_raw_literals_section(
-  out : Array[Byte],
-  literals : Bytes,
-) -> Unit raise ZstdError {
+fn append_raw_literals_section_bytes(literals : Bytes) -> Bytes raise ZstdError {
+  let out : Array[Byte] = Array::new()
   let lit_len = literals.length()
   append_literals_header(out, lit_len, 0)
   append_bytes(out, literals, 0, lit_len)
+  Bytes::from_array(out)
 }
 
 ///|
-fn append_rle_literals_section(
-  out : Array[Byte],
-  literals : Bytes,
-) -> Unit raise ZstdError {
+fn append_rle_literals_section_bytes(literals : Bytes) -> Bytes raise ZstdError {
+  let out : Array[Byte] = Array::new()
   let lit_len = literals.length()
   if lit_len <= 0 {
     raise CorruptionDetected
   }
   append_literals_header(out, lit_len, 1)
   out.push(literals[0])
+  Bytes::from_array(out)
 }
 
 ///|
@@ -73,9 +71,20 @@ fn append_best_literals_section(
   out : Array[Byte],
   literals : Bytes,
 ) -> Unit raise ZstdError {
+  let mut best = append_raw_literals_section_bytes(literals)
   if is_single_value_literals(literals) {
-    append_rle_literals_section(out, literals)
-  } else {
-    append_raw_literals_section(out, literals)
+    let rle = append_rle_literals_section_bytes(literals)
+    if rle.length() < best.length() {
+      best = rle
+    }
   }
+  let compressed = try? try_build_compressed_literals_section(literals)
+  match compressed {
+    Ok(candidate) =>
+      if candidate.length() > 0 && candidate.length() < best.length() {
+        best = candidate
+      }
+    Err(_) => ()
+  }
+  append_bytes(out, best, 0, best.length())
 }

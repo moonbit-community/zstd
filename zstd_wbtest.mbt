@@ -485,6 +485,72 @@ test "single-match payload keeps raw literals section for mixed literals" {
 }
 
 ///|
+test "best literals section can emit compressed Huffman literals and roundtrip decode" {
+  let literals = Bytes::makei(512, fn(i) {
+    if i % 31 == 0 {
+      b"C"[0]
+    } else if i % 7 == 0 {
+      b"B"[0]
+    } else {
+      b"A"[0]
+    }
+  })
+  let section_out : Array[Byte] = Array::new()
+  let encoded = try? append_best_literals_section(section_out, literals)
+  match encoded {
+    Ok(_) => {
+      let section = Bytes::from_array(section_out)
+      assert_true(section.length() > 0)
+      assert_eq(section[0].to_uint() & 0x3, 2)
+
+      let prev_huf_valid : Ref[Bool] = { val: false }
+      let prev_huf_max_bits : Ref[Int] = { val: 0 }
+      let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+      let decoded = try? decode_literals_section_minimal(
+        section,
+        0,
+        section.length(),
+        prev_huf_valid,
+        prev_huf_max_bits,
+        prev_huf_left,
+        prev_huf_right,
+        prev_huf_symbol,
+      )
+      match decoded {
+        Ok((next_pos, restored)) => {
+          assert_eq(next_pos, section.length())
+          assert_eq(restored, literals)
+        }
+        Err(_) => fail("failed to decode encoded compressed literals section")
+      }
+    }
+    Err(_) => fail("failed to encode best literals section")
+  }
+}
+
+///|
+test "best literals section falls back to raw when direct-weight range is unsupported" {
+  let literals = Bytes::makei(96, fn(i) {
+    if (i & 1) == 0 {
+      b"\xFF"[0]
+    } else {
+      b"A"[0]
+    }
+  })
+  let out : Array[Byte] = Array::new()
+  let encoded = try? append_best_literals_section(out, literals)
+  match encoded {
+    Ok(_) => {
+      assert_true(out.length() > 0)
+      assert_eq(out[0].to_uint() & 0x3, 0)
+    }
+    Err(_) => fail("failed to append best literals section")
+  }
+}
+
+///|
 fn encode_sequence_count_for_test(seq_count : Int) -> Bytes raise ZstdError {
   let payload : Array[Byte] = Array::new()
   append_sequence_count(payload, seq_count)
