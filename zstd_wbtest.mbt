@@ -306,9 +306,12 @@ test "rewrite compressed mode2 supports partial repeat per sequence source" {
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
-      let parsed = try? parse_mode2_sequence_headers(v)
+      let parsed = try? parse_sequence_mode_sources(v)
       match parsed {
-        Ok((_, _, off_header, ml_header, _)) => {
+        Ok((_, ll_mode, off_mode, ml_mode, _, off_header, ml_header, _)) => {
+          assert_eq(ll_mode, 2)
+          assert_eq(off_mode, 2)
+          assert_eq(ml_mode, 2)
           let prev_rle_valid : Ref[Bool] = { val: false }
           let prev_ll_code : Ref[UInt] = { val: 0 }
           let prev_off_code : Ref[UInt] = { val: 0 }
@@ -346,6 +349,109 @@ test "rewrite compressed mode2 supports partial repeat per sequence source" {
       }
     }
     Err(_) => fail("failed to build compressed payload for partial repeat test")
+  }
+}
+
+///|
+test "rewrite mixed sequence payload rewrites compressed sources independently" {
+  let prefix = Bytes::makei(80, i => {
+    ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()
+  })
+  let a = Bytes::makei(180, i => {
+    ((i * 13 + 7) % 241).reinterpret_as_uint().to_byte()
+  })
+  let b = Bytes::makei(220, i => {
+    ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
+  })
+  let tail = Bytes::makei(32, i => {
+    ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
+  })
+  let src = prefix + a + b + b + a + b + a + b + b + tail
+  let payload = try? build_general_compressed_fse_payload(
+    src,
+    0,
+    src.length(),
+    14,
+  )
+  match payload {
+    Ok(v) => {
+      let parsed = try? parse_sequence_mode_sources(v)
+      match parsed {
+        Ok(
+          (
+            mode_pos,
+            ll_mode,
+            off_mode,
+            ml_mode,
+            _,
+            off_header,
+            ml_header,
+            bitstream_start,
+          )
+        ) => {
+          assert_eq(ll_mode, 2)
+          assert_eq(off_mode, 2)
+          assert_eq(ml_mode, 2)
+          let prev_rle_valid : Ref[Bool] = { val: false }
+          let prev_ll_code : Ref[UInt] = { val: 0 }
+          let prev_off_code : Ref[UInt] = { val: 0 }
+          let prev_ml_code : Ref[UInt] = { val: 0 }
+          let prev_predefined_valid : Ref[Bool] = { val: false }
+          let prev_compressed_valid : Ref[Bool] = { val: false }
+          let prev_ll_header : Ref[Bytes] = { val: b"" }
+          let prev_off_header : Ref[Bytes] = { val: b"" }
+          let prev_ml_header : Ref[Bytes] = { val: b"" }
+
+          let warmup = maybe_rewrite_sequence_modes_to_repeat(
+            v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+            prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+          )
+          let warmup_modes = payload_sequence_modes_offset(warmup)
+          assert_true(warmup_modes >= 0)
+          assert_eq(warmup[warmup_modes].to_uint(), 0xA8)
+
+          let mixed_arr : Array[Byte] = Array::new()
+          append_bytes(mixed_arr, v, 0, mode_pos)
+          mixed_arr.push((0x28 : UInt).to_byte())
+          append_bytes(mixed_arr, off_header, 0, off_header.length())
+          append_bytes(mixed_arr, ml_header, 0, ml_header.length())
+          append_bytes(
+            mixed_arr,
+            v,
+            bitstream_start,
+            v.length() - bitstream_start,
+          )
+          let mixed_payload = Bytes::from_array(mixed_arr)
+
+          let rewritten = maybe_rewrite_sequence_modes_to_repeat(
+            mixed_payload, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code,
+            prev_predefined_valid, prev_compressed_valid, prev_ll_header, prev_off_header,
+            prev_ml_header,
+          )
+          let rewritten_modes = payload_sequence_modes_offset(rewritten)
+          assert_true(rewritten_modes >= 0)
+          assert_eq(rewritten[rewritten_modes].to_uint(), 0x3C)
+          assert_eq(
+            rewritten.length(),
+            mixed_payload.length() - off_header.length() - ml_header.length(),
+          )
+
+          let second = maybe_rewrite_sequence_modes_to_repeat(
+            mixed_payload, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code,
+            prev_predefined_valid, prev_compressed_valid, prev_ll_header, prev_off_header,
+            prev_ml_header,
+          )
+          let second_modes = payload_sequence_modes_offset(second)
+          assert_true(second_modes >= 0)
+          assert_eq(second[second_modes].to_uint(), 0x28)
+          assert_eq(second.length(), mixed_payload.length())
+        }
+        Err(_) =>
+          fail("failed to parse mode2 payload for mixed sequence rewrite test")
+      }
+    }
+    Err(_) =>
+      fail("failed to build compressed payload for mixed sequence rewrite test")
   }
 }
 
