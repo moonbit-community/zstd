@@ -18,13 +18,13 @@ fn detect_best_single_match_with_dictionary_history(
   rep2? : Int = 4,
   rep3? : Int = 8,
   search_limit? : Int = 8192,
+  allow_internal? : Bool = true,
 ) -> (Int, Int, Int) {
-  let (best_ll0, best_offset0, best_ml0) = detect_best_single_match(
-    src,
-    start,
-    block_len,
-    search_limit~,
-  )
+  let (best_ll0, best_offset0, best_ml0) = if allow_internal {
+    detect_best_single_match(src, start, block_len, search_limit~)
+  } else {
+    (0, 0, 0)
+  }
   let mut best_ll = best_ll0
   let mut best_offset = best_offset0
   let mut best_ml = best_ml0

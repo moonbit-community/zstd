@@ -2014,3 +2014,39 @@ test "dictionary single-match search limit controls long-distance visibility" {
   assert_true(ml_long >= 300)
   assert_true(off_long > ll_long)
 }
+
+///|
+test "dictionary single-match wide search reaches matches beyond fixed 32768 prefix" {
+  let dict = Bytes::makei(1024, i => {
+    let x = i.reinterpret_as_uint() * (2246822519 : UInt) + (2654435761 : UInt)
+    (128 + ((x >> 16) & 0x7F).reinterpret_as_int())
+    .reinterpret_as_uint()
+    .to_byte()
+  })
+  let prefix = Bytes::makei(70000, i => {
+    let x = i.reinterpret_as_uint() * (1103515245 : UInt) + (12345 : UInt)
+    ((x >> 24) & 0x7F).to_byte()
+  })
+  let tail = dict[200:520].to_bytes()
+  let src = prefix + tail
+
+  let (_, _, ml_narrow) = detect_best_single_match_with_dictionary_history(
+    src,
+    0,
+    src.length(),
+    dict,
+    search_limit=32768,
+    allow_internal=false,
+  )
+  let (ll_wide, off_wide, ml_wide) = detect_best_single_match_with_dictionary_history(
+    src,
+    0,
+    src.length(),
+    dict,
+    search_limit=src.length(),
+    allow_internal=false,
+  )
+  assert_true(ml_narrow < 3)
+  assert_true(ml_wide >= 300)
+  assert_true(off_wide > ll_wide)
+}

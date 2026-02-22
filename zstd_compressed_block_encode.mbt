@@ -596,7 +596,11 @@ fn append_compressed_repeat_block(
     src, start, block_len, level,
   )
   let general_payload = build_general_rle_payload(src, start, block_len, level)
-  let search_limit = if enable_long_distance_matching { 32768 } else { 8192 }
+  let search_limit = if enable_long_distance_matching {
+    block_len
+  } else {
+    8192
+  }
   let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
     src,
     start,

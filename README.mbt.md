@@ -64,6 +64,7 @@ assert_eq(restored, input)
       - literal Huffman tree can be reused as treeless literals source
   - supports options-based tuning via `CompressOptions`:
     - `enable_long_distance_matching` increases single-match search range
+      - long-distance search window now scales with block length (instead of fixed 32768)
     - `target_compressed_block_size` bounds emitted compressed-block payload size (falls back to raw when exceeded)
     - `single_segment` can be disabled to emit a window descriptor
     - `write_content_size` controls FCS presence for non-single-segment frames
