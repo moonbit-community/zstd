@@ -6,6 +6,20 @@ fn read_u24_le_test(src : Bytes, pos : Int) -> UInt {
 }
 
 ///|
+fn append_bytes_encode_test(
+  out : Array[Byte],
+  src : Bytes,
+  start : Int,
+  len : Int,
+) -> Unit {
+  let mut i = 0
+  while i < len {
+    out.push(src[start + i])
+    i = i + 1
+  }
+}
+
+///|
 test "compress emits rle block for repeated payload" {
   let input = b"aaaaaaaaaaaaaaaa"
   let frame = compress(input)
@@ -128,6 +142,30 @@ test "compress can use periodic window after literal prefix" {
   // literals = prefix(7) + period(2) + tail(4) => 13 bytes, raw literals header is 1 byte.
   let seq_count_pos = 12 + 1 + 13
   assert_eq(frame_high[seq_count_pos].to_uint(), 1)
+}
+
+///|
+test "compress prefix periodic window can use multi-sequence when LL range fits" {
+  let prefix = b"X"
+  let period = b"abcdefghijklmnop" // 16 bytes
+  let body_arr : Array[Byte] = Array::new()
+  let mut i = 0
+  while i < 20 {
+    append_bytes_encode_test(body_arr, period, 0, period.length())
+    i = i + 1
+  }
+  let body = Bytes::from_array(body_arr)
+  let input = prefix + body + b"Z"
+
+  let frame = compress(input, level=18)
+  let block_header = read_u24_le_test(frame, 9)
+  assert_eq((block_header >> 1) & 0x3, 2)
+  assert_eq(decompress(frame), input)
+
+  // literals = prefix(1) + period(16) + period(16) + tail(1) = 34 bytes.
+  // raw literals header uses size_format=1 => 2-byte header.
+  let seq_count_pos = 12 + 2 + 34
+  assert_eq(frame[seq_count_pos].to_uint(), 2)
 }
 
 ///|

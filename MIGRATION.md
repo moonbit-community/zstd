@@ -33,7 +33,9 @@ Pinned upstream:
     repeated segments.
   - very-high-level (`level >= 18`) path can emit multi-sequence (`2..4`)
     variants of this periodic-window subset and prefers periodic multi-sequence
-    encoding when available.
+    encoding when available; prefixed periodic windows may also use
+    multi-sequence encoding when LL symbols are representable, with automatic
+    fallback to lower-sequence forms.
   - `decompress(Bytes)` supporting:
     - raw and rle block decoding
     - compressed blocks with literals:

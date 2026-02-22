@@ -44,6 +44,7 @@ assert_eq(restored, input)
   - emits valid zstd frames using raw/rle blocks
   - at higher levels (`level >= 10`), can emit compressed blocks for repeated-window payloads with short periods (`2..64`), including literal prefixes and tails (pure MoonBit subset)
   - at very high levels (`level >= 18`), may emit multi-sequence variants (`2..4` sequences) for this periodic-window subset
+  - for prefixed periodic windows, multi-sequence encoding is attempted when symbols are representable; otherwise it falls back automatically
   - includes a generic non-periodic single-match compressed-block path (selected when periodic encoding is unavailable or not preferred)
 - Decompression:
   - supports raw blocks and rle blocks

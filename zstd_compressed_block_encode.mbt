@@ -474,11 +474,7 @@ fn build_best_periodic_payload(
   if period == 0 {
     return b""
   }
-  let target_seq_count = if prefix_len == 0 {
-    choose_target_seq_count(level)
-  } else {
-    1
-  }
+  let target_seq_count = choose_target_seq_count(level)
   let mut seq_count = target_seq_count
   let mut payload = b""
   while seq_count >= 1 {
