@@ -76,5 +76,5 @@ test "upstream golden dictionary dictID mismatch is rejected" {
     rv_up_gdict_http_frame_l19(),
     bad_dict,
   )
-  assert_true(result is Err(CorruptionDetected))
+  assert_true(result is Err(DictionaryRequired(_)))
 }

@@ -100,7 +100,7 @@ fn decode_frame_into_with_dictionary_state(
     }
     if dictionary_state.dict_id != 0 &&
       dictionary_state.dict_id != frame_dict_id {
-      raise CorruptionDetected
+      raise DictionaryRequired(frame_dict_id)
     }
   }
 

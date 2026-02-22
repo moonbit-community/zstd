@@ -207,7 +207,7 @@ test "standard dictionary dictID mismatch is rejected" {
     }
   })
   let result = try? decompress_with_dictionary(frame, bad_dict)
-  assert_true(result is Err(CorruptionDetected))
+  assert_true(result is Err(DictionaryRequired(_)))
 }
 
 ///|
