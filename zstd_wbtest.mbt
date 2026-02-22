@@ -2225,3 +2225,21 @@ test "dictionary multi-candidate chain can recover longer older match" {
   assert_true(ml >= dict_head.length())
   assert_true(offset > dict.length() - dict_tail.length())
 }
+
+///|
+test "dictionary match can continue beyond dictionary bytes via virtual prefix" {
+  let dict = b"abcde"
+  let src = b"abcdeabcdeabcdeXYZ"
+  let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
+    src,
+    0,
+    src.length(),
+    dict,
+    search_limit=src.length(),
+    search_depth=64,
+    allow_internal=false,
+  )
+  assert_eq(ll, 0)
+  assert_eq(offset, dict.length())
+  assert_true(ml >= 15)
+}

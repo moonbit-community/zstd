@@ -70,13 +70,16 @@ fn detect_best_single_match_with_dictionary_history(
         history[cand + 2] == src[p + 2] {
         let mut ml = 3
         let max_ml_by_block = block_len - ll
-        let max_ml_by_dict = history_len - cand
-        let max_ml = if max_ml_by_block < max_ml_by_dict {
-          max_ml_by_block
-        } else {
-          max_ml_by_dict
-        }
-        while ml < max_ml && history[cand + ml] == src[p + ml] {
+        while ml < max_ml_by_block {
+          let source_window_index = cand + ml
+          let source_byte = if source_window_index < history_len {
+            history[source_window_index]
+          } else {
+            src[start + source_window_index - history_len]
+          }
+          if source_byte != src[p + ml] {
+            break
+          }
           ml = ml + 1
         }
         let candidate_offset = history_len + ll - cand
