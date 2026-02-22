@@ -443,8 +443,11 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
           )
           let second_modes = payload_sequence_modes_offset(second)
           assert_true(second_modes >= 0)
-          assert_eq(second[second_modes].to_uint(), 0x28)
-          assert_eq(second.length(), mixed_payload.length())
+          assert_eq(second[second_modes].to_uint(), 0x3C)
+          assert_eq(
+            second.length(),
+            mixed_payload.length() - off_header.length() - ml_header.length(),
+          )
         }
         Err(_) =>
           fail("failed to parse mode2 payload for mixed sequence rewrite test")

@@ -160,6 +160,27 @@ fn parse_sequence_mode_sources(
 }
 
 ///|
+fn has_compressed_header(header : Bytes) -> Bool {
+  header.length() > 0
+}
+
+///|
+fn update_prev_compressed_header_state(
+  mode : UInt,
+  mode0 : UInt,
+  source : Bytes,
+  prev_header : Ref[Bytes],
+) -> Unit {
+  if mode == 0 || mode == 1 {
+    prev_header.val = b""
+    return
+  }
+  if mode == 2 || (mode == 3 && mode0 == 2) {
+    prev_header.val = source
+  }
+}
+
+///|
 fn maybe_rewrite_sequence_modes_to_repeat(
   payload : Bytes,
   prev_rle_valid : Ref[Bool],
@@ -193,6 +214,9 @@ fn maybe_rewrite_sequence_modes_to_repeat(
     prev_predefined_valid.val = true
     prev_rle_valid.val = false
     prev_compressed_valid.val = false
+    prev_ll_header.val = b""
+    prev_off_header.val = b""
+    prev_ml_header.val = b""
     return payload
   }
   if modes == 0x54 {
@@ -223,6 +247,9 @@ fn maybe_rewrite_sequence_modes_to_repeat(
     prev_ll_code.val = ll_code
     prev_off_code.val = off_code
     prev_ml_code.val = ml_code
+    prev_ll_header.val = b""
+    prev_off_header.val = b""
+    prev_ml_header.val = b""
     return payload
   }
   if modes == 0xFC {
@@ -243,21 +270,21 @@ fn maybe_rewrite_sequence_modes_to_repeat(
       )
     ) => {
       let ll_mode : UInt = if ll_mode0 == 2 &&
-        prev_compressed_valid.val &&
+        has_compressed_header(prev_ll_header.val) &&
         ll_source == prev_ll_header.val {
         3
       } else {
         ll_mode0
       }
       let off_mode : UInt = if off_mode0 == 2 &&
-        prev_compressed_valid.val &&
+        has_compressed_header(prev_off_header.val) &&
         off_source == prev_off_header.val {
         3
       } else {
         off_mode0
       }
       let ml_mode : UInt = if ml_mode0 == 2 &&
-        prev_compressed_valid.val &&
+        has_compressed_header(prev_ml_header.val) &&
         ml_source == prev_ml_header.val {
         3
       } else {
@@ -290,29 +317,27 @@ fn maybe_rewrite_sequence_modes_to_repeat(
 
       prev_rle_valid.val = false
       prev_predefined_valid.val = false
-      let compressed_only = (ll_mode == 2 || ll_mode == 3) &&
-        (off_mode == 2 || off_mode == 3) &&
-        (ml_mode == 2 || ml_mode == 3)
-      if compressed_only {
-        prev_compressed_valid.val = true
-        if ll_mode == 2 || (ll_mode == 3 && ll_mode0 == 2) {
-          prev_ll_header.val = ll_source
-        }
-        if off_mode == 2 || (off_mode == 3 && off_mode0 == 2) {
-          prev_off_header.val = off_source
-        }
-        if ml_mode == 2 || (ml_mode == 3 && ml_mode0 == 2) {
-          prev_ml_header.val = ml_source
-        }
-      } else {
-        prev_compressed_valid.val = false
-      }
+      update_prev_compressed_header_state(
+        ll_mode, ll_mode0, ll_source, prev_ll_header,
+      )
+      update_prev_compressed_header_state(
+        off_mode, off_mode0, off_source, prev_off_header,
+      )
+      update_prev_compressed_header_state(
+        ml_mode, ml_mode0, ml_source, prev_ml_header,
+      )
+      prev_compressed_valid.val = has_compressed_header(prev_ll_header.val) ||
+        has_compressed_header(prev_off_header.val) ||
+        has_compressed_header(prev_ml_header.val)
       return rewritten
     }
     Err(_) => {
       prev_rle_valid.val = false
       prev_predefined_valid.val = false
       prev_compressed_valid.val = false
+      prev_ll_header.val = b""
+      prev_off_header.val = b""
+      prev_ml_header.val = b""
       return payload
     }
   }
