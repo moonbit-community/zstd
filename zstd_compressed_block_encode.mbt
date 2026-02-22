@@ -12,23 +12,18 @@ fn detect_repeat_prefix(
   let mut best_run_len = 0
   let mut period = 2
   while period <= max_period {
-    if block_len >= period + 3 {
-      let mut run_len = period
-      while run_len < block_len &&
-            src[start + run_len] == src[start + run_len % period] {
-        run_len = run_len + 1
-      }
-      if run_len >= period + 3 &&
-        (
-          run_len > best_run_len ||
-          (
-            run_len == best_run_len &&
-            (best_period == 0 || period < best_period)
-          )
-        ) {
-        best_period = period
-        best_run_len = run_len
-      }
+    let mut run_len = period
+    while run_len < block_len &&
+          src[start + run_len] == src[start + run_len % period] {
+      run_len = run_len + 1
+    }
+    if run_len >= period + 3 &&
+      (
+        run_len > best_run_len ||
+        (run_len == best_run_len && (best_period == 0 || period < best_period))
+      ) {
+      best_period = period
+      best_run_len = run_len
     }
     period = period + 1
   }
@@ -142,9 +137,6 @@ fn append_raw_literals_section(
   literals : Bytes,
 ) -> Unit raise ZstdError {
   let lit_len = literals.length()
-  if lit_len < 0 {
-    raise CorruptionDetected
-  }
   if lit_len <= 31 {
     out.push((lit_len.reinterpret_as_uint() << 3).to_byte())
   } else if lit_len <= 4095 {
@@ -161,20 +153,100 @@ fn append_raw_literals_section(
 }
 
 ///|
+fn append_sequence_count(
+  payload : Array[Byte],
+  seq_count : Int,
+) -> Unit raise ZstdError {
+  if seq_count < 0 || seq_count > 127 {
+    raise CorruptionDetected
+  }
+  payload.push(seq_count.reinterpret_as_uint().to_byte())
+}
+
+///|
 fn build_periodic_literals(
   src : Bytes,
   start : Int,
-  period : Int,
-  run_len : Int,
   block_len : Int,
-) -> Bytes {
-  let out : Array[Byte] = Array::new()
-  append_bytes(out, src, start, period)
+  run_len : Int,
+  period : Int,
+  seq_count : Int,
+  chunk_match_len : Int,
+) -> Bytes raise ZstdError {
+  let literals : Array[Byte] = Array::new()
+  let seq_span = period + chunk_match_len
+  let mut s = 0
+  while s < seq_count {
+    let seq_start = start + s * seq_span
+    if seq_start + period > start + run_len {
+      raise CorruptionDetected
+    }
+    append_bytes(literals, src, seq_start, period)
+    s = s + 1
+  }
+  let produced_by_sequences = seq_count * seq_span
+  if produced_by_sequences > run_len {
+    raise CorruptionDetected
+  }
+  let run_remainder = run_len - produced_by_sequences
+  if run_remainder > 0 {
+    append_bytes(literals, src, start + produced_by_sequences, run_remainder)
+  }
   let tail_len = block_len - run_len
   if tail_len > 0 {
-    append_bytes(out, src, start + run_len, tail_len)
+    append_bytes(literals, src, start + run_len, tail_len)
   }
-  Bytes::from_array(out)
+  Bytes::from_array(literals)
+}
+
+///|
+fn build_repeat_payload(
+  src : Bytes,
+  start : Int,
+  block_len : Int,
+  period : Int,
+  run_len : Int,
+  seq_count : Int,
+  chunk_match_len : Int,
+) -> Bytes raise ZstdError {
+  if seq_count <= 0 || chunk_match_len < 3 {
+    return b""
+  }
+  let produced_by_sequences = seq_count * (period + chunk_match_len)
+  if produced_by_sequences > run_len {
+    return b""
+  }
+
+  let (ll_code, ll_extra, ll_bits) = encode_sequence_length_symbol(
+    sequence_symbol_literal_length, 35, period,
+  )
+  let (ml_code, ml_extra, ml_bits) = encode_sequence_length_symbol(
+    sequence_symbol_match_length, 52, chunk_match_len,
+  )
+  let (off_code, off_extra, off_bits) = encode_offset_symbol(period)
+
+  let extra_bits : Array[Int] = Array::new()
+  let mut i = 0
+  while i < seq_count {
+    append_bits_be(extra_bits, off_extra, off_bits)
+    append_bits_be(extra_bits, ml_extra, ml_bits)
+    append_bits_be(extra_bits, ll_extra, ll_bits)
+    i = i + 1
+  }
+  let bitstream = build_reverse_bitstream(extra_bits)
+  let literals = build_periodic_literals(
+    src, start, block_len, run_len, period, seq_count, chunk_match_len,
+  )
+
+  let payload : Array[Byte] = Array::new()
+  append_raw_literals_section(payload, literals)
+  append_sequence_count(payload, seq_count)
+  payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
+  payload.push(ll_code.to_byte())
+  payload.push(off_code.to_byte())
+  payload.push(ml_code.to_byte())
+  append_bytes(payload, bitstream, 0, bitstream.length())
+  Bytes::from_array(payload)
 }
 
 ///|
@@ -184,41 +256,37 @@ fn append_compressed_repeat_block(
   start : Int,
   block_len : Int,
   last_block : Bool,
+  level : Int,
 ) -> Bool raise ZstdError {
   let (period, run_len) = detect_repeat_prefix(src, start, block_len)
   if period == 0 {
     return false
   }
-  let lit_len = period
-  let match_len = run_len - period
-  if match_len < 3 {
+  let single_match_len = run_len - period
+  if single_match_len < 3 {
     return false
   }
 
-  let (ll_code, ll_extra, ll_bits) = encode_sequence_length_symbol(
-    sequence_symbol_literal_length, 35, lit_len,
+  let payload_single = build_repeat_payload(
+    src, start, block_len, period, run_len, 1, single_match_len,
   )
-  let (ml_code, ml_extra, ml_bits) = encode_sequence_length_symbol(
-    sequence_symbol_match_length, 52, match_len,
-  )
+  if payload_single.length() == 0 {
+    return false
+  }
 
-  let (off_code, off_extra, off_bits) = encode_offset_symbol(period)
-
-  let extra_bits : Array[Int] = Array::new()
-  append_bits_be(extra_bits, off_extra, off_bits)
-  append_bits_be(extra_bits, ml_extra, ml_bits)
-  append_bits_be(extra_bits, ll_extra, ll_bits)
-  let bitstream = build_reverse_bitstream(extra_bits)
-
-  let payload : Array[Byte] = Array::new()
-  let literals = build_periodic_literals(src, start, period, run_len, block_len)
-  append_raw_literals_section(payload, literals)
-  payload.push((1 : UInt).to_byte()) // Number_of_Sequences
-  payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
-  payload.push(ll_code.to_byte())
-  payload.push(off_code.to_byte())
-  payload.push(ml_code.to_byte())
-  append_bytes(payload, bitstream, 0, bitstream.length())
+  let payload = if level >= 18 && run_len >= 2 * (period + 3) {
+    let half_chunk = run_len / 2 - period
+    let payload_multi = build_repeat_payload(
+      src, start, block_len, period, run_len, 2, half_chunk,
+    )
+    if payload_multi.length() > 0 {
+      payload_multi
+    } else {
+      payload_single
+    }
+  } else {
+    payload_single
+  }
 
   if payload.length() >= block_len || payload.length() > 128 << 10 {
     return false
@@ -230,6 +298,6 @@ fn append_compressed_repeat_block(
     (block_type_compressed << 1) +
     last_block_bit
   append_u24_le(out, block_header)
-  append_bytes(out, Bytes::from_array(payload), 0, payload.length())
+  append_bytes(out, payload, 0, payload.length())
   true
 }

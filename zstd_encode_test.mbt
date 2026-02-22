@@ -109,3 +109,19 @@ test "compress periodic prefix with literal tail emits compressed block" {
   assert_true(frame_high.length() < frame_low.length())
   assert_eq(decompress(frame_high), input)
 }
+
+///|
+test "compress very high level can emit two-sequence periodic block" {
+  let head = Bytes::makei(200, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
+  let tail = b"XYZ"
+  let input = head + tail
+
+  let frame = compress(input, level=18)
+  let block_header = read_u24_le_test(frame, 9)
+  assert_eq((block_header >> 1) & 0x3, 2)
+  assert_eq(decompress(frame), input)
+
+  // literals length = 2(seq1) + 2(seq2) + 3(tail) = 7, so raw literals header is 1 byte.
+  let seq_count_pos = 12 + 1 + 7
+  assert_eq(frame[seq_count_pos].to_uint(), 2)
+}
