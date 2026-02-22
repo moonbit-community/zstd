@@ -87,8 +87,13 @@ fn build_single_match_payload_predefined(
   ll : Int,
   offset : Int,
   ml : Int,
+  max_offset : Int,
 ) -> Bytes raise ZstdError {
-  if ll <= 0 || offset <= 0 || ml < 3 || ll + ml > block_len || offset > ll {
+  if ll < 0 ||
+    offset <= 0 ||
+    ml < 3 ||
+    ll + ml > block_len ||
+    offset > max_offset {
     return b""
   }
   let (ll_ok, ll_state, ll_extra, ll_bits) = try_choose_predefined_state(

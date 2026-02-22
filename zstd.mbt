@@ -65,13 +65,32 @@ pub fn compress(
   level? : Int = 3,
   checksum? : Bool = false,
 ) -> Bytes raise ZstdError {
+  compress_with_dictionary(src, b"", level~, checksum~)
+}
+
+///|
+/// Pure MoonBit one-shot compressor with optional dictionary history.
+/// If `dictionary` is a standard zstd dictionary blob, frame header dictID
+/// is emitted from dictionary metadata. Raw prefix dictionaries emit no dictID.
+pub fn compress_with_dictionary(
+  src : Bytes,
+  dictionary : Bytes,
+  level? : Int = 3,
+  checksum? : Bool = false,
+) -> Bytes raise ZstdError {
   let src_len = src.length()
   if src_len.to_uint64() >= max_input_size {
     raise SrcSizeTooLarge(src_len.to_uint64())
   }
   let out : Array[Byte] = Array::new()
+  let dictionary_state = parse_dictionary_state(dictionary)
 
-  append_frame_header(out, src_len, checksum)
+  append_frame_header(
+    out,
+    src_len,
+    checksum,
+    dictionary_id=dictionary_state.dict_id,
+  )
 
   if src_len == 0 {
     // last=1, blockType=raw(0), blockSize=0
@@ -82,7 +101,12 @@ pub fn compress(
     return Bytes::from_array(out)
   }
 
-  append_frame_blocks_minimal(out, src, level)
+  append_frame_blocks_minimal(
+    out,
+    src,
+    level,
+    dictionary_history=dictionary_state.history,
+  )
   if checksum {
     append_frame_checksum(out, src)
   }

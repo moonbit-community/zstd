@@ -6,6 +6,47 @@ fn read_u24_le_test(src : Bytes, pos : Int) -> UInt {
 }
 
 ///|
+fn read_u32_le_test(src : Bytes, pos : Int) -> UInt {
+  src[pos].to_uint() +
+  (src[pos + 1].to_uint() << 8) +
+  (src[pos + 2].to_uint() << 16) +
+  (src[pos + 3].to_uint() << 24)
+}
+
+///|
+fn dict_id_size_encode_test(flag : UInt) -> Int {
+  if flag == 0 {
+    0
+  } else if flag == 1 {
+    1
+  } else if flag == 2 {
+    2
+  } else {
+    4
+  }
+}
+
+///|
+fn frame_content_size_size_encode_test(
+  flag : UInt,
+  single_segment : Bool,
+) -> Int {
+  if flag == 0 {
+    if single_segment {
+      1
+    } else {
+      0
+    }
+  } else if flag == 1 {
+    2
+  } else if flag == 2 {
+    4
+  } else {
+    8
+  }
+}
+
+///|
 fn append_bytes_encode_test(
   out : Array[Byte],
   src : Bytes,
@@ -101,6 +142,34 @@ fn read_first_block_sequence_count(frame : Bytes) -> Int {
 }
 
 ///|
+fn frame_header_size_encode_test(frame : Bytes) -> Int {
+  if frame.length() < 5 {
+    return -1
+  }
+  let descriptor = frame[4].to_uint()
+  let single_segment = ((descriptor >> 5) & 1) == 1
+  let mut size = 5
+  if !single_segment {
+    size = size + 1
+  }
+  let dict_flag = descriptor & 0x3
+  size = size + dict_id_size_encode_test(dict_flag)
+  let fcs_flag = descriptor >> 6
+  size = size + frame_content_size_size_encode_test(fcs_flag, single_segment)
+  size
+}
+
+///|
+fn first_block_type_encode_test(frame : Bytes) -> Int {
+  let header_size = frame_header_size_encode_test(frame)
+  if header_size < 0 || header_size + 3 > frame.length() {
+    return -1
+  }
+  let block_header = read_u24_le_test(frame, header_size)
+  ((block_header >> 1) & 0x3).reinterpret_as_int()
+}
+
+///|
 test "compress emits rle block for repeated payload" {
   let input = b"aaaaaaaaaaaaaaaa"
   let frame = compress(input)
@@ -137,6 +206,44 @@ test "compress can emit frame checksum when requested" {
 test "compress default keeps checksum disabled" {
   let frame = compress(b"no-checksum-default")
   assert_eq(frame[4].to_uint() & 0x4, 0)
+}
+
+///|
+test "compress_with_dictionary emits dictID for standard dictionary" {
+  let dict = standard_dictionary_fixture_dictionary()
+  let input = standard_dictionary_fixture_payload()
+  let frame = compress_with_dictionary(input, dict, level=12)
+  assert_eq(frame[4].to_uint() & 0x3, 3)
+  assert_eq(read_u32_le_test(frame, 5), read_u32_le_test(dict, 4))
+  let without_dict = try? decompress(frame)
+  assert_true(without_dict is Err(DictionaryRequired(_)))
+  assert_eq(decompress_with_dictionary(frame, dict), input)
+}
+
+///|
+test "compress_with_dictionary keeps dictID absent for raw dictionary history" {
+  let dict = b"raw-prefix-history-dictionary"
+  let input = b"plain payload"
+  let frame = compress_with_dictionary(input, dict, level=12)
+  assert_eq(frame[4].to_uint() & 0x3, 0)
+  assert_eq(decompress(frame), input)
+}
+
+///|
+test "compress_with_dictionary can use first-block dictionary single match" {
+  let dict = Bytes::makei(512, i => {
+    ((i * 73 + 19) % 251).reinterpret_as_uint().to_byte()
+  })
+  let input = dict[200:290].to_bytes()
+
+  let frame_without = compress(input, level=12)
+  let frame_with = compress_with_dictionary(input, dict, level=12)
+  assert_eq(first_block_type_encode_test(frame_without), 0)
+  assert_eq(first_block_type_encode_test(frame_with), 2)
+  assert_true(frame_with.length() < frame_without.length())
+  let decode_without = try? decompress(frame_with)
+  assert_true(decode_without is Err(CorruptionDetected))
+  assert_eq(decompress_with_dictionary(frame_with, dict), input)
 }
 
 ///|

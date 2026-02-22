@@ -21,9 +21,12 @@ assert_eq(restored, input)
 ## API
 
 - `compress(src : Bytes, level? : Int = 3) -> Bytes raise ZstdError`
+- `compress(src : Bytes, level? : Int = 3, checksum? : Bool = false) -> Bytes raise ZstdError`
+- `compress_with_dictionary(src : Bytes, dictionary : Bytes, level? : Int = 3, checksum? : Bool = false) -> Bytes raise ZstdError`
 - `decompress(src : Bytes) -> Bytes raise ZstdError`
 - `decompress_with_dictionary(src : Bytes, dictionary : Bytes) -> Bytes raise ZstdError`
 - `new_compressor(level? : Int = 3) -> Compressor`
+- `new_compressor_with_dictionary(dictionary : Bytes, level? : Int = 3) -> Compressor`
 - `Compressor::push(self, chunk : Bytes) -> Unit`
 - `Compressor::pull(self) -> Bytes raise ZstdError`
 - `Compressor::finish(self) -> Bytes raise ZstdError`
@@ -46,6 +49,10 @@ assert_eq(restored, input)
   - at very high levels (`level >= 18`), may emit multi-sequence variants (`2..4` sequences) for this periodic-window subset
   - for prefixed periodic windows, multi-sequence encoding is attempted when symbols are representable; otherwise it falls back automatically
   - includes a generic non-periodic single-match compressed-block path (selected when periodic encoding is unavailable or not preferred)
+  - supports dictionary-aware compression entrypoints:
+    - `compress_with_dictionary` / `new_compressor_with_dictionary`
+    - emits frame `dictID` for standard zstd dictionaries
+    - can use dictionary history for first-block single-match encoding
 - Decompression:
   - supports raw blocks and rle blocks
   - supports compressed blocks where:

@@ -461,7 +461,7 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
 ///|
 test "single-match payload uses RLE literals section when literals are single-value" {
   let src = Bytes::makei(12, _ => b"x"[0])
-  let payload = try? build_single_match_payload_rle(src, 0, 12, 4, 4, 4)
+  let payload = try? build_single_match_payload_rle(src, 0, 12, 4, 4, 4, 4)
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -474,7 +474,7 @@ test "single-match payload uses RLE literals section when literals are single-va
 ///|
 test "single-match payload keeps raw literals section for mixed literals" {
   let src = b"abcabczzz"
-  let payload = try? build_single_match_payload_rle(src, 0, 9, 3, 3, 3)
+  let payload = try? build_single_match_payload_rle(src, 0, 9, 3, 3, 3, 3)
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)

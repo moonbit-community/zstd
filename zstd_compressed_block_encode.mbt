@@ -396,11 +396,13 @@ fn build_single_match_literals(
   ll : Int,
   ml : Int,
 ) -> Bytes raise ZstdError {
-  if ll <= 0 || ml < 3 || ll + ml > block_len {
+  if ll < 0 || ml < 3 || ll + ml > block_len {
     raise CorruptionDetected
   }
   let literals : Array[Byte] = Array::new()
-  append_bytes(literals, src, start, ll)
+  if ll > 0 {
+    append_bytes(literals, src, start, ll)
+  }
   let tail_len = block_len - (ll + ml)
   if tail_len > 0 {
     append_bytes(literals, src, start + ll + ml, tail_len)
@@ -416,8 +418,13 @@ fn build_single_match_payload_rle(
   ll : Int,
   offset : Int,
   ml : Int,
+  max_offset : Int,
 ) -> Bytes raise ZstdError {
-  if ll <= 0 || offset <= 0 || ml < 3 || ll + ml > block_len || offset > ll {
+  if ll < 0 ||
+    offset <= 0 ||
+    ml < 3 ||
+    ll + ml > block_len ||
+    offset > max_offset {
     return b""
   }
   let (ll_ok, ll_code, ll_extra, ll_bits) = single_symbol_encoding(
@@ -460,12 +467,13 @@ fn build_single_match_payload(
   ll : Int,
   offset : Int,
   ml : Int,
+  max_offset : Int,
 ) -> Bytes raise ZstdError {
   let rle_payload = build_single_match_payload_rle(
-    src, start, block_len, ll, offset, ml,
+    src, start, block_len, ll, offset, ml, max_offset,
   )
   let predefined_payload = build_single_match_payload_predefined(
-    src, start, block_len, ll, offset, ml,
+    src, start, block_len, ll, offset, ml, max_offset,
   )
   if rle_payload.length() == 0 {
     return predefined_payload
@@ -518,6 +526,7 @@ fn append_compressed_repeat_block(
   block_len : Int,
   last_block : Bool,
   level : Int,
+  dictionary_history : Bytes,
   prev_rle_valid : Ref[Bool],
   prev_ll_code : Ref[UInt],
   prev_off_code : Ref[UInt],
@@ -546,9 +555,14 @@ fn append_compressed_repeat_block(
     src, start, block_len, level,
   )
   let general_payload = build_general_rle_payload(src, start, block_len, level)
-  let (ll, offset, ml) = detect_best_single_match(src, start, block_len)
-  let single_payload = if ll > 0 {
-    build_single_match_payload(src, start, block_len, ll, offset, ml)
+  let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
+    src, start, block_len, dictionary_history,
+  )
+  let max_offset = ll + dictionary_history.length()
+  let single_payload = if ml >= 3 {
+    build_single_match_payload(
+      src, start, block_len, ll, offset, ml, max_offset,
+    )
   } else {
     b""
   }
