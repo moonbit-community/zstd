@@ -2335,3 +2335,51 @@ test "single-match repcode offset encoding covers rep3 and ll0 variants" {
   assert_eq(e6, (1 : UInt))
   assert_eq(b6, 1)
 }
+
+///|
+test "greedy collector hash-chain depth can recover older longer candidate" {
+  let older = b"ABCDabcdefghijklmnop"
+  let gap = Bytes::makei(48, i => {
+    let x = i.reinterpret_as_uint() * (1103515245 : UInt) + (12345 : UInt)
+    ((x >> 16) & 0xFF).to_byte()
+  })
+  let newer = b"ABCDzzzz"
+  let history = older + gap + newer
+  let src = older + b"!"
+
+  let ll_shallow : Array[Int] = Array::new()
+  let off_shallow : Array[Int] = Array::new()
+  let ml_shallow : Array[Int] = Array::new()
+  collect_greedy_sequences(
+    src,
+    0,
+    src.length(),
+    ll_shallow,
+    off_shallow,
+    ml_shallow,
+    1,
+    history~,
+    search_depth=1,
+  )
+
+  let ll_deep : Array[Int] = Array::new()
+  let off_deep : Array[Int] = Array::new()
+  let ml_deep : Array[Int] = Array::new()
+  collect_greedy_sequences(
+    src,
+    0,
+    src.length(),
+    ll_deep,
+    off_deep,
+    ml_deep,
+    1,
+    history~,
+    search_depth=12,
+  )
+
+  assert_eq(ll_shallow.length(), 1)
+  assert_eq(ll_deep.length(), 1)
+  assert_true(ml_deep[0] > ml_shallow[0])
+  assert_true(ml_deep[0] >= older.length())
+  assert_true(off_deep[0] > ll_deep[0])
+}

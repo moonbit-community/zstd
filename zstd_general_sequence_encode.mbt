@@ -55,47 +55,48 @@ fn collect_greedy_sequences(
   ml_values : Array[Int],
   max_sequences : Int,
   history? : Bytes = b"",
+  search_depth? : Int = 1,
 ) -> Unit {
   let history_len = history.length()
-  let hash_table : Array[Int] = Array::make(1 << 15, -1)
+  let virtual_len = history_len + block_len
+  let hash_head : Array[Int] = Array::make(1 << 15, -1)
+  let chain : Array[Int] = Array::make(virtual_len, -1)
   if history_len >= 4 {
     let mut dict_pos = 0
     while dict_pos + 4 <= history_len {
       let h = hash4_bytes(history, dict_pos)
-      hash_table[h] = dict_pos
+      chain[dict_pos] = hash_head[h]
+      hash_head[h] = dict_pos
       dict_pos = dict_pos + 1
     }
   }
+  let depth_limit0 = if search_depth > 0 { search_depth } else { 1 }
+  let depth_limit = if depth_limit0 > 0 { depth_limit0 } else { 1 }
   let mut pos = 0
   let mut anchor = 0
 
   while pos + 4 <= block_len && ll_values.length() < max_sequences {
     let abs_pos = start + pos
     let h = hash4_bytes(src, abs_pos)
-    let prev_pos = hash_table[h]
-    hash_table[h] = history_len + pos
+    let current_virtual = history_len + pos
+    let prev_pos = hash_head[h]
+    chain[current_virtual] = prev_pos
+    hash_head[h] = current_virtual
 
     let mut matched = false
-    if prev_pos >= 0 {
-      let offset = history_len + pos - prev_pos
+    let mut best_ml = 0
+    let mut best_offset = 0
+    let mut cand = prev_pos
+    let mut depth = 0
+    while cand >= 0 && depth < depth_limit {
+      let offset = current_virtual - cand
       if offset > 0 &&
-        virtual_match_source_byte(history, src, start, history_len, prev_pos) ==
+        offset <= history_len + pos &&
+        virtual_match_source_byte(history, src, start, history_len, cand) ==
         src[abs_pos] &&
-        virtual_match_source_byte(
-          history,
-          src,
-          start,
-          history_len,
-          prev_pos + 1,
-        ) ==
+        virtual_match_source_byte(history, src, start, history_len, cand + 1) ==
         src[abs_pos + 1] &&
-        virtual_match_source_byte(
-          history,
-          src,
-          start,
-          history_len,
-          prev_pos + 2,
-        ) ==
+        virtual_match_source_byte(history, src, start, history_len, cand + 2) ==
         src[abs_pos + 2] {
         let mut ml = 3
         while pos + ml < block_len &&
@@ -104,27 +105,35 @@ fn collect_greedy_sequences(
                 src,
                 start,
                 history_len,
-                prev_pos + ml,
+                cand + ml,
               ) ==
               src[start + pos + ml] {
           ml = ml + 1
         }
-        if ml >= 3 {
-          ll_values.push(pos - anchor)
-          off_values.push(offset)
-          ml_values.push(ml)
-          let end_pos = pos + ml
-          let mut update_pos = pos + 1
-          while update_pos + 4 <= end_pos {
-            let hu = hash4_bytes(src, start + update_pos)
-            hash_table[hu] = history_len + update_pos
-            update_pos = update_pos + 1
-          }
-          pos = end_pos
-          anchor = pos
-          matched = true
+        if ml > best_ml {
+          best_ml = ml
+          best_offset = offset
         }
       }
+      cand = chain[cand]
+      depth = depth + 1
+    }
+    if best_ml >= 3 {
+      ll_values.push(pos - anchor)
+      off_values.push(best_offset)
+      ml_values.push(best_ml)
+      let end_pos = pos + best_ml
+      let mut update_pos = pos + 1
+      while update_pos + 4 <= end_pos {
+        let hu = hash4_bytes(src, start + update_pos)
+        let uv = history_len + update_pos
+        chain[uv] = hash_head[hu]
+        hash_head[hu] = uv
+        update_pos = update_pos + 1
+      }
+      pos = end_pos
+      anchor = pos
+      matched = true
     }
     if !matched {
       pos = pos + 1
@@ -147,6 +156,7 @@ fn build_general_rle_payload(
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences = general_rle_sequence_cap(level, block_len)
+  let search_depth = greedy_sequence_search_depth(level, block_len)
   collect_greedy_sequences(
     src,
     start,
@@ -156,6 +166,7 @@ fn build_general_rle_payload(
     ml_values,
     max_sequences,
     history=dictionary_history,
+    search_depth~,
   )
   let seq_count = ll_values.length()
   if seq_count == 0 {

@@ -533,6 +533,7 @@ fn build_general_compressed_fse_payload(
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences = compressed_fse_sequence_cap(level, block_len)
+  let search_depth = greedy_sequence_search_depth(level, block_len)
   collect_greedy_sequences(
     src,
     start,
@@ -542,6 +543,7 @@ fn build_general_compressed_fse_payload(
     ml_values,
     max_sequences,
     history=dictionary_history,
+    search_depth~,
   )
   let seq_count = ll_values.length()
   if seq_count < 3 {

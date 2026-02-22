@@ -71,3 +71,31 @@ fn prefer_mixed_candidate(level : Int, block_len : Int) -> Bool {
 fn prefer_periodic_candidate(level : Int, block_len : Int) -> Bool {
   level >= 18 || (level >= 17 && block_len >= 384)
 }
+
+///|
+fn greedy_sequence_search_depth(level : Int, block_len : Int) -> Int {
+  let base = if level >= 22 {
+    24
+  } else if level >= 18 {
+    16
+  } else if level >= 14 {
+    12
+  } else {
+    8
+  }
+  if block_len >= 32768 {
+    if base + 8 > 32 {
+      32
+    } else {
+      base + 8
+    }
+  } else if block_len >= 8192 {
+    if base + 4 > 32 {
+      32
+    } else {
+      base + 4
+    }
+  } else {
+    base
+  }
+}
