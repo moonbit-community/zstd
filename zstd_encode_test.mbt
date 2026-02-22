@@ -20,13 +20,13 @@ fn append_bytes_encode_test(
 }
 
 ///|
-fn read_first_block_sequence_modes(frame : Bytes) -> Int {
+fn read_first_block_sequence_meta(frame : Bytes) -> (Int, Int) {
   if frame.length() < 13 {
-    return -1
+    return (-1, -1)
   }
   let block_header = read_u24_le_test(frame, 9)
   if ((block_header >> 1) & 0x3) != 2 {
-    return -1
+    return (-1, -1)
   }
   let block_size = (block_header >> 3).reinterpret_as_int()
   let payload_start = 12
@@ -34,36 +34,36 @@ fn read_first_block_sequence_modes(frame : Bytes) -> Int {
   if block_size <= 0 ||
     payload_end > frame.length() ||
     payload_start >= payload_end {
-    return -1
+    return (-1, -1)
   }
 
   let lit_desc = frame[payload_start].to_uint()
   if (lit_desc & 0x3) != 0 {
-    return -1
+    return (-1, -1)
   }
   let size_format = (lit_desc >> 2) & 0x3
   let (lit_header_size, lit_len) = if size_format == 0 {
     (1, (lit_desc >> 3).reinterpret_as_int())
   } else if size_format == 1 {
     if payload_start + 1 >= frame.length() {
-      return -1
+      return (-1, -1)
     }
     let lit = ((lit_desc >> 4) + (frame[payload_start + 1].to_uint() << 4)).reinterpret_as_int()
     (2, lit)
   } else if size_format == 3 {
     if payload_start + 2 >= frame.length() {
-      return -1
+      return (-1, -1)
     }
     let lit = ((lit_desc >> 4) +
     (frame[payload_start + 1].to_uint() << 4) +
     (frame[payload_start + 2].to_uint() << 12)).reinterpret_as_int()
     (3, lit)
   } else {
-    return -1
+    return (-1, -1)
   }
   let seq_count_pos = payload_start + lit_header_size + lit_len
   if seq_count_pos >= payload_end {
-    return -1
+    return (-1, -1)
   }
   let seq0 = frame[seq_count_pos].to_uint()
   let seq_count_header_len = if seq0 < 128 {
@@ -75,9 +75,21 @@ fn read_first_block_sequence_modes(frame : Bytes) -> Int {
   }
   let modes_pos = seq_count_pos + seq_count_header_len
   if modes_pos >= payload_end {
-    return -1
+    return (-1, -1)
   }
-  frame[modes_pos].to_uint().reinterpret_as_int()
+  (seq0.reinterpret_as_int(), frame[modes_pos].to_uint().reinterpret_as_int())
+}
+
+///|
+fn read_first_block_sequence_modes(frame : Bytes) -> Int {
+  let (_, modes) = read_first_block_sequence_meta(frame)
+  modes
+}
+
+///|
+fn read_first_block_sequence_count(frame : Bytes) -> Int {
+  let (seq_count, _) = read_first_block_sequence_meta(frame)
+  seq_count
 }
 
 ///|
@@ -269,6 +281,27 @@ test "compress single-match path can emit predefined sequence modes" {
 
   let modes = read_first_block_sequence_modes(frame)
   assert_eq(modes, 0)
+}
+
+///|
+test "compress can emit multi-sequence general RLE block for non-periodic repeats" {
+  let chunk_a = Bytes::makei(90, i => {
+    ((i * 11 + 37) % 251).reinterpret_as_uint().to_byte()
+  })
+  let chunk_b = Bytes::makei(90, i => {
+    ((i * 13 + 91) % 241).reinterpret_as_uint().to_byte()
+  })
+  let input = chunk_a + b"|" + chunk_a + b"^" + chunk_b + b"|" + chunk_b + b"$"
+
+  let frame_low = compress(input, level=3)
+  let frame_high = compress(input, level=14)
+  let block_header = read_u24_le_test(frame_high, 9)
+  assert_eq((block_header >> 1) & 0x3, 2)
+  assert_true(frame_high.length() < frame_low.length())
+  assert_eq(decompress(frame_high), input)
+
+  let seq_count = read_first_block_sequence_count(frame_high)
+  assert_true(seq_count >= 2)
 }
 
 ///|

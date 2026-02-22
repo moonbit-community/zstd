@@ -531,6 +531,7 @@ fn append_compressed_repeat_block(
   let periodic_payload = build_best_periodic_payload(
     src, start, block_len, level,
   )
+  let general_payload = build_general_rle_payload(src, start, block_len, level)
   let (ll, offset, ml) = detect_best_single_match(src, start, block_len)
   let single_payload = if ll > 0 {
     build_single_match_payload(src, start, block_len, ll, offset, ml)
@@ -539,14 +540,20 @@ fn append_compressed_repeat_block(
   }
   let payload = if periodic_payload.length() > 0 && level >= 18 {
     periodic_payload
-  } else if periodic_payload.length() == 0 {
-    single_payload
-  } else if single_payload.length() == 0 {
-    periodic_payload
-  } else if single_payload.length() < periodic_payload.length() {
-    single_payload
   } else {
-    periodic_payload
+    let mut best = b""
+    if periodic_payload.length() > 0 {
+      best = periodic_payload
+    }
+    if single_payload.length() > 0 &&
+      (best.length() == 0 || single_payload.length() < best.length()) {
+      best = single_payload
+    }
+    if general_payload.length() > 0 &&
+      (best.length() == 0 || general_payload.length() < best.length()) {
+      best = general_payload
+    }
+    best
   }
   if payload.length() == 0 {
     return false
