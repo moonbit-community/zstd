@@ -61,18 +61,36 @@ fn payload_sequence_count_offset(payload : Bytes) -> Int {
 }
 
 ///|
-fn maybe_rewrite_rle_modes_to_repeat(
+fn maybe_rewrite_sequence_modes_to_repeat(
   payload : Bytes,
   prev_rle_valid : Ref[Bool],
   prev_ll_code : Ref[UInt],
   prev_off_code : Ref[UInt],
   prev_ml_code : Ref[UInt],
+  prev_predefined_valid : Ref[Bool],
 ) -> Bytes {
   let modes_pos = payload_sequence_modes_offset(payload)
   if modes_pos < 0 {
     return payload
   }
   let modes = payload[modes_pos].to_uint()
+  if modes == 0 {
+    if prev_predefined_valid.val {
+      let out : Array[Byte] = Array::new()
+      append_bytes(out, payload, 0, modes_pos)
+      out.push((0xFC : UInt).to_byte()) // all repeat sequence modes
+      append_bytes(
+        out,
+        payload,
+        modes_pos + 1,
+        payload.length() - (modes_pos + 1),
+      )
+      return Bytes::from_array(out)
+    }
+    prev_predefined_valid.val = true
+    prev_rle_valid.val = false
+    return payload
+  }
   if modes == 0x54 {
     if modes_pos + 3 >= payload.length() {
       return payload
@@ -96,6 +114,7 @@ fn maybe_rewrite_rle_modes_to_repeat(
       return Bytes::from_array(out)
     }
     prev_rle_valid.val = true
+    prev_predefined_valid.val = false
     prev_ll_code.val = ll_code
     prev_off_code.val = off_code
     prev_ml_code.val = ml_code
@@ -105,5 +124,6 @@ fn maybe_rewrite_rle_modes_to_repeat(
     return payload
   }
   prev_rle_valid.val = false
+  prev_predefined_valid.val = false
   payload
 }

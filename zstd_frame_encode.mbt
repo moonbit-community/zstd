@@ -77,6 +77,7 @@ fn append_frame_blocks_minimal(
 ) -> Unit raise ZstdError {
   let src_len = src.length()
   let prev_rle_valid : Ref[Bool] = { val: false }
+  let prev_predefined_valid : Ref[Bool] = { val: false }
   let prev_ll_code : Ref[UInt] = { val: 0 }
   let prev_off_code : Ref[UInt] = { val: 0 }
   let prev_ml_code : Ref[UInt] = { val: 0 }
@@ -90,7 +91,7 @@ fn append_frame_blocks_minimal(
     } else if level >= 10 &&
       append_compressed_repeat_block(
         out, src, pos, block_len, last_block, level, prev_rle_valid, prev_ll_code,
-        prev_off_code, prev_ml_code,
+        prev_off_code, prev_ml_code, prev_predefined_valid,
       ) {
       ()
     } else {
