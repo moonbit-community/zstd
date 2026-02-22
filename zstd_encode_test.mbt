@@ -292,6 +292,31 @@ test "compress single-match path can emit predefined sequence modes" {
 }
 
 ///|
+test "compress ultra level can prefer mode2 compressed sequence payload" {
+  let prefix = Bytes::makei(80, i => {
+    ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()
+  })
+  let a = Bytes::makei(180, i => {
+    ((i * 13 + 7) % 241).reinterpret_as_uint().to_byte()
+  })
+  let b = Bytes::makei(220, i => {
+    ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
+  })
+  let tail = Bytes::makei(32, i => {
+    ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
+  })
+  let input = prefix + a + b + b + a + b + a + b + b + tail
+
+  let frame = compress(input, level=22)
+  let block_header = read_u24_le_test(frame, 9)
+  assert_eq((block_header >> 1) & 0x3, 2)
+  assert_eq(decompress(frame), input)
+
+  let modes = read_first_block_sequence_modes(frame)
+  assert_eq(modes, 0xA8)
+}
+
+///|
 test "compress can emit multi-sequence general RLE block for non-periodic repeats" {
   let chunk_a = Bytes::makei(90, i => {
     ((i * 11 + 37) % 251).reinterpret_as_uint().to_byte()

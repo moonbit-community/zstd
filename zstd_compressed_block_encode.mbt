@@ -544,7 +544,9 @@ fn append_compressed_repeat_block(
   } else {
     b""
   }
-  let payload0 = if periodic_payload.length() > 0 && level >= 18 {
+  let payload0 = if compressed_fse_payload.length() > 0 && level >= 22 {
+    compressed_fse_payload
+  } else if periodic_payload.length() > 0 && level >= 18 {
     periodic_payload
   } else {
     let mut best = b""
