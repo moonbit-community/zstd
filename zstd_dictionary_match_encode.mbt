@@ -14,9 +14,13 @@ fn detect_best_single_match_with_dictionary_history(
   start : Int,
   block_len : Int,
   history : Bytes,
+  search_limit? : Int = 8192,
 ) -> (Int, Int, Int) {
   let (best_ll0, best_offset0, best_ml0) = detect_best_single_match(
-    src, start, block_len,
+    src,
+    start,
+    block_len,
+    search_limit~,
   )
   let mut best_ll = best_ll0
   let mut best_offset = best_offset0
@@ -34,7 +38,8 @@ fn detect_best_single_match_with_dictionary_history(
     dict_pos = dict_pos + 1
   }
 
-  let search_len = if block_len < 8192 { block_len } else { 8192 }
+  let search_cap = if search_limit > 0 { search_limit } else { 8192 }
+  let search_len = if block_len < search_cap { block_len } else { search_cap }
   let mut ll = 0
   while ll + 4 <= search_len {
     let p = start + ll

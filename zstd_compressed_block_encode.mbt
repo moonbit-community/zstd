@@ -167,11 +167,13 @@ fn detect_best_single_match(
   src : Bytes,
   start : Int,
   block_len : Int,
+  search_limit? : Int = 8192,
 ) -> (Int, Int, Int) {
   if block_len < 4 {
     return (0, 0, 0)
   }
-  let search_len = if block_len < 8192 { block_len } else { 8192 }
+  let search_cap = if search_limit > 0 { search_limit } else { 8192 }
+  let search_len = if block_len < search_cap { block_len } else { search_cap }
   let mut best_ll = 0
   let mut best_offset = 0
   let mut best_ml = 0
@@ -527,6 +529,8 @@ fn append_compressed_repeat_block(
   last_block : Bool,
   level : Int,
   dictionary_history : Bytes,
+  enable_long_distance_matching : Bool,
+  target_compressed_block_size : Int,
   prev_rle_valid : Ref[Bool],
   prev_ll_code : Ref[UInt],
   prev_off_code : Ref[UInt],
@@ -555,8 +559,13 @@ fn append_compressed_repeat_block(
     src, start, block_len, level,
   )
   let general_payload = build_general_rle_payload(src, start, block_len, level)
+  let search_limit = if enable_long_distance_matching { 32768 } else { 8192 }
   let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
-    src, start, block_len, dictionary_history,
+    src,
+    start,
+    block_len,
+    dictionary_history,
+    search_limit~,
   )
   let max_offset = ll + dictionary_history.length()
   let single_payload = if ml >= 3 {
@@ -615,6 +624,10 @@ fn append_compressed_repeat_block(
     payload0_rewrite, prev_lit_huf_valid, prev_lit_huf_tree_desc,
   )
   if payload.length() == 0 {
+    return false
+  }
+  if target_compressed_block_size > 0 &&
+    payload.length() > target_compressed_block_size {
     return false
   }
   if payload.length() >= block_len || payload.length() > 128 << 10 {

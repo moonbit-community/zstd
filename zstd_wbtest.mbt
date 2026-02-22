@@ -1874,3 +1874,38 @@ test "real dictionary-compressed frame parses sequence header states" {
   ignore(number_of_sequences)
   ignore(literals)
 }
+
+///|
+test "dictionary single-match search limit controls long-distance visibility" {
+  let dict = Bytes::makei(512, i => {
+    let x = i.reinterpret_as_uint() * (2654435761 : UInt) + (2246822519 : UInt)
+    (128 + ((x >> 16) & 0x7F).reinterpret_as_int())
+    .reinterpret_as_uint()
+    .to_byte()
+  })
+  let prefix = Bytes::makei(9000, i => {
+    let x = i.reinterpret_as_uint() * (1103515245 : UInt) + (12345 : UInt)
+    ((x >> 16) & 0x7F).to_byte()
+  })
+  let tail = dict[120:440].to_bytes()
+  let src = prefix + tail
+  let (ll_short, off_short, ml_short) = detect_best_single_match_with_dictionary_history(
+    src,
+    0,
+    src.length(),
+    dict,
+    search_limit=8192,
+  )
+  let (ll_long, off_long, ml_long) = detect_best_single_match_with_dictionary_history(
+    src,
+    0,
+    src.length(),
+    dict,
+    search_limit=32768,
+  )
+  if ml_short >= 3 {
+    assert_true(off_short <= ll_short)
+  }
+  assert_true(ml_long >= 300)
+  assert_true(off_long > ll_long)
+}

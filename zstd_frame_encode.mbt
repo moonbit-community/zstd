@@ -109,6 +109,8 @@ fn append_frame_blocks_minimal(
   src : Bytes,
   level : Int,
   dictionary_history? : Bytes = b"",
+  enable_long_distance_matching? : Bool = false,
+  target_compressed_block_size? : Int = 0,
 ) -> Unit raise ZstdError {
   let src_len = src.length()
   let prev_rle_valid : Ref[Bool] = { val: false }
@@ -142,6 +144,8 @@ fn append_frame_blocks_minimal(
         } else {
           b""
         },
+        enable_long_distance_matching,
+        target_compressed_block_size,
         prev_rle_valid,
         prev_ll_code,
         prev_off_code,

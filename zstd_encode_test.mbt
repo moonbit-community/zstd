@@ -247,6 +247,46 @@ test "compress_with_dictionary can use first-block dictionary single match" {
 }
 
 ///|
+test "compress_with_options can force raw block via target_compressed_block_size" {
+  let input = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
+  let compressed_default = compress(input, level=10)
+  assert_eq(first_block_type_encode_test(compressed_default), 2)
+
+  let forced_raw = compress_with_options(
+    input,
+    default_compress_options(level=10).with_target_compressed_block_size(6),
+  )
+  assert_eq(first_block_type_encode_test(forced_raw), 0)
+  assert_eq(decompress(forced_raw), input)
+}
+
+///|
+test "compress_with_dictionary_and_options supports long-distance toggle" {
+  let dict = Bytes::makei(512, i => {
+    ((i * 31 + 17) % 251).reinterpret_as_uint().to_byte()
+  })
+  let prefix = Bytes::makei(9000, i => {
+    ((i * 13 + 101) % 251).reinterpret_as_uint().to_byte()
+  })
+  let tail = dict[120:210].to_bytes()
+  let input = prefix + tail
+
+  let no_ldm = compress_with_dictionary_and_options(
+    input,
+    dict,
+    default_compress_options(level=12),
+  )
+  assert_eq(decompress_with_dictionary(no_ldm, dict), input)
+
+  let with_ldm = compress_with_dictionary_and_options(
+    input,
+    dict,
+    default_compress_options(level=12).with_long_distance_matching(true),
+  )
+  assert_eq(decompress_with_dictionary(with_ldm, dict), input)
+}
+
+///|
 test "compress emits rle blocks across 128k boundary" {
   let input = Bytes::makei((128 << 10) + 97, _ => b"x"[0])
   let frame = compress(input)

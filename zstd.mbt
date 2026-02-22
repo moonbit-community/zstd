@@ -65,7 +65,7 @@ pub fn compress(
   level? : Int = 3,
   checksum? : Bool = false,
 ) -> Bytes raise ZstdError {
-  compress_with_dictionary(src, b"", level~, checksum~)
+  compress_with_options(src, default_compress_options(level~, checksum~))
 }
 
 ///|
@@ -78,6 +78,30 @@ pub fn compress_with_dictionary(
   level? : Int = 3,
   checksum? : Bool = false,
 ) -> Bytes raise ZstdError {
+  compress_with_dictionary_and_options(
+    src,
+    dictionary,
+    default_compress_options(level~, checksum~),
+  )
+}
+
+///|
+/// Pure MoonBit one-shot compressor with structured encoding options.
+pub fn compress_with_options(
+  src : Bytes,
+  options : CompressOptions,
+) -> Bytes raise ZstdError {
+  compress_with_dictionary_and_options(src, b"", options)
+}
+
+///|
+/// Pure MoonBit one-shot compressor with dictionary history and options.
+pub fn compress_with_dictionary_and_options(
+  src : Bytes,
+  dictionary : Bytes,
+  options : CompressOptions,
+) -> Bytes raise ZstdError {
+  let normalized_options = normalize_compress_options(options)
   let src_len = src.length()
   if src_len.to_uint64() >= max_input_size {
     raise SrcSizeTooLarge(src_len.to_uint64())
@@ -88,14 +112,14 @@ pub fn compress_with_dictionary(
   append_frame_header(
     out,
     src_len,
-    checksum,
+    normalized_options.checksum,
     dictionary_id=dictionary_state.dict_id,
   )
 
   if src_len == 0 {
     // last=1, blockType=raw(0), blockSize=0
     append_u24_le(out, 1)
-    if checksum {
+    if normalized_options.checksum {
       append_frame_checksum(out, src)
     }
     return Bytes::from_array(out)
@@ -104,10 +128,12 @@ pub fn compress_with_dictionary(
   append_frame_blocks_minimal(
     out,
     src,
-    level,
+    normalized_options.level,
     dictionary_history=dictionary_state.history,
+    enable_long_distance_matching=normalized_options.enable_long_distance_matching,
+    target_compressed_block_size=normalized_options.target_compressed_block_size,
   )
-  if checksum {
+  if normalized_options.checksum {
     append_frame_checksum(out, src)
   }
 

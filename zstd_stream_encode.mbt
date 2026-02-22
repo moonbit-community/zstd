@@ -1,13 +1,13 @@
 ///|
 pub struct Compressor {
   mut input_buffer : Array[Byte]
-  level : Int
+  options : CompressOptions
   dictionary : Bytes
 }
 
 ///|
 pub fn new_compressor(level? : Int = 3) -> Compressor {
-  { input_buffer: Array::new(), level, dictionary: b"" }
+  new_compressor_with_options(default_compress_options(level~))
 }
 
 ///|
@@ -15,7 +15,31 @@ pub fn new_compressor_with_dictionary(
   dictionary : Bytes,
   level? : Int = 3,
 ) -> Compressor {
-  { input_buffer: Array::new(), level, dictionary }
+  new_compressor_with_dictionary_and_options(
+    dictionary,
+    default_compress_options(level~),
+  )
+}
+
+///|
+pub fn new_compressor_with_options(options : CompressOptions) -> Compressor {
+  {
+    input_buffer: Array::new(),
+    options: normalize_compress_options(options),
+    dictionary: b"",
+  }
+}
+
+///|
+pub fn new_compressor_with_dictionary_and_options(
+  dictionary : Bytes,
+  options : CompressOptions,
+) -> Compressor {
+  {
+    input_buffer: Array::new(),
+    options: normalize_compress_options(options),
+    dictionary,
+  }
 }
 
 ///|
@@ -35,7 +59,7 @@ pub fn Compressor::pull(self : Compressor) -> Bytes raise ZstdError {
   }
   let src = Bytes::from_array(self.input_buffer)
   self.input_buffer = Array::new()
-  compress_with_dictionary(src, self.dictionary, level=self.level)
+  compress_with_dictionary_and_options(src, self.dictionary, self.options)
 }
 
 ///|

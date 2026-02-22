@@ -45,3 +45,17 @@ test "stream compressor with dictionary can roundtrip dictionary-referenced payl
   assert_true(no_dict is Err(CorruptionDetected))
   assert_eq(decompress_with_dictionary(frame, dict), input)
 }
+
+///|
+test "stream compressor with options can force raw block behavior" {
+  let input = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
+  let enc = new_compressor_with_options(
+    default_compress_options(level=10).with_target_compressed_block_size(6),
+  )
+  enc.push(input)
+  let frame = enc.finish()
+  let header_size = frame_header_size_encode_test(frame)
+  let block_header = read_u24_le_test(frame, header_size)
+  assert_eq((block_header >> 1) & 0x3, 0)
+  assert_eq(decompress(frame), input)
+}

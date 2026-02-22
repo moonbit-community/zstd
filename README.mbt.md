@@ -23,10 +23,15 @@ assert_eq(restored, input)
 - `compress(src : Bytes, level? : Int = 3) -> Bytes raise ZstdError`
 - `compress(src : Bytes, level? : Int = 3, checksum? : Bool = false) -> Bytes raise ZstdError`
 - `compress_with_dictionary(src : Bytes, dictionary : Bytes, level? : Int = 3, checksum? : Bool = false) -> Bytes raise ZstdError`
+- `compress_with_options(src : Bytes, options : CompressOptions) -> Bytes raise ZstdError`
+- `compress_with_dictionary_and_options(src : Bytes, dictionary : Bytes, options : CompressOptions) -> Bytes raise ZstdError`
+- `default_compress_options(level? : Int = 3, checksum? : Bool = false) -> CompressOptions`
 - `decompress(src : Bytes) -> Bytes raise ZstdError`
 - `decompress_with_dictionary(src : Bytes, dictionary : Bytes) -> Bytes raise ZstdError`
 - `new_compressor(level? : Int = 3) -> Compressor`
 - `new_compressor_with_dictionary(dictionary : Bytes, level? : Int = 3) -> Compressor`
+- `new_compressor_with_options(options : CompressOptions) -> Compressor`
+- `new_compressor_with_dictionary_and_options(dictionary : Bytes, options : CompressOptions) -> Compressor`
 - `Compressor::push(self, chunk : Bytes) -> Unit`
 - `Compressor::pull(self) -> Bytes raise ZstdError`
 - `Compressor::finish(self) -> Bytes raise ZstdError`
@@ -53,6 +58,9 @@ assert_eq(restored, input)
     - `compress_with_dictionary` / `new_compressor_with_dictionary`
     - emits frame `dictID` for standard zstd dictionaries
     - can use dictionary history for first-block single-match encoding
+  - supports options-based tuning via `CompressOptions`:
+    - `enable_long_distance_matching` increases single-match search range
+    - `target_compressed_block_size` bounds emitted compressed-block payload size (falls back to raw when exceeded)
 - Decompression:
   - supports raw blocks and rle blocks
   - supports compressed blocks where:
