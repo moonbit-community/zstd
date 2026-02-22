@@ -5,6 +5,9 @@ fn payload_sequence_modes_offset(payload : Bytes) -> Int {
     return -1
   }
   let seq0 = payload[seq_count_pos].to_uint()
+  if seq0 == 0 {
+    return -1
+  }
   let seq_count_header_len = if seq0 < 128 {
     1
   } else if seq0 < 255 {
@@ -28,9 +31,6 @@ fn payload_sequence_count_header_len(
     return -1
   }
   let seq0 = payload[seq_count_pos].to_uint()
-  if seq0 == 0 {
-    return -1
-  }
   if seq0 < 128 {
     1
   } else if seq0 < 255 {
@@ -46,36 +46,62 @@ fn payload_sequence_count_offset(payload : Bytes) -> Int {
     return -1
   }
   let lit_desc = payload[0].to_uint()
-  if (lit_desc & 0x3) != 0 {
-    return -1
-  }
+  let literals_block_type = lit_desc & 0x3
   let size_format = (lit_desc >> 2) & 0x3
-  let (lit_header_size, lit_len) = if size_format == 0 {
-    (1, (lit_desc >> 3).reinterpret_as_int())
-  } else if size_format == 1 {
-    if payload.length() < 2 {
+  let seq_count_pos = if literals_block_type == 0 || literals_block_type == 1 {
+    let (lit_header_size, lit_len) = if size_format == 0 {
+      (1, (lit_desc >> 3).reinterpret_as_int())
+    } else if size_format == 1 {
+      if payload.length() < 2 {
+        return -1
+      }
+      (2, ((lit_desc >> 4) + (payload[1].to_uint() << 4)).reinterpret_as_int())
+    } else if size_format == 3 {
+      if payload.length() < 3 {
+        return -1
+      }
+      (
+        3,
+        ((lit_desc >> 4) +
+        (payload[1].to_uint() << 4) +
+        (payload[2].to_uint() << 12)).reinterpret_as_int(),
+      )
+    } else {
       return -1
     }
-    (2, ((lit_desc >> 4) + (payload[1].to_uint() << 4)).reinterpret_as_int())
-  } else if size_format == 3 {
-    if payload.length() < 3 {
+    let lit_data_size = if literals_block_type == 0 {
+      lit_len
+    } else if lit_len > 0 {
+      1
+    } else {
+      0
+    }
+    lit_header_size + lit_data_size
+  } else if literals_block_type == 2 || literals_block_type == 3 {
+    if payload.length() < 4 {
       return -1
     }
-    (
-      3,
-      ((lit_desc >> 4) +
-      (payload[1].to_uint() << 4) +
-      (payload[2].to_uint() << 12)).reinterpret_as_int(),
-    )
+    let lhc = payload[0].to_uint() +
+      (payload[1].to_uint() << 8) +
+      (payload[2].to_uint() << 16) +
+      (payload[3].to_uint() << 24)
+    let (lit_header_size, lit_c_size) = if size_format == 0 || size_format == 1 {
+      (3, ((lhc >> 14) & 0x3FF).reinterpret_as_int())
+    } else if size_format == 2 {
+      (4, (lhc >> 18).reinterpret_as_int())
+    } else if size_format == 3 {
+      if payload.length() < 5 {
+        return -1
+      }
+      (5, ((lhc >> 22) + (payload[4].to_uint() << 10)).reinterpret_as_int())
+    } else {
+      return -1
+    }
+    lit_header_size + lit_c_size
   } else {
     return -1
   }
-  let seq_count_pos = lit_header_size + lit_len
   if seq_count_pos >= payload.length() {
-    return -1
-  }
-  let seq0 = payload[seq_count_pos].to_uint()
-  if seq0 == 0 {
     return -1
   }
   seq_count_pos

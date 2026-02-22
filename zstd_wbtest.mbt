@@ -633,6 +633,68 @@ test "treeless literals rewrite emits type3 on repeated Huffman tree" {
 }
 
 ///|
+test "rewrite predefined sequence modes works with compressed literals payload" {
+  let literals = Bytes::makei(512, fn(i) {
+    if i % 31 == 0 {
+      b"C"[0]
+    } else if i % 7 == 0 {
+      b"B"[0]
+    } else {
+      b"A"[0]
+    }
+  })
+  let section = try? try_build_compressed_literals_section(literals)
+  match section {
+    Ok(lit_section) => {
+      assert_true(lit_section.length() > 0)
+      assert_true((lit_section[0].to_uint() & 0x3) == 2)
+      let payload_arr : Array[Byte] = Array::new()
+      append_bytes(payload_arr, lit_section, 0, lit_section.length())
+      let encoded_count = try? append_sequence_count(payload_arr, 1)
+      match encoded_count {
+        Ok(_) => {
+          payload_arr.push((0 : UInt).to_byte()) // all predefined sequence modes
+          payload_arr.push((0 : UInt).to_byte()) // dummy predefined states
+          let payload = Bytes::from_array(payload_arr)
+
+          let prev_rle_valid : Ref[Bool] = { val: false }
+          let prev_ll_code : Ref[UInt] = { val: 0 }
+          let prev_off_code : Ref[UInt] = { val: 0 }
+          let prev_ml_code : Ref[UInt] = { val: 0 }
+          let prev_predefined_valid : Ref[Bool] = { val: false }
+          let prev_compressed_valid : Ref[Bool] = { val: false }
+          let prev_ll_header : Ref[Bytes] = { val: b"" }
+          let prev_off_header : Ref[Bytes] = { val: b"" }
+          let prev_ml_header : Ref[Bytes] = { val: b"" }
+
+          let first = maybe_rewrite_sequence_modes_to_repeat(
+            payload, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+            prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+          )
+          let first_modes_pos = payload_sequence_modes_offset(first)
+          assert_true(first_modes_pos >= 0)
+          assert_eq(first[first_modes_pos].to_uint(), 0)
+          assert_true(prev_predefined_valid.val)
+
+          let second = maybe_rewrite_sequence_modes_to_repeat(
+            payload, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+            prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
+          )
+          let second_modes_pos = payload_sequence_modes_offset(second)
+          assert_true(second_modes_pos >= 0)
+          assert_eq(second[second_modes_pos].to_uint(), 0xFC)
+        }
+        Err(_) =>
+          fail(
+            "failed to append sequence count for compressed literals payload",
+          )
+      }
+    }
+    Err(_) => fail("failed to build compressed literals section")
+  }
+}
+
+///|
 test "compressed literals support four-stream size_format=2 roundtrip" {
   let literals = Bytes::makei(2048, fn(i) {
     if i % 29 == 0 {
