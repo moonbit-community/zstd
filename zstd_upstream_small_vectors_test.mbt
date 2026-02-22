@@ -17,6 +17,13 @@ fn assert_upstream_small_vector(
       )
     Err(BoundOverflow) =>
       fail("upstream small vector " + name + " decode failed: BoundOverflow")
+    Err(DictionaryRequired(dict_id)) =>
+      fail(
+        "upstream small vector " +
+        name +
+        " decode failed: DictionaryRequired " +
+        dict_id.to_string(),
+      )
     Err(UnsupportedFeature(msg)) =>
       fail(
         "upstream small vector " +

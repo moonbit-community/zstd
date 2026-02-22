@@ -179,7 +179,7 @@ test "frame with dictionary id requires dictionary in this subset" {
   let frame = b"\x28\xb5\x2f\xfd\x21\x01\x03\x3d\x00\x00\x00\x01\x54\x00\x04\x00\x13"
   let dict = b"0123456789abcdef"
   let result = try? decompress(frame)
-  assert_true(result is Err(UnsupportedFeature(_)))
+  assert_true(result is Err(DictionaryRequired(_)))
   let out = decompress_with_dictionary(frame, dict)
   assert_eq(out, b"012")
 }
@@ -190,7 +190,7 @@ test "decompress_with_dictionary supports standard zstd dictionary blob" {
   let dict = standard_dictionary_fixture_dictionary()
   let expected = standard_dictionary_fixture_payload()
   let result_without = try? decompress(frame)
-  assert_true(result_without is Err(UnsupportedFeature(_)))
+  assert_true(result_without is Err(DictionaryRequired(_)))
   let out = decompress_with_dictionary(frame, dict)
   assert_eq(out, expected)
 }
@@ -279,6 +279,8 @@ test "decompress_with_dictionary handles real dictionary-compressed frame (zstd 
     Err(SrcSizeWrong) => fail("no-checksum: SrcSizeWrong")
     Err(CorruptionDetected) => fail("no-checksum: CorruptionDetected")
     Err(BoundOverflow) => fail("no-checksum: BoundOverflow")
+    Err(DictionaryRequired(dict_id)) =>
+      fail("no-checksum: DictionaryRequired " + dict_id.to_string())
     Err(UnsupportedFeature(msg)) =>
       fail("no-checksum: UnsupportedFeature " + msg)
   }
@@ -304,6 +306,11 @@ fn assert_real_vector_p01(frame : Bytes) -> Unit raise Error {
     Err(CorruptionDetected) =>
       fail("real vector p01 decode failed: CorruptionDetected")
     Err(BoundOverflow) => fail("real vector p01 decode failed: BoundOverflow")
+    Err(DictionaryRequired(dict_id)) =>
+      fail(
+        "real vector p01 decode failed: DictionaryRequired " +
+        dict_id.to_string(),
+      )
     Err(UnsupportedFeature(msg)) =>
       fail("real vector p01 decode failed: UnsupportedFeature " + msg)
   }
@@ -360,6 +367,10 @@ fn assert_real_cli_vector_p02(frame : Bytes) -> Unit raise Error {
     Err(CorruptionDetected) =>
       fail("real CLI p02 decode failed: CorruptionDetected")
     Err(BoundOverflow) => fail("real CLI p02 decode failed: BoundOverflow")
+    Err(DictionaryRequired(dict_id)) =>
+      fail(
+        "real CLI p02 decode failed: DictionaryRequired " + dict_id.to_string(),
+      )
     Err(UnsupportedFeature(msg)) =>
       fail("real CLI p02 decode failed: UnsupportedFeature " + msg)
   }

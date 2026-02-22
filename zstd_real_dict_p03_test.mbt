@@ -13,6 +13,11 @@ fn assert_real_vector_p03(frame : Bytes) -> Unit raise Error {
     Err(CorruptionDetected) =>
       fail("real vector p03 decode failed: CorruptionDetected")
     Err(BoundOverflow) => fail("real vector p03 decode failed: BoundOverflow")
+    Err(DictionaryRequired(dict_id)) =>
+      fail(
+        "real vector p03 decode failed: DictionaryRequired " +
+        dict_id.to_string(),
+      )
     Err(UnsupportedFeature(msg)) =>
       fail("real vector p03 decode failed: UnsupportedFeature " + msg)
   }

@@ -19,6 +19,13 @@ fn assert_matrix_case(
     Err(CorruptionDetected) =>
       fail("matrix case " + name + " failed: CorruptionDetected")
     Err(BoundOverflow) => fail("matrix case " + name + " failed: BoundOverflow")
+    Err(DictionaryRequired(dict_id)) =>
+      fail(
+        "matrix case " +
+        name +
+        " failed: DictionaryRequired " +
+        dict_id.to_string(),
+      )
     Err(UnsupportedFeature(msg)) =>
       fail("matrix case " + name + " failed: UnsupportedFeature " + msg)
   }

@@ -111,6 +111,8 @@ test "internal decode of predefined sequence compressed payload" {
     Err(SrcSizeWrong) => fail("unexpected SrcSizeWrong")
     Err(BoundOverflow) => fail("unexpected BoundOverflow")
     Err(SrcSizeTooLarge(_)) => fail("unexpected SrcSizeTooLarge")
+    Err(DictionaryRequired(dict_id)) =>
+      fail("unexpected DictionaryRequired: " + dict_id.to_string())
     Err(UnsupportedFeature(msg)) =>
       fail("unexpected UnsupportedFeature: " + msg)
   }

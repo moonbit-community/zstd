@@ -1,0 +1,139 @@
+///|
+/// Pinned upstream source:
+/// - Repo: https://github.com/facebook/zstd
+/// - Tag:  v1.5.7
+/// - Commit: f8745da6ff1ad1e7bab384bd1f9d742439278e99
+let max_input_size : UInt64 = 0xFF00FF00FF00FF00
+
+///|
+let small_input_cutoff : UInt64 = (128 : UInt64) << 10
+
+///|
+let zstd_magic_number : UInt = 0xFD2FB528
+
+///|
+let skippable_magic_start : UInt = 0x184D2A50
+
+///|
+let skippable_magic_mask : UInt = 0xFFFFFFF0
+
+///|
+let zstd_block_size_max : UInt64 = (128 : UInt64) << 10
+
+///|
+pub suberror ZstdError {
+  SrcSizeTooLarge(UInt64)
+  SrcSizeWrong
+  CorruptionDetected
+  BoundOverflow
+  DictionaryRequired(UInt)
+  UnsupportedFeature(String)
+}
+
+///|
+/// MoonBit equivalent of `ZSTD_COMPRESSBOUND(srcSize)` in upstream `zstd.h`.
+pub fn compress_bound_macro(src_size : UInt64) -> UInt64 {
+  if src_size >= max_input_size {
+    0
+  } else {
+    let margin = if src_size < small_input_cutoff {
+      (small_input_cutoff - src_size) >> 11
+    } else {
+      (0 : UInt64)
+    }
+    src_size + (src_size >> 8) + margin
+  }
+}
+
+///|
+/// MoonBit equivalent of `ZSTD_compressBound(srcSize)`.
+/// Upstream C returns an error code for `srcSize >= ZSTD_MAX_INPUT_SIZE`.
+/// This port raises a typed error instead.
+pub fn compress_bound(src_size : UInt64) -> UInt64 raise ZstdError {
+  if src_size >= max_input_size {
+    raise SrcSizeTooLarge(src_size)
+  }
+  compress_bound_macro(src_size)
+}
+
+///|
+/// Pure MoonBit one-shot compressor.
+/// Current subset: emits valid zstd frames with raw/rle blocks and a minimal
+/// compressed-block path for periodic payloads at higher levels.
+pub fn compress(src : Bytes, level? : Int = 3) -> Bytes raise ZstdError {
+  let src_len = src.length()
+  if src_len.to_uint64() >= max_input_size {
+    raise SrcSizeTooLarge(src_len.to_uint64())
+  }
+  let out : Array[Byte] = Array::new()
+
+  append_frame_header(out, src_len)
+
+  if src_len == 0 {
+    // last=1, blockType=raw(0), blockSize=0
+    append_u24_le(out, 1)
+    return Bytes::from_array(out)
+  }
+
+  append_frame_blocks_minimal(out, src, level)
+
+  Bytes::from_array(out)
+}
+
+///|
+/// Pure MoonBit one-shot decompressor.
+/// Supports concatenated frames and skippable frames.
+pub fn decompress(src : Bytes) -> Bytes raise ZstdError {
+  let out : Array[Byte] = Array::new()
+  let mut pos = 0
+  let src_len = src.length()
+  while pos < src_len {
+    let next = decode_frame_into(src, pos, out)
+    if next <= pos {
+      raise CorruptionDetected
+    }
+    pos = next
+  }
+  Bytes::from_array(out)
+}
+
+///|
+/// Pure MoonBit one-shot decompressor with raw dictionary/prefix history.
+pub fn decompress_with_dictionary(
+  src : Bytes,
+  dictionary : Bytes,
+) -> Bytes raise ZstdError {
+  let out : Array[Byte] = Array::new()
+  let mut pos = 0
+  let src_len = src.length()
+  while pos < src_len {
+    let next = decode_frame_into_with_dictionary(src, pos, out, dictionary)
+    if next <= pos {
+      raise CorruptionDetected
+    }
+    pos = next
+  }
+  Bytes::from_array(out)
+}
+
+///|
+/// MoonBit equivalent of `ZSTD_decompressBound(src, srcSize)`.
+/// Supports concatenated zstd frames and skippable frames.
+pub fn decompress_bound(src : Bytes) -> UInt64 raise ZstdError {
+  let src_len = src.length()
+  let mut pos = 0
+  let mut bound : UInt64 = 0
+  while pos < src_len {
+    let (frame_size, frame_bound) = parse_frame_size_info(src, pos)
+    if frame_size <= 0 {
+      raise CorruptionDetected
+    }
+    let next_bound = bound + frame_bound
+    if next_bound < bound {
+      raise BoundOverflow
+    }
+    bound = next_bound
+    pos = pos + frame_size
+  }
+  bound
+}

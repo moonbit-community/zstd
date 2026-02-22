@@ -16,6 +16,13 @@ fn assert_upstream_gdict_http_vector(
       )
     Err(BoundOverflow) =>
       fail("upstream gdict vector " + name + " decode failed: BoundOverflow")
+    Err(DictionaryRequired(dict_id)) =>
+      fail(
+        "upstream gdict vector " +
+        name +
+        " decode failed: DictionaryRequired " +
+        dict_id.to_string(),
+      )
     Err(UnsupportedFeature(msg)) =>
       fail(
         "upstream gdict vector " +
