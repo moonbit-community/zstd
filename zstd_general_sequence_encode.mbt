@@ -157,6 +157,7 @@ fn build_general_rle_payload(
   level : Int,
   dictionary_history? : Bytes = b"",
   max_match_offset? : Int = 0,
+  enable_long_distance_matching? : Bool = false,
 ) -> Bytes raise ZstdError {
   if level < 11 || block_len < 32 {
     return b""
@@ -165,7 +166,11 @@ fn build_general_rle_payload(
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences = general_rle_sequence_cap(level, block_len)
-  let search_depth = greedy_sequence_search_depth(level, block_len)
+  let search_depth = greedy_sequence_search_depth(
+    level,
+    block_len,
+    enable_long_distance_matching~,
+  )
   collect_greedy_sequences(
     src,
     start,

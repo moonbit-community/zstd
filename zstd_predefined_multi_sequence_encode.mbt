@@ -248,6 +248,7 @@ fn build_general_predefined_payload(
   level : Int,
   dictionary_history? : Bytes = b"",
   max_match_offset? : Int = 0,
+  enable_long_distance_matching? : Bool = false,
   rep1? : Int = 1,
   rep2? : Int = 4,
   rep3? : Int = 8,
@@ -260,7 +261,11 @@ fn build_general_predefined_payload(
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences = predefined_multi_sequence_cap(level, block_len)
-  let search_depth = greedy_sequence_search_depth(level, block_len)
+  let search_depth = greedy_sequence_search_depth(
+    level,
+    block_len,
+    enable_long_distance_matching~,
+  )
   collect_greedy_sequences(
     src,
     start,

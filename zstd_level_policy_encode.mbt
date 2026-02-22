@@ -73,8 +73,12 @@ fn prefer_periodic_candidate(level : Int, block_len : Int) -> Bool {
 }
 
 ///|
-fn greedy_sequence_search_depth(level : Int, block_len : Int) -> Int {
-  let base = if level >= 22 {
+fn greedy_sequence_search_depth(
+  level : Int,
+  block_len : Int,
+  enable_long_distance_matching? : Bool = false,
+) -> Int {
+  let base0 = if level >= 22 {
     24
   } else if level >= 18 {
     16
@@ -83,15 +87,24 @@ fn greedy_sequence_search_depth(level : Int, block_len : Int) -> Int {
   } else {
     8
   }
+  let base = if enable_long_distance_matching {
+    if base0 + 6 > 40 {
+      40
+    } else {
+      base0 + 6
+    }
+  } else {
+    base0
+  }
   if block_len >= 32768 {
-    if base + 8 > 32 {
-      32
+    if base + 8 > 40 {
+      40
     } else {
       base + 8
     }
   } else if block_len >= 8192 {
-    if base + 4 > 32 {
-      32
+    if base + 4 > 40 {
+      40
     } else {
       base + 4
     }

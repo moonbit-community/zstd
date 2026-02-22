@@ -613,6 +613,7 @@ fn append_compressed_repeat_block(
     level,
     dictionary_history~,
     max_match_offset=sequence_max_offset,
+    enable_long_distance_matching~,
     rep1=dictionary_rep1,
     rep2=dictionary_rep2,
     rep3=dictionary_rep3,
@@ -624,6 +625,7 @@ fn append_compressed_repeat_block(
     level,
     dictionary_history~,
     max_match_offset=sequence_max_offset,
+    enable_long_distance_matching~,
   )
   let mixed_payload = build_general_mixed_sequence_payload(
     src,
@@ -632,6 +634,7 @@ fn append_compressed_repeat_block(
     level,
     dictionary_history~,
     max_match_offset=sequence_max_offset,
+    enable_long_distance_matching~,
   )
   let literals_only_payload = build_literals_only_payload(
     src, start, block_len, level,
@@ -643,6 +646,7 @@ fn append_compressed_repeat_block(
     level,
     dictionary_history~,
     max_match_offset=sequence_max_offset,
+    enable_long_distance_matching~,
   )
   let search_limit = if enable_long_distance_matching {
     block_len

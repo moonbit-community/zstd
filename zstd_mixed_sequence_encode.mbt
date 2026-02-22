@@ -209,6 +209,7 @@ fn build_general_mixed_sequence_payload(
   level : Int,
   dictionary_history? : Bytes = b"",
   max_match_offset? : Int = 0,
+  enable_long_distance_matching? : Bool = false,
 ) -> Bytes raise ZstdError {
   if level < 15 || block_len < 96 {
     return b""
@@ -217,7 +218,11 @@ fn build_general_mixed_sequence_payload(
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences = mixed_sequence_cap(level, block_len)
-  let search_depth = greedy_sequence_search_depth(level, block_len)
+  let search_depth = greedy_sequence_search_depth(
+    level,
+    block_len,
+    enable_long_distance_matching~,
+  )
   collect_greedy_sequences(
     src,
     start,

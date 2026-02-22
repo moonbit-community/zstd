@@ -2425,3 +2425,15 @@ test "greedy collector max-match-offset can bound dictionary matches" {
   assert_true(off_unlimited[0] > 8)
   assert_true(ml_unlimited[0] >= dict.length())
 }
+
+///|
+test "greedy sequence depth policy increases under long-distance mode" {
+  assert_true(
+    greedy_sequence_search_depth(18, 1024, enable_long_distance_matching=true) >
+    greedy_sequence_search_depth(18, 1024, enable_long_distance_matching=false),
+  )
+  assert_true(
+    greedy_sequence_search_depth(22, 40000, enable_long_distance_matching=true) >=
+    greedy_sequence_search_depth(22, 40000, enable_long_distance_matching=false),
+  )
+}
