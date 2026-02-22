@@ -1372,6 +1372,42 @@ test "mixed source chooser can select different modes per sequence source" {
 }
 
 ///|
+test "mixed offset source chooser can use repcode-aware low-bit path" {
+  let off_values = [17, 9]
+  let ll_values = [0, 4]
+
+  let repaware = try? choose_offset_source_mode_with_repcodes(
+    off_values, ll_values, 20, 5, 9, 17,
+  )
+  match repaware {
+    Ok((ok, mode, source, _, _, extras, extra_bits, _, _)) => {
+      assert_true(ok)
+      assert_true(mode == 0 || mode == 1)
+      assert_eq(extras.length(), off_values.length())
+      assert_eq(extra_bits.length(), off_values.length())
+      assert_true(extra_bits[0] <= 1)
+      assert_true(extra_bits[1] <= 1)
+      if mode == 1 {
+        assert_eq(source.length(), 1)
+      }
+    }
+    Err(_) => fail("failed to choose repcode-aware OF source mode")
+  }
+
+  let legacy = try? choose_sequence_source_mode(
+    off_values, sequence_symbol_offset, 20,
+  )
+  match legacy {
+    Ok((ok, _, _, _, _, _, legacy_extra_bits, _, _)) => {
+      assert_true(ok)
+      assert_true(legacy_extra_bits.length() == off_values.length())
+      assert_true(legacy_extra_bits[0] > 1 || legacy_extra_bits[1] > 1)
+    }
+    Err(_) => fail("failed to choose legacy OF source mode")
+  }
+}
+
+///|
 test "general mixed payload builder emits parseable payload and decodes" {
   let prefix = Bytes::makei(70, i => {
     ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()

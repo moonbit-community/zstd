@@ -202,6 +202,164 @@ fn choose_sequence_source_mode(
 }
 
 ///|
+fn choose_offset_source_mode_with_repcodes(
+  off_values : Array[Int],
+  ll_values : Array[Int],
+  level : Int,
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (
+  Bool,
+  UInt,
+  Bytes,
+  Int,
+  Int,
+  Array[UInt],
+  Array[Int],
+  Array[Int],
+  Array[Int],
+) raise ZstdError {
+  if off_values.length() <= 0 || ll_values.length() != off_values.length() {
+    return (
+      false,
+      0,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let mut have = false
+  let mut best_mode : UInt = 0
+  let mut best_source = b""
+  let mut best_init_state = 0
+  let mut best_init_bits = 0
+  let mut best_extras : Array[UInt] = Array::new()
+  let mut best_extra_bits : Array[Int] = Array::new()
+  let mut best_trans_bits : Array[Int] = Array::new()
+  let mut best_trans_nb_bits : Array[Int] = Array::new()
+  let mut best_score = 0
+
+  // RLE mode (01)
+  let rle = try_encode_common_offset_symbol_with_repcodes(
+    off_values, ll_values, rep1, rep2, rep3,
+  )
+  match rle {
+    (true, code, extras, bits) => {
+      let source_arr : Array[Byte] = Array::new()
+      source_arr.push(code.to_byte())
+      let source = Bytes::from_array(source_arr)
+      let extra_bits = make_constant_int_array(off_values.length(), bits)
+      let score = source_option_score_bits(source, 0, extra_bits, Array::new())
+      have = true
+      best_mode = 1
+      best_source = source
+      best_init_state = 0
+      best_init_bits = 0
+      best_extras = extras
+      best_extra_bits = extra_bits
+      best_trans_bits = Array::new()
+      best_trans_nb_bits = Array::new()
+      best_score = score
+    }
+    _ => ()
+  }
+
+  // Predefined mode (00)
+  let predefined = select_predefined_offset_state_path(
+    off_values, ll_values, rep1, rep2, rep3,
+  )
+  match predefined {
+    (true, states, extras, extra_bits, trans_bits, trans_nb_bits) => {
+      let init_bits = of_predefined_table_log
+      let score = source_option_score_bits(
+        b"", init_bits, extra_bits, trans_nb_bits,
+      )
+      if !have || score < best_score || (score == best_score && best_mode != 0) {
+        have = true
+        best_mode = 0
+        best_source = b""
+        best_init_state = states[0]
+        best_init_bits = init_bits
+        best_extras = extras
+        best_extra_bits = extra_bits
+        best_trans_bits = trans_bits
+        best_trans_nb_bits = trans_nb_bits
+        best_score = score
+      }
+    }
+    _ => ()
+  }
+
+  // Compressed mode (10)
+  if level >= 13 {
+    let compressed = build_compressed_sequence_source(
+      off_values, sequence_symbol_offset,
+    )
+    match compressed {
+      (
+        true,
+        header,
+        init_state,
+        table_log,
+        extras,
+        extra_bits,
+        trans_bits,
+        trans_nb_bits,
+      ) => {
+        let score = source_option_score_bits(
+          header, table_log, extra_bits, trans_nb_bits,
+        )
+        if !have ||
+          score < best_score ||
+          (
+            score == best_score &&
+            (
+              (level >= 22 && best_mode != 2) ||
+              (best_mode != 2 && best_mode != 0)
+            )
+          ) {
+          have = true
+          best_mode = 2
+          best_source = header
+          best_init_state = init_state
+          best_init_bits = table_log
+          best_extras = extras
+          best_extra_bits = extra_bits
+          best_trans_bits = trans_bits
+          best_trans_nb_bits = trans_nb_bits
+          best_score = score
+        }
+      }
+      _ => ()
+    }
+  }
+
+  if have {
+    (
+      true, best_mode, best_source, best_init_state, best_init_bits, best_extras,
+      best_extra_bits, best_trans_bits, best_trans_nb_bits,
+    )
+  } else {
+    (
+      false,
+      0,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+}
+
+///|
 fn build_general_mixed_sequence_payload(
   src : Bytes,
   start : Int,
@@ -210,6 +368,9 @@ fn build_general_mixed_sequence_payload(
   dictionary_history? : Bytes = b"",
   max_match_offset? : Int = 0,
   enable_long_distance_matching? : Bool = false,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
 ) -> Bytes raise ZstdError {
   if level < 15 || block_len < 96 {
     return b""
@@ -265,7 +426,9 @@ fn build_general_mixed_sequence_payload(
     off_extra_bits,
     off_trans_bits,
     off_trans_nb_bits,
-  ) = choose_sequence_source_mode(off_values, sequence_symbol_offset, level)
+  ) = choose_offset_source_mode_with_repcodes(
+    off_values, ll_values, level, rep1, rep2, rep3,
+  )
   if !off_ok {
     return b""
   }
