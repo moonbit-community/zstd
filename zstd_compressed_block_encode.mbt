@@ -418,7 +418,7 @@ fn build_single_match_literals(
 }
 
 ///|
-fn build_single_match_payload(
+fn build_single_match_payload_rle(
   src : Bytes,
   start : Int,
   block_len : Int,
@@ -459,6 +459,34 @@ fn build_single_match_payload(
   payload.push(ml_code.to_byte())
   append_bytes(payload, bitstream, 0, bitstream.length())
   Bytes::from_array(payload)
+}
+
+///|
+fn build_single_match_payload(
+  src : Bytes,
+  start : Int,
+  block_len : Int,
+  ll : Int,
+  offset : Int,
+  ml : Int,
+) -> Bytes raise ZstdError {
+  let rle_payload = build_single_match_payload_rle(
+    src, start, block_len, ll, offset, ml,
+  )
+  let predefined_payload = build_single_match_payload_predefined(
+    src, start, block_len, ll, offset, ml,
+  )
+  if rle_payload.length() == 0 {
+    return predefined_payload
+  }
+  if predefined_payload.length() == 0 {
+    return rle_payload
+  }
+  if predefined_payload.length() < rle_payload.length() {
+    predefined_payload
+  } else {
+    rle_payload
+  }
 }
 
 ///|
