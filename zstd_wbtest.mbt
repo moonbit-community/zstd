@@ -2201,3 +2201,27 @@ test "single-match search depth grows with level and long-distance mode" {
     level_single_match_search_depth(18, false),
   )
 }
+
+///|
+test "dictionary multi-candidate chain can recover longer older match" {
+  let dict_head = b"ABCD1234567890abcdefghijklmnop"
+  let dict_gap = Bytes::makei(96, i => {
+    let x = i.reinterpret_as_uint() * (1103515245 : UInt) + (12345 : UInt)
+    ((x >> 16) & 0xFF).to_byte()
+  })
+  let dict_tail = b"ABCDz"
+  let dict = dict_head + dict_gap + dict_tail
+  let src = b"xxABCD1234567890abcdefghijklmnop-tail"
+  let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
+    src,
+    0,
+    src.length(),
+    dict,
+    search_limit=src.length(),
+    search_depth=64,
+    allow_internal=false,
+  )
+  assert_eq(ll, 2)
+  assert_true(ml >= dict_head.length())
+  assert_true(offset > dict.length() - dict_tail.length())
+}
