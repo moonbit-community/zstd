@@ -64,6 +64,9 @@ assert_eq(restored, input)
   - supports options-based tuning via `CompressOptions`:
     - `enable_long_distance_matching` increases single-match search range
     - `target_compressed_block_size` bounds emitted compressed-block payload size (falls back to raw when exceeded)
+    - `single_segment` can be disabled to emit a window descriptor
+    - `write_content_size` controls FCS presence for non-single-segment frames
+    - `window_log` controls target window size for non-single-segment frames
 - Decompression:
   - supports raw blocks and rle blocks
   - supports compressed blocks where:

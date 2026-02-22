@@ -160,6 +160,16 @@ fn frame_header_size_encode_test(frame : Bytes) -> Int {
 }
 
 ///|
+fn window_size_from_descriptor_encode_test(descriptor : UInt) -> UInt64 {
+  let exponent = descriptor >> 3
+  let mantissa = descriptor & 0x7
+  let window_log = 10 + exponent.reinterpret_as_int()
+  let window_base = (1 : UInt64) << window_log
+  let window_add = (window_base >> 3) * mantissa.to_uint64()
+  window_base + window_add
+}
+
+///|
 fn first_block_type_encode_test(frame : Bytes) -> Int {
   let header_size = frame_header_size_encode_test(frame)
   if header_size < 0 || header_size + 3 > frame.length() {
@@ -206,6 +216,46 @@ test "compress can emit frame checksum when requested" {
 test "compress default keeps checksum disabled" {
   let frame = compress(b"no-checksum-default")
   assert_eq(frame[4].to_uint() & 0x4, 0)
+}
+
+///|
+test "compress_with_options can emit non-single-segment frame without content size" {
+  let input = Bytes::makei(4096, i => {
+    ((i * 17 + 11) % 251).reinterpret_as_uint().to_byte()
+  })
+  let frame = compress_with_options(
+    input,
+    default_compress_options(level=10)
+    .with_single_segment(false)
+    .with_content_size(false),
+  )
+  let descriptor = frame[4].to_uint()
+  assert_eq((descriptor >> 5) & 1, (0 : UInt))
+  assert_eq(descriptor >> 6, (0 : UInt))
+  assert_eq(frame_header_size_encode_test(frame), 6)
+  let window_size = window_size_from_descriptor_encode_test(frame[5].to_uint())
+  assert_true(window_size >= input.length().to_uint64())
+  assert_eq(decompress(frame), input)
+}
+
+///|
+test "compress_with_options can emit non-single-segment frame with content size and window log" {
+  let input = Bytes::makei(1500, i => {
+    ((i * 13 + 5) % 251).reinterpret_as_uint().to_byte()
+  })
+  let frame = compress_with_options(
+    input,
+    default_compress_options(level=10)
+    .with_single_segment(false)
+    .with_window_log(20),
+  )
+  let descriptor = frame[4].to_uint()
+  assert_eq((descriptor >> 5) & 1, (0 : UInt))
+  assert_eq(descriptor >> 6, (2 : UInt))
+  let window_size = window_size_from_descriptor_encode_test(frame[5].to_uint())
+  assert_true(window_size >= (1 : UInt64) << 20)
+  assert_eq(read_u32_le_test(frame, 6), input.length().reinterpret_as_uint())
+  assert_eq(decompress(frame), input)
 }
 
 ///|

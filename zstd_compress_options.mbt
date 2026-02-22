@@ -2,6 +2,9 @@
 pub struct CompressOptions {
   level : Int
   checksum : Bool
+  single_segment : Bool
+  write_content_size : Bool
+  window_log : Int
   enable_long_distance_matching : Bool
   target_compressed_block_size : Int
 }
@@ -14,6 +17,9 @@ pub fn default_compress_options(
   {
     level,
     checksum,
+    single_segment: true,
+    write_content_size: true,
+    window_log: 0,
     enable_long_distance_matching: false,
     target_compressed_block_size: 0,
   }
@@ -36,6 +42,30 @@ pub fn CompressOptions::with_checksum(
 }
 
 ///|
+pub fn CompressOptions::with_single_segment(
+  self : CompressOptions,
+  enabled : Bool,
+) -> CompressOptions {
+  { ..self, single_segment: enabled }
+}
+
+///|
+pub fn CompressOptions::with_content_size(
+  self : CompressOptions,
+  enabled : Bool,
+) -> CompressOptions {
+  { ..self, write_content_size: enabled }
+}
+
+///|
+pub fn CompressOptions::with_window_log(
+  self : CompressOptions,
+  log : Int,
+) -> CompressOptions {
+  { ..self, window_log: log }
+}
+
+///|
 pub fn CompressOptions::with_long_distance_matching(
   self : CompressOptions,
   enabled : Bool,
@@ -53,8 +83,21 @@ pub fn CompressOptions::with_target_compressed_block_size(
 
 ///|
 fn normalize_compress_options(options : CompressOptions) -> CompressOptions {
+  let single_segment = options.single_segment
+  let write_content_size = if single_segment {
+    true
+  } else {
+    options.write_content_size
+  }
   {
     ..options,
+    single_segment,
+    write_content_size,
+    window_log: if options.window_log > 0 {
+      options.window_log
+    } else {
+      0
+    },
     target_compressed_block_size: if options.target_compressed_block_size > 0 {
       options.target_compressed_block_size
     } else {

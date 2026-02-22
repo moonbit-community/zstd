@@ -114,6 +114,9 @@ pub fn compress_with_dictionary_and_options(
     src_len,
     normalized_options.checksum,
     dictionary_id=dictionary_state.dict_id,
+    single_segment=normalized_options.single_segment,
+    write_content_size=normalized_options.write_content_size,
+    window_log=normalized_options.window_log,
   )
 
   if src_len == 0 {

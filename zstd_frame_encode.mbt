@@ -4,16 +4,29 @@ fn append_frame_header(
   src_len : Int,
   checksum : Bool,
   dictionary_id? : UInt = 0,
+  single_segment? : Bool = true,
+  write_content_size? : Bool = true,
+  window_log? : Int = 0,
 ) -> Unit {
   append_u32_le(out, zstd_magic_number)
-  // FCS flag=2 (4-byte size), single-segment=1, optional checksum, optional dictID.
+  let checksum_bit : UInt = if checksum { 0x04 } else { 0 }
   let dict_flag = frame_header_dict_id_flag(dictionary_id)
-  let descriptor = (0xA0 : UInt) +
-    (if checksum { (0x04 : UInt) } else { (0 : UInt) }) +
-    dict_flag
+  let descriptor = if single_segment {
+    // FCS flag=2 (4-byte size), single-segment=1.
+    ((2 : UInt) << 6) + ((1 : UInt) << 5) + checksum_bit + dict_flag
+  } else {
+    // Optional content size for non-single-segment frames.
+    let fcs_flag = if write_content_size { (2 : UInt) } else { (0 : UInt) }
+    (fcs_flag << 6) + checksum_bit + dict_flag
+  }
   out.push(descriptor.to_byte())
+  if !single_segment {
+    out.push(frame_header_window_descriptor(src_len, window_log).to_byte())
+  }
   append_frame_header_dict_id(out, dictionary_id, dict_flag)
-  append_u32_le(out, src_len.reinterpret_as_uint())
+  if single_segment || write_content_size {
+    append_u32_le(out, src_len.reinterpret_as_uint())
+  }
 }
 
 ///|
@@ -43,6 +56,42 @@ fn append_frame_header_dict_id(
   } else if dict_flag == 3 {
     append_u32_le(out, dict_id)
   }
+}
+
+///|
+fn frame_header_window_descriptor(src_len : Int, window_log : Int) -> UInt {
+  let target = if window_log > 0 {
+    let clamped_log = if window_log < 10 {
+      10
+    } else if window_log > 41 {
+      41
+    } else {
+      window_log
+    }
+    (1 : UInt64) << clamped_log
+  } else {
+    let src_u = src_len.to_uint64()
+    if src_u < (1 : UInt64) << 10 {
+      (1 : UInt64) << 10
+    } else {
+      src_u
+    }
+  }
+  let mut exp = 0
+  while exp <= 31 {
+    let base = (1 : UInt64) << (10 + exp)
+    let step = base >> 3
+    let mut mant = 0
+    while mant <= 7 {
+      let window_size = base + step * mant.to_uint64()
+      if window_size >= target {
+        return (exp.reinterpret_as_uint() << 3) + mant.reinterpret_as_uint()
+      }
+      mant = mant + 1
+    }
+    exp = exp + 1
+  }
+  0xFF
 }
 
 ///|
