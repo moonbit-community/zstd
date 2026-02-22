@@ -116,6 +116,7 @@ pub fn compress_with_dictionary_and_options(
     dictionary_id=dictionary_state.dict_id,
     single_segment=normalized_options.single_segment,
     write_content_size=normalized_options.write_content_size,
+    compact_frame_header=normalized_options.compact_frame_header,
     window_log=normalized_options.window_log,
   )
 

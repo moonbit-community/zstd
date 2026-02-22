@@ -4,6 +4,7 @@ pub struct CompressOptions {
   checksum : Bool
   single_segment : Bool
   write_content_size : Bool
+  compact_frame_header : Bool
   window_log : Int
   enable_long_distance_matching : Bool
   target_compressed_block_size : Int
@@ -19,6 +20,7 @@ pub fn default_compress_options(
     checksum,
     single_segment: true,
     write_content_size: true,
+    compact_frame_header: false,
     window_log: 0,
     enable_long_distance_matching: false,
     target_compressed_block_size: 0,
@@ -55,6 +57,14 @@ pub fn CompressOptions::with_content_size(
   enabled : Bool,
 ) -> CompressOptions {
   { ..self, write_content_size: enabled }
+}
+
+///|
+pub fn CompressOptions::with_compact_frame_header(
+  self : CompressOptions,
+  enabled : Bool,
+) -> CompressOptions {
+  { ..self, compact_frame_header: enabled }
 }
 
 ///|

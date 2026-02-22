@@ -259,6 +259,41 @@ test "compress_with_options can emit non-single-segment frame with content size 
 }
 
 ///|
+test "compact frame header option can emit 1-byte single-segment content size" {
+  let input = b"tiny-header"
+  let frame = compress_with_options(
+    input,
+    default_compress_options().with_compact_frame_header(true),
+  )
+  let descriptor = frame[4].to_uint()
+  assert_eq((descriptor >> 5) & 1, (1 : UInt))
+  assert_eq(descriptor >> 6, (0 : UInt))
+  assert_eq(frame_header_size_encode_test(frame), 6)
+  assert_eq(frame[5].to_uint(), input.length().reinterpret_as_uint())
+  assert_eq(decompress(frame), input)
+}
+
+///|
+test "compact frame header option can emit 2-byte non-single-segment content size" {
+  let input = Bytes::makei(300, i => {
+    ((i * 7 + 3) % 251).reinterpret_as_uint().to_byte()
+  })
+  let frame = compress_with_options(
+    input,
+    default_compress_options()
+    .with_single_segment(false)
+    .with_compact_frame_header(true),
+  )
+  let descriptor = frame[4].to_uint()
+  assert_eq((descriptor >> 5) & 1, (0 : UInt))
+  assert_eq(descriptor >> 6, (1 : UInt))
+  assert_eq(frame_header_size_encode_test(frame), 8)
+  let encoded = frame[6].to_uint() + (frame[7].to_uint() << 8)
+  assert_eq(encoded + 256, input.length().reinterpret_as_uint())
+  assert_eq(decompress(frame), input)
+}
+
+///|
 test "compress_with_dictionary emits dictID for standard dictionary" {
   let dict = standard_dictionary_fixture_dictionary()
   let input = standard_dictionary_fixture_payload()

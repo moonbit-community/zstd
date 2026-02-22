@@ -66,6 +66,7 @@ assert_eq(restored, input)
     - `target_compressed_block_size` bounds emitted compressed-block payload size (falls back to raw when exceeded)
     - `single_segment` can be disabled to emit a window descriptor
     - `write_content_size` controls FCS presence for non-single-segment frames
+    - `compact_frame_header` enables compact FCS encodings (1/2-byte when representable)
     - `window_log` controls target window size for non-single-segment frames
 - Decompression:
   - supports raw blocks and rle blocks

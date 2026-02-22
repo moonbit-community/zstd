@@ -6,17 +6,18 @@ fn append_frame_header(
   dictionary_id? : UInt = 0,
   single_segment? : Bool = true,
   write_content_size? : Bool = true,
+  compact_frame_header? : Bool = false,
   window_log? : Int = 0,
 ) -> Unit {
   append_u32_le(out, zstd_magic_number)
   let checksum_bit : UInt = if checksum { 0x04 } else { 0 }
   let dict_flag = frame_header_dict_id_flag(dictionary_id)
+  let (fcs_flag, fcs_size) = frame_header_fcs_layout(
+    src_len, single_segment, write_content_size, compact_frame_header,
+  )
   let descriptor = if single_segment {
-    // FCS flag=2 (4-byte size), single-segment=1.
-    ((2 : UInt) << 6) + ((1 : UInt) << 5) + checksum_bit + dict_flag
+    (fcs_flag << 6) + ((1 : UInt) << 5) + checksum_bit + dict_flag
   } else {
-    // Optional content size for non-single-segment frames.
-    let fcs_flag = if write_content_size { (2 : UInt) } else { (0 : UInt) }
     (fcs_flag << 6) + checksum_bit + dict_flag
   }
   out.push(descriptor.to_byte())
@@ -24,9 +25,7 @@ fn append_frame_header(
     out.push(frame_header_window_descriptor(src_len, window_log).to_byte())
   }
   append_frame_header_dict_id(out, dictionary_id, dict_flag)
-  if single_segment || write_content_size {
-    append_u32_le(out, src_len.reinterpret_as_uint())
-  }
+  append_frame_content_size(out, src_len.to_uint64(), fcs_size)
 }
 
 ///|
@@ -92,6 +91,57 @@ fn frame_header_window_descriptor(src_len : Int, window_log : Int) -> UInt {
     exp = exp + 1
   }
   0xFF
+}
+
+///|
+fn frame_header_fcs_layout(
+  src_len : Int,
+  single_segment : Bool,
+  write_content_size : Bool,
+  compact_frame_header : Bool,
+) -> (UInt, Int) {
+  let src_len_u = src_len.to_uint64()
+  if single_segment {
+    if compact_frame_header {
+      if src_len_u <= 0xFF {
+        (0, 1)
+      } else if src_len_u <= 0x101FF {
+        (1, 2)
+      } else {
+        (2, 4)
+      }
+    } else {
+      (2, 4)
+    }
+  } else if !write_content_size {
+    (0, 0)
+  } else if compact_frame_header && src_len_u >= 0x100 && src_len_u <= 0x101FF {
+    (1, 2)
+  } else {
+    (2, 4)
+  }
+}
+
+///|
+fn append_frame_content_size(
+  out : Array[Byte],
+  src_len : UInt64,
+  fcs_size : Int,
+) -> Unit {
+  if fcs_size == 0 {
+    return
+  }
+  if fcs_size == 1 {
+    out.push(src_len.to_uint().to_byte())
+    return
+  }
+  if fcs_size == 2 {
+    let adjusted = src_len - (256 : UInt64)
+    out.push((adjusted.to_uint() & 0xFF).to_byte())
+    out.push(((adjusted.to_uint() >> 8) & 0xFF).to_byte())
+    return
+  }
+  append_u32_le(out, src_len.to_uint())
 }
 
 ///|
