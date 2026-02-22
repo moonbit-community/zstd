@@ -131,6 +131,19 @@ test "compress can use periodic window after literal prefix" {
 }
 
 ///|
+test "compress can encode non-periodic repeated segment as single match" {
+  let phrase = b"the quick brown fox jumps over the lazy dog|"
+  let input = b"prefix@" + phrase + b"--" + phrase + b"@tail"
+
+  let frame_low = compress(input, level=3)
+  let frame_high = compress(input, level=12)
+  let block_high = read_u24_le_test(frame_high, 9)
+  assert_eq((block_high >> 1) & 0x3, 2)
+  assert_true(frame_high.length() < frame_low.length())
+  assert_eq(decompress(frame_high), input)
+}
+
+///|
 test "compress very high level can emit two-sequence periodic block" {
   let head = Bytes::makei(200, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
   let tail = b"XYZ"

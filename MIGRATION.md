@@ -29,8 +29,11 @@ Pinned upstream:
     blocks for repeated-window payloads with period `2..64` using RLE-table
     sequence encoding, including literal prefixes/tails in the same block
     (no C dependency).
+  - added a generic single-match compressed-block path for non-periodic
+    repeated segments.
   - very-high-level (`level >= 18`) path can emit multi-sequence (`2..4`)
-    variants of this periodic-window subset.
+    variants of this periodic-window subset and prefers periodic multi-sequence
+    encoding when available.
   - `decompress(Bytes)` supporting:
     - raw and rle block decoding
     - compressed blocks with literals:

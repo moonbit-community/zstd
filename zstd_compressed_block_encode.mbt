@@ -146,6 +146,64 @@ fn split_match_lengths(total_match : Int, seq_count : Int) -> Array[Int] {
 }
 
 ///|
+fn single_symbol_encoding(
+  symbol_type : Int,
+  max_code : Int,
+  value : Int,
+) -> (Bool, UInt, UInt, Int) raise ZstdError {
+  let values : Array[Int] = Array::new()
+  values.push(value)
+  let (ok, code, extras, bits) = try_encode_common_symbol(
+    symbol_type, max_code, values,
+  )
+  if !ok || extras.length() != 1 {
+    return (false, 0, 0, 0)
+  }
+  (true, code, extras[0], bits)
+}
+
+///|
+fn detect_best_single_match(
+  src : Bytes,
+  start : Int,
+  block_len : Int,
+) -> (Int, Int, Int) {
+  if block_len < 4 {
+    return (0, 0, 0)
+  }
+  let search_len = if block_len < 8192 { block_len } else { 8192 }
+  let mut best_ll = 0
+  let mut best_offset = 0
+  let mut best_ml = 0
+
+  let mut ll = 1
+  while ll + 3 <= search_len {
+    let max_offset = if ll < 2048 { ll } else { 2048 }
+    let mut offset = 1
+    while offset <= max_offset {
+      let p = start + ll
+      if src[p] == src[p - offset] &&
+        src[p + 1] == src[p + 1 - offset] &&
+        src[p + 2] == src[p + 2 - offset] {
+        let mut ml = 3
+        while ll + ml < block_len &&
+              src[start + ll + ml] == src[start + ll + ml - offset] {
+          ml = ml + 1
+        }
+        if ml > best_ml || (ml == best_ml && (best_ll == 0 || ll < best_ll)) {
+          best_ll = ll
+          best_offset = offset
+          best_ml = ml
+        }
+      }
+      offset = offset + 1
+    }
+    ll = ll + 1
+  }
+  (best_ll, best_offset, best_ml)
+}
+
+///|
 fn append_bits_be(bits : Array[Int], value : UInt, count : Int) -> Unit {
   let mut i = count - 1
   while i >= 0 {
@@ -340,21 +398,82 @@ fn build_repeat_payload(
 }
 
 ///|
-fn append_compressed_repeat_block(
-  out : Array[Byte],
+fn build_single_match_literals(
   src : Bytes,
   start : Int,
   block_len : Int,
-  last_block : Bool,
+  ll : Int,
+  ml : Int,
+) -> Bytes raise ZstdError {
+  if ll <= 0 || ml < 3 || ll + ml > block_len {
+    raise CorruptionDetected
+  }
+  let literals : Array[Byte] = Array::new()
+  append_bytes(literals, src, start, ll)
+  let tail_len = block_len - (ll + ml)
+  if tail_len > 0 {
+    append_bytes(literals, src, start + ll + ml, tail_len)
+  }
+  Bytes::from_array(literals)
+}
+
+///|
+fn build_single_match_payload(
+  src : Bytes,
+  start : Int,
+  block_len : Int,
+  ll : Int,
+  offset : Int,
+  ml : Int,
+) -> Bytes raise ZstdError {
+  if ll <= 0 || offset <= 0 || ml < 3 || ll + ml > block_len || offset > ll {
+    return b""
+  }
+  let (ll_ok, ll_code, ll_extra, ll_bits) = single_symbol_encoding(
+    sequence_symbol_literal_length, 35, ll,
+  )
+  if !ll_ok {
+    return b""
+  }
+  let (ml_ok, ml_code, ml_extra, ml_bits) = single_symbol_encoding(
+    sequence_symbol_match_length, 52, ml,
+  )
+  if !ml_ok {
+    return b""
+  }
+  let (off_code, off_extra, off_bits) = encode_offset_symbol(offset)
+  let literals = build_single_match_literals(src, start, block_len, ll, ml)
+
+  let extra_bits : Array[Int] = Array::new()
+  append_bits_be(extra_bits, off_extra, off_bits)
+  append_bits_be(extra_bits, ml_extra, ml_bits)
+  append_bits_be(extra_bits, ll_extra, ll_bits)
+  let bitstream = build_reverse_bitstream(extra_bits)
+
+  let payload : Array[Byte] = Array::new()
+  append_raw_literals_section(payload, literals)
+  append_sequence_count(payload, 1)
+  payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
+  payload.push(ll_code.to_byte())
+  payload.push(off_code.to_byte())
+  payload.push(ml_code.to_byte())
+  append_bytes(payload, bitstream, 0, bitstream.length())
+  Bytes::from_array(payload)
+}
+
+///|
+fn build_best_periodic_payload(
+  src : Bytes,
+  start : Int,
+  block_len : Int,
   level : Int,
-) -> Bool raise ZstdError {
+) -> Bytes raise ZstdError {
   let (prefix_len, period, run_len) = detect_repeat_window(
     src, start, block_len,
   )
   if period == 0 {
-    return false
+    return b""
   }
-
   let target_seq_count = if prefix_len == 0 {
     choose_target_seq_count(level)
   } else {
@@ -372,6 +491,38 @@ fn append_compressed_repeat_block(
     } else {
       seq_count = seq_count - 1
     }
+  }
+  payload
+}
+
+///|
+fn append_compressed_repeat_block(
+  out : Array[Byte],
+  src : Bytes,
+  start : Int,
+  block_len : Int,
+  last_block : Bool,
+  level : Int,
+) -> Bool raise ZstdError {
+  let periodic_payload = build_best_periodic_payload(
+    src, start, block_len, level,
+  )
+  let (ll, offset, ml) = detect_best_single_match(src, start, block_len)
+  let single_payload = if ll > 0 {
+    build_single_match_payload(src, start, block_len, ll, offset, ml)
+  } else {
+    b""
+  }
+  let payload = if periodic_payload.length() > 0 && level >= 18 {
+    periodic_payload
+  } else if periodic_payload.length() == 0 {
+    single_payload
+  } else if single_payload.length() == 0 {
+    periodic_payload
+  } else if single_payload.length() < periodic_payload.length() {
+    single_payload
+  } else {
+    periodic_payload
   }
   if payload.length() == 0 {
     return false
