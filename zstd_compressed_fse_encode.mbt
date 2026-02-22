@@ -1,7 +1,4 @@
 ///|
-let compressed_mode_table_log = 5
-
-///|
 fn encode_symbol_for_value(
   symbol_type : Int,
   value : Int,
@@ -115,6 +112,24 @@ fn normalize_symbol_frequencies(
     return (false, Array::new())
   }
   (true, normalized)
+}
+
+///|
+fn choose_compressed_table_log(
+  seq_count : Int,
+  active_symbols : Int,
+  table_log_max : Int,
+) -> Int {
+  let mut table_log = fse_min_table_log
+  let needed = if seq_count > active_symbols {
+    seq_count
+  } else {
+    active_symbols
+  }
+  while table_log < table_log_max && 1 << table_log < needed {
+    table_log = table_log + 1
+  }
+  table_log
 }
 
 ///|
@@ -373,12 +388,13 @@ fn select_fse_state_path(
 fn build_compressed_sequence_source(
   values : Array[Int],
   symbol_type : Int,
-) -> (Bool, Bytes, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
   let n = values.length()
   if n <= 0 {
     return (
       false,
       b"",
+      0,
       0,
       Array::new(),
       Array::new(),
@@ -387,7 +403,7 @@ fn build_compressed_sequence_source(
     )
   }
 
-  let (max_symbol, _) = sequence_symbol_limits(symbol_type)
+  let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
   let freq = Array::make(max_symbol + 1, 0)
   let symbols : Array[Int] = Array::new()
   let extras : Array[UInt] = Array::new()
@@ -404,6 +420,7 @@ fn build_compressed_sequence_source(
         false,
         b"",
         0,
+        0,
         Array::new(),
         Array::new(),
         Array::new(),
@@ -418,6 +435,7 @@ fn build_compressed_sequence_source(
   }
 
   let mut highest_symbol = 0
+  let mut active_symbols = 0
   i = max_symbol
   while i >= 0 {
     if freq[i] > 0 {
@@ -427,13 +445,22 @@ fn build_compressed_sequence_source(
       i = i - 1
     }
   }
+  i = 0
+  while i <= highest_symbol {
+    if freq[i] > 0 {
+      active_symbols = active_symbols + 1
+    }
+    i = i + 1
+  }
+  let table_log = choose_compressed_table_log(n, active_symbols, table_log_max)
   let (norm_ok, normalized) = normalize_symbol_frequencies(
-    freq, highest_symbol, compressed_mode_table_log,
+    freq, highest_symbol, table_log,
   )
   if !norm_ok {
     return (
       false,
       b"",
+      0,
       0,
       Array::new(),
       Array::new(),
@@ -442,7 +469,7 @@ fn build_compressed_sequence_source(
     )
   }
   let (table_symbol, next_state, nb_add_bits, nb_bits, _) = build_sequence_fse_decode_table_with_symbols(
-    normalized, highest_symbol, compressed_mode_table_log, symbol_type,
+    normalized, highest_symbol, table_log, symbol_type,
   )
   let (path_ok, states, trans_bits, trans_nb_bits) = select_fse_state_path(
     symbols, table_symbol, next_state, nb_bits,
@@ -451,6 +478,7 @@ fn build_compressed_sequence_source(
     return (
       false,
       b"",
+      0,
       0,
       Array::new(),
       Array::new(),
@@ -467,6 +495,7 @@ fn build_compressed_sequence_source(
         false,
         b"",
         0,
+        0,
         Array::new(),
         Array::new(),
         Array::new(),
@@ -476,10 +505,17 @@ fn build_compressed_sequence_source(
     i = i + 1
   }
 
-  let header = write_fse_ncount_header(
-    normalized, highest_symbol, compressed_mode_table_log,
+  let header = write_fse_ncount_header(normalized, highest_symbol, table_log)
+  (
+    true,
+    header,
+    states[0],
+    table_log,
+    extras,
+    extra_bits,
+    trans_bits,
+    trans_nb_bits,
   )
-  (true, header, states[0], extras, extra_bits, trans_bits, trans_nb_bits)
 }
 
 ///|
@@ -508,6 +544,7 @@ fn build_general_compressed_fse_payload(
     ll_ok,
     ll_header,
     ll_init_state,
+    ll_table_log,
     ll_extras,
     ll_extra_bits,
     ll_trans_bits,
@@ -522,6 +559,7 @@ fn build_general_compressed_fse_payload(
     off_ok,
     off_header,
     off_init_state,
+    off_table_log,
     off_extras,
     off_extra_bits,
     off_trans_bits,
@@ -534,6 +572,7 @@ fn build_general_compressed_fse_payload(
     ml_ok,
     ml_header,
     ml_init_state,
+    ml_table_log,
     ml_extras,
     ml_extra_bits,
     ml_trans_bits,
@@ -548,21 +587,9 @@ fn build_general_compressed_fse_payload(
   )
 
   let bits : Array[Int] = Array::new()
-  append_bits_be(
-    bits,
-    ll_init_state.reinterpret_as_uint(),
-    compressed_mode_table_log,
-  )
-  append_bits_be(
-    bits,
-    off_init_state.reinterpret_as_uint(),
-    compressed_mode_table_log,
-  )
-  append_bits_be(
-    bits,
-    ml_init_state.reinterpret_as_uint(),
-    compressed_mode_table_log,
-  )
+  append_bits_be(bits, ll_init_state.reinterpret_as_uint(), ll_table_log)
+  append_bits_be(bits, off_init_state.reinterpret_as_uint(), off_table_log)
+  append_bits_be(bits, ml_init_state.reinterpret_as_uint(), ml_table_log)
 
   let mut i = 0
   while i < seq_count {

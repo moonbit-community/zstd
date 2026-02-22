@@ -699,6 +699,47 @@ test "general compressed FSE payload builder emits mode2 and decodes" {
 }
 
 ///|
+test "compressed sequence source can use adaptive table_log above 5" {
+  let values : Array[Int] = Array::new()
+  let mut i = 0
+  while i < 72 {
+    let v = if i % 4 == 0 {
+      1 + i % 31
+    } else if i % 4 == 1 {
+      32 + i * 3 % 1024
+    } else if i % 4 == 2 {
+      2048 + i * 11 % 8192
+    } else {
+      64 + i * 7 % 4096
+    }
+    values.push(v)
+    i = i + 1
+  }
+  let result = try? build_compressed_sequence_source(
+    values, sequence_symbol_literal_length,
+  )
+  match result {
+    Ok((ok, header, _, table_log, _, _, _, _)) => {
+      assert_true(ok)
+      assert_true(table_log > 5)
+      let parsed = try? read_fse_ncount_header(
+        header,
+        0,
+        header.length(),
+        35,
+        9,
+      )
+      match parsed {
+        Ok((_, parsed_table_log, _, _)) =>
+          assert_eq(parsed_table_log, table_log)
+        Err(_) => fail("failed to parse adaptive table_log header")
+      }
+    }
+    Err(_) => fail("failed to build compressed sequence source")
+  }
+}
+
+///|
 test "mixed source chooser can select different modes per sequence source" {
   let ll_values = [1, 20, 300, 4096]
   let off_values = [64, 64, 64, 64]

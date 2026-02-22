@@ -143,9 +143,18 @@ fn choose_sequence_source_mode(
   if level >= 13 {
     let compressed = build_compressed_sequence_source(values, symbol_type)
     match compressed {
-      (true, header, init_state, extras, extra_bits, trans_bits, trans_nb_bits) => {
+      (
+        true,
+        header,
+        init_state,
+        table_log,
+        extras,
+        extra_bits,
+        trans_bits,
+        trans_nb_bits,
+      ) => {
         let score = source_option_score_bits(
-          header, compressed_mode_table_log, extra_bits, trans_nb_bits,
+          header, table_log, extra_bits, trans_nb_bits,
         )
         if !have ||
           score < best_score ||
@@ -160,7 +169,7 @@ fn choose_sequence_source_mode(
           best_mode = 2
           best_source = header
           best_init_state = init_state
-          best_init_bits = compressed_mode_table_log
+          best_init_bits = table_log
           best_extras = extras
           best_extra_bits = extra_bits
           best_trans_bits = trans_bits
