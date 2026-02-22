@@ -140,6 +140,38 @@ test "predefined state init with non-zero bitstream start" {
 }
 
 ///|
+test "rewrite RLE sequence modes to repeat after prior-state warmup" {
+  let src = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
+  let payload = try? build_best_periodic_payload(src, 0, src.length(), 18)
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      let prev_rle_valid : Ref[Bool] = { val: false }
+      let prev_ll_code : Ref[UInt] = { val: 0 }
+      let prev_off_code : Ref[UInt] = { val: 0 }
+      let prev_ml_code : Ref[UInt] = { val: 0 }
+
+      let first = maybe_rewrite_rle_modes_to_repeat(
+        v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code,
+      )
+      let first_modes_pos = payload_sequence_modes_offset(first)
+      assert_true(first_modes_pos >= 0)
+      assert_eq(first[first_modes_pos].to_uint(), 0x54)
+
+      let second = maybe_rewrite_rle_modes_to_repeat(
+        v, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code,
+      )
+      let second_modes_pos = payload_sequence_modes_offset(second)
+      assert_true(second_modes_pos >= 0)
+      assert_eq(second[second_modes_pos].to_uint(), 0xFC)
+      assert_eq(first.length() - second.length(), 3)
+    }
+    Err(_) =>
+      fail("failed to build periodic payload for repeat-mode rewrite test")
+  }
+}
+
+///|
 test "decode literals section with 4 Huffman streams" {
   let frame = b"\x28\xb5\x2f\xfd\x64\x08\x06\x05\x03\x00\x96\x50\x13\x82\x11\x10\x11\x00\x11\x00\x11\x00\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\x41\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x5b\x01\x00\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x01\x81\x00\x98\x10\xf0\x07\x00\x10\x12\x3f\xd5\xaa\x55\xeb\x14\xa4\xfd\xf8\x0e\xdf"
   let prev_huf_valid : Ref[Bool] = { val: false }

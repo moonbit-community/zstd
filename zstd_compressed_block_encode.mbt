@@ -527,6 +527,10 @@ fn append_compressed_repeat_block(
   block_len : Int,
   last_block : Bool,
   level : Int,
+  prev_rle_valid : Ref[Bool],
+  prev_ll_code : Ref[UInt],
+  prev_off_code : Ref[UInt],
+  prev_ml_code : Ref[UInt],
 ) -> Bool raise ZstdError {
   let periodic_payload = build_best_periodic_payload(
     src, start, block_len, level,
@@ -538,7 +542,7 @@ fn append_compressed_repeat_block(
   } else {
     b""
   }
-  let payload = if periodic_payload.length() > 0 && level >= 18 {
+  let payload0 = if periodic_payload.length() > 0 && level >= 18 {
     periodic_payload
   } else {
     let mut best = b""
@@ -555,6 +559,9 @@ fn append_compressed_repeat_block(
     }
     best
   }
+  let payload = maybe_rewrite_rle_modes_to_repeat(
+    payload0, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code,
+  )
   if payload.length() == 0 {
     return false
   }

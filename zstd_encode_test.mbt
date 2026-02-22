@@ -20,23 +20,16 @@ fn append_bytes_encode_test(
 }
 
 ///|
-fn read_first_block_sequence_meta(frame : Bytes) -> (Int, Int) {
-  if frame.length() < 13 {
-    return (-1, -1)
-  }
-  let block_header = read_u24_le_test(frame, 9)
-  if ((block_header >> 1) & 0x3) != 2 {
-    return (-1, -1)
-  }
-  let block_size = (block_header >> 3).reinterpret_as_int()
-  let payload_start = 12
-  let payload_end = payload_start + block_size
-  if block_size <= 0 ||
+fn read_sequence_meta_from_compressed_payload(
+  frame : Bytes,
+  payload_start : Int,
+  payload_end : Int,
+) -> (Int, Int) {
+  if payload_start < 0 ||
     payload_end > frame.length() ||
     payload_start >= payload_end {
     return (-1, -1)
   }
-
   let lit_desc = frame[payload_start].to_uint()
   if (lit_desc & 0x3) != 0 {
     return (-1, -1)
@@ -78,6 +71,21 @@ fn read_first_block_sequence_meta(frame : Bytes) -> (Int, Int) {
     return (-1, -1)
   }
   (seq0.reinterpret_as_int(), frame[modes_pos].to_uint().reinterpret_as_int())
+}
+
+///|
+fn read_first_block_sequence_meta(frame : Bytes) -> (Int, Int) {
+  if frame.length() < 13 {
+    return (-1, -1)
+  }
+  let block_header = read_u24_le_test(frame, 9)
+  if ((block_header >> 1) & 0x3) != 2 {
+    return (-1, -1)
+  }
+  let block_size = (block_header >> 3).reinterpret_as_int()
+  let payload_start = 12
+  let payload_end = payload_start + block_size
+  read_sequence_meta_from_compressed_payload(frame, payload_start, payload_end)
 }
 
 ///|
