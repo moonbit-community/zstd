@@ -699,6 +699,156 @@ test "general compressed FSE payload builder emits mode2 and decodes" {
 }
 
 ///|
+test "mixed source chooser can select different modes per sequence source" {
+  let ll_values = [1, 20, 300, 4096]
+  let off_values = [64, 64, 64, 64]
+  let ml_values = [9, 9, 9, 9]
+
+  let ll_choice = try? choose_sequence_source_mode(
+    ll_values, sequence_symbol_literal_length, 20,
+  )
+  let off_choice = try? choose_sequence_source_mode(
+    off_values, sequence_symbol_offset, 20,
+  )
+  let ml_choice = try? choose_sequence_source_mode(
+    ml_values, sequence_symbol_match_length, 20,
+  )
+
+  match ll_choice {
+    Ok((ll_ok, ll_mode, _, _, _, _, _, _, _)) => {
+      assert_true(ll_ok)
+      match off_choice {
+        Ok((off_ok, off_mode, _, _, _, _, _, _, _)) => {
+          assert_true(off_ok)
+          assert_eq(off_mode, 1)
+          assert_true(ll_mode != off_mode)
+          match ml_choice {
+            Ok((ml_ok, _, _, _, _, _, _, _, _)) => assert_true(ml_ok)
+            Err(_) => fail("failed to choose ML source mode")
+          }
+        }
+        Err(_) => fail("failed to choose OF source mode")
+      }
+    }
+    Err(_) => fail("failed to choose LL source mode")
+  }
+}
+
+///|
+test "general mixed payload builder emits parseable payload and decodes" {
+  let prefix = Bytes::makei(70, i => {
+    ((i * 11 + 29) % 251).reinterpret_as_uint().to_byte()
+  })
+  let a = Bytes::makei(180, i => {
+    ((i * 13 + 7) % 241).reinterpret_as_uint().to_byte()
+  })
+  let b = Bytes::makei(220, i => {
+    ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
+  })
+  let c = Bytes::makei(140, i => {
+    ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
+  })
+  let src = prefix + a + b + a + c + b + a + c + b + a
+
+  let payload = try? build_general_mixed_sequence_payload(
+    src,
+    0,
+    src.length(),
+    20,
+  )
+  match payload {
+    Ok(v) => {
+      assert_true(v.length() > 0)
+      let modes_pos = payload_sequence_modes_offset(v)
+      assert_true(modes_pos >= 0)
+      assert_eq(v[modes_pos].to_uint() & 0x3, 0)
+
+      let out : Array[Byte] = Array::new()
+      let prev_huf_valid : Ref[Bool] = { val: false }
+      let prev_huf_max_bits : Ref[Int] = { val: 0 }
+      let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_valid : Ref[Bool] = { val: false }
+      let prev_ll_kind : Ref[Int] = { val: 0 }
+      let prev_ll_code : Ref[UInt] = { val: 0 }
+      let prev_ll_table_log : Ref[Int] = { val: 0 }
+      let prev_ll_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ll_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_valid : Ref[Bool] = { val: false }
+      let prev_off_kind : Ref[Int] = { val: 0 }
+      let prev_off_code : Ref[UInt] = { val: 0 }
+      let prev_off_table_log : Ref[Int] = { val: 0 }
+      let prev_off_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_off_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_valid : Ref[Bool] = { val: false }
+      let prev_ml_kind : Ref[Int] = { val: 0 }
+      let prev_ml_code : Ref[UInt] = { val: 0 }
+      let prev_ml_table_log : Ref[Int] = { val: 0 }
+      let prev_ml_table_next_state : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
+      let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array::new() }
+
+      let decoded = try? decode_compressed_block_minimal(
+        v,
+        0,
+        v.length(),
+        out,
+        0,
+        b"",
+        1,
+        4,
+        8,
+        prev_huf_valid,
+        prev_huf_max_bits,
+        prev_huf_left,
+        prev_huf_right,
+        prev_huf_symbol,
+        prev_ll_valid,
+        prev_ll_kind,
+        prev_ll_code,
+        prev_ll_table_log,
+        prev_ll_table_next_state,
+        prev_ll_table_nb_add_bits,
+        prev_ll_table_nb_bits,
+        prev_ll_table_base_values,
+        prev_off_valid,
+        prev_off_kind,
+        prev_off_code,
+        prev_off_table_log,
+        prev_off_table_next_state,
+        prev_off_table_nb_add_bits,
+        prev_off_table_nb_bits,
+        prev_off_table_base_values,
+        prev_ml_valid,
+        prev_ml_kind,
+        prev_ml_code,
+        prev_ml_table_log,
+        prev_ml_table_next_state,
+        prev_ml_table_nb_add_bits,
+        prev_ml_table_nb_bits,
+        prev_ml_table_base_values,
+      )
+      match decoded {
+        Ok((next_pos, produced, _, _, _)) => {
+          assert_eq(next_pos, v.length())
+          assert_eq(produced, src.length().to_uint64())
+          assert_eq(Bytes::from_array(out), src)
+        }
+        Err(_) =>
+          fail("decode_compressed_block_minimal failed on mixed payload")
+      }
+    }
+    Err(_) => fail("failed to build general mixed payload")
+  }
+}
+
+///|
 test "decode literals section with 4 Huffman streams" {
   let frame = b"\x28\xb5\x2f\xfd\x64\x08\x06\x05\x03\x00\x96\x50\x13\x82\x11\x10\x11\x00\x11\x00\x11\x00\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\x41\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x5b\x01\x00\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x01\x81\x00\x98\x10\xf0\x07\x00\x10\x12\x3f\xd5\xaa\x55\xeb\x14\xa4\xfd\xf8\x0e\xdf"
   let prev_huf_valid : Ref[Bool] = { val: false }
