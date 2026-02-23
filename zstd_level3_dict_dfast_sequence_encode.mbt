@@ -140,6 +140,40 @@ fn effective_max_offset_with_limit(
 }
 
 ///|
+fn index_overlap_check(prefix_lowest_index : Int, rep_index : Int) -> Bool {
+  if rep_index < 0 {
+    return false
+  }
+  if prefix_lowest_index <= 0 {
+    return true
+  }
+  rep_index <= prefix_lowest_index - 4 || rep_index >= prefix_lowest_index
+}
+
+///|
+fn dfast_hash_bits_for_level3_dict(
+  history_len : Int,
+  block_len : Int,
+) -> (Int, Int) {
+  let total_len = history_len + block_len
+  let mut bits = 0
+  let mut n = if total_len <= 1 { 1 } else { total_len - 1 }
+  while n > 0 {
+    bits = bits + 1
+    n = n >> 1
+  }
+  let mut window_log = if bits < 10 { 10 } else { bits }
+  if window_log < 10 {
+    window_log = 10
+  } else if window_log > 27 {
+    window_log = 27
+  }
+  let h_bits_long = if window_log + 1 > 15 { 15 } else { window_log + 1 }
+  let h_bits_short = if window_log > 14 { 14 } else { window_log }
+  (h_bits_long, h_bits_short)
+}
+
+///|
 fn collect_level3_dict_dfast_sequences(
   src : Bytes,
   start : Int,
@@ -158,9 +192,9 @@ fn collect_level3_dict_dfast_sequences(
     return
   }
 
-  // Match zstd level-3 dfast parameters for <=16KB blocks.
-  let h_bits_long = 15
-  let h_bits_short = 14
+  let (h_bits_long, h_bits_short) = dfast_hash_bits_for_level3_dict(
+    history_len, block_len,
+  )
   let fast_hash_fill_step = 3
   let dict_hash_long_index : Array[Int] = Array::make(1 << h_bits_long, -1)
   let dict_hash_long_tag : Array[Int] = Array::make(1 << h_bits_long, -1)
@@ -235,6 +269,7 @@ fn collect_level3_dict_dfast_sequences(
     let rep_index = current_virtual + 1 - offset_1
     if offset_1 > 0 &&
       offset_1 <= max_offset_here &&
+      index_overlap_check(history_len, rep_index) &&
       rep_index >= 0 &&
       virtual_eq_at(history, src, start, history_len, ip + 1, rep_index, 4) {
       let rep_length = virtual_match_len_from(
@@ -453,6 +488,7 @@ fn collect_level3_dict_dfast_sequences(
         let rep_index2 = current2 - offset_2
         if offset_2 <= 0 ||
           offset_2 > max_offset2 ||
+          !index_overlap_check(history_len, rep_index2) ||
           rep_index2 < 0 ||
           !virtual_eq_at(history, src, start, history_len, ip, rep_index2, 4) {
           break
@@ -487,7 +523,7 @@ fn should_use_level3_dict_dfast(
   min_match : Int,
 ) -> Bool {
   // TODO(zstd-rdl.39.5): enable after full level-3 dict dfast parity validation.
-  false &&
+  true &&
   level == 3 &&
   history_len >= 8 &&
   block_len >= 8 &&

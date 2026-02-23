@@ -61,6 +61,70 @@ fn append_bytes_encode_test(
 }
 
 ///|
+fn bytes_slice_encode_test(src : Bytes, start : Int, len : Int) -> Bytes {
+  if start < 0 || len < 0 || start + len > src.length() {
+    return b""
+  }
+  let out : Array[Byte] = Array::new()
+  append_bytes_encode_test(out, src, start, len)
+  Bytes::from_array(out)
+}
+
+///|
+fn parse_compressed_literals_header_encode_test(
+  payload : Bytes,
+) -> (Bool, UInt, UInt, Int, Int, Int, Int) {
+  if payload.length() < 4 {
+    return (false, 0, 0, 0, 0, 0, 0)
+  }
+  let byte0 = payload[0].to_uint()
+  let literals_block_type = byte0 & 0x3
+  if literals_block_type != 2 && literals_block_type != 3 {
+    return (false, 0, 0, 0, 0, 0, 0)
+  }
+  let size_format = (byte0 >> 2) & 0x3
+  let lhc = payload[0].to_uint() +
+    (payload[1].to_uint() << 8) +
+    (payload[2].to_uint() << 16) +
+    (payload[3].to_uint() << 24)
+  let (header_size, lit_size, lit_c_size) = if size_format == 0 ||
+    size_format == 1 {
+    (
+      3,
+      ((lhc >> 4) & 0x3FF).reinterpret_as_int(),
+      ((lhc >> 14) & 0x3FF).reinterpret_as_int(),
+    )
+  } else if size_format == 2 {
+    (
+      4,
+      ((lhc >> 4) & 0x3FFF).reinterpret_as_int(),
+      (lhc >> 18).reinterpret_as_int(),
+    )
+  } else if size_format == 3 {
+    if payload.length() < 5 {
+      return (false, 0, 0, 0, 0, 0, 0)
+    }
+    let b4 = payload[4].to_uint()
+    (
+      5,
+      ((lhc >> 4) & 0x3FFFF).reinterpret_as_int(),
+      ((lhc >> 22) + (b4 << 10)).reinterpret_as_int(),
+    )
+  } else {
+    return (false, 0, 0, 0, 0, 0, 0)
+  }
+  (
+    true,
+    literals_block_type,
+    size_format,
+    lit_size,
+    lit_c_size,
+    header_size,
+    header_size + lit_c_size,
+  )
+}
+
+///|
 fn read_sequence_meta_from_compressed_payload(
   frame : Bytes,
   payload_start : Int,
@@ -206,6 +270,25 @@ fn frame_header_size_encode_test(frame : Bytes) -> Int {
   let fcs_flag = descriptor >> 6
   size = size + frame_content_size_size_encode_test(fcs_flag, single_segment)
   size
+}
+
+///|
+fn first_block_payload_range_encode_test(frame : Bytes) -> (Int, Int) {
+  let header_size = frame_header_size_encode_test(frame)
+  if header_size < 0 || header_size + 3 > frame.length() {
+    return (-1, -1)
+  }
+  let block_header = read_u24_le_test(frame, header_size)
+  if ((block_header >> 1) & 0x3) != 2 {
+    return (-1, -1)
+  }
+  let block_size = (block_header >> 3).reinterpret_as_int()
+  let payload_start = header_size + 3
+  let payload_end = payload_start + block_size
+  if payload_end > frame.length() {
+    return (-1, -1)
+  }
+  (payload_start, payload_end)
 }
 
 ///|
@@ -444,6 +527,64 @@ test "sequence metadata parser can parse upstream missing-symbol dictionary fram
   )
   assert_true(seq_count > 0)
   assert_true(modes >= 0)
+}
+
+///|
+test "level3 dictionary missing-symbol frame keeps first-block sequence metadata parity" {
+  let upstream = rv_up_gdict_missing_symbols_http_frame_default_nocheck()
+  let ours = compress_with_dictionary(
+    rv_up_http_payload(),
+    rv_up_gdict_http_dict(),
+  )
+
+  let (up_seq_count, up_modes) = read_first_block_sequence_meta(upstream)
+  let (our_seq_count, our_modes) = read_first_block_sequence_meta(ours)
+  assert_eq(our_seq_count, up_seq_count)
+  assert_eq(our_modes, up_modes)
+
+  let up_header_size = frame_header_size_encode_test(upstream)
+  let our_header_size = frame_header_size_encode_test(ours)
+  let up_payload_start = up_header_size + 3
+  let our_payload_start = our_header_size + 3
+  assert_eq(
+    ours[our_payload_start] & b"\x03"[0],
+    upstream[up_payload_start] & b"\x03"[0],
+  )
+}
+
+///|
+test "level3 dictionary missing-symbol frame now matches literals length parity" {
+  let upstream = rv_up_gdict_missing_symbols_http_frame_default_nocheck()
+  let ours = compress_with_dictionary(
+    rv_up_http_payload(),
+    rv_up_gdict_http_dict(),
+  )
+  let (up_start, up_end) = first_block_payload_range_encode_test(upstream)
+  let (our_start, our_end) = first_block_payload_range_encode_test(ours)
+  let up_payload = bytes_slice_encode_test(
+    upstream,
+    up_start,
+    up_end - up_start,
+  )
+  let our_payload = bytes_slice_encode_test(
+    ours,
+    our_start,
+    our_end - our_start,
+  )
+  let (up_ok, up_type, up_size_fmt, up_lit_size, up_lit_c_size, _, _) = parse_compressed_literals_header_encode_test(
+    up_payload,
+  )
+  let (our_ok, our_type, our_size_fmt, our_lit_size, our_lit_c_size, _, _) = parse_compressed_literals_header_encode_test(
+    our_payload,
+  )
+  assert_true(up_ok)
+  assert_true(our_ok)
+  assert_eq(our_type, up_type)
+  assert_eq(our_lit_size, up_lit_size)
+  ignore(our_size_fmt)
+  ignore(up_size_fmt)
+  ignore(our_lit_c_size)
+  ignore(up_lit_c_size)
 }
 
 ///|

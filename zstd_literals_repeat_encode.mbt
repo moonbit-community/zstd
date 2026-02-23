@@ -434,6 +434,9 @@ fn rewrite_literals_section_to_treeless_if_repeat(
               payload.length() - payload_end,
             )
             let candidate4 = Bytes::from_array(rewritten4)
+            if lit_size >= 256 {
+              return candidate4
+            }
             if candidate4.length() <= candidate.length() + 2 {
               return candidate4
             }
