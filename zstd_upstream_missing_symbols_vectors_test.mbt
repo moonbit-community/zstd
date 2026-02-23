@@ -5,3 +5,11 @@ test "upstream golden dictionary missing-symbols http default level" {
     rv_up_gdict_missing_symbols_http_frame_default(),
   )
 }
+
+///|
+test "upstream golden dictionary missing-symbols http default level no-check" {
+  assert_upstream_gdict_http_vector(
+    "http-dict-missing-symbols-default-nocheck",
+    rv_up_gdict_missing_symbols_http_frame_default_nocheck(),
+  )
+}
