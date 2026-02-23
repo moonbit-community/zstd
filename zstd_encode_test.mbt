@@ -378,6 +378,16 @@ test "compress_with_dictionary can use multi-sequence dictionary matches" {
 }
 
 ///|
+test "compress_with_dictionary default level can emit compressed block with standard dictionary" {
+  let dict = rv_up_gdict_http_dict()
+  let input = rv_up_http_payload()
+  let frame = compress_with_dictionary(input, dict)
+  assert_eq(first_block_type_encode_test(frame), 2)
+  assert_true(frame.length() < input.length())
+  assert_eq(decompress_with_dictionary(frame, dict), input)
+}
+
+///|
 test "compress_with_options can force raw block via target_compressed_block_size" {
   let input = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
   let compressed_default = compress(input, level=10)

@@ -220,6 +220,8 @@ fn append_frame_blocks_minimal(
   target_compressed_block_size? : Int = 0,
   max_window_size? : UInt64 = (0 : UInt64),
 ) -> Unit raise ZstdError {
+  let allow_low_level_dictionary_compressed = dictionary_state.history.length() >
+    0
   let seed_has_sequence_headers = dictionary_state.ll_kind ==
     sequence_table_kind_compressed &&
     dictionary_state.off_kind == sequence_table_kind_compressed &&
@@ -339,7 +341,7 @@ fn append_frame_blocks_minimal(
         sim_out.push(src[pos + i])
         i = i + 1
       }
-    } else if level >= 10 &&
+    } else if (level >= 10 || allow_low_level_dictionary_compressed) &&
       append_compressed_repeat_block(
         out, src, pos, block_len, last_block, level, limited_history, sim_rep1, sim_rep2,
         sim_rep3, enable_long_distance_matching, target_compressed_block_size, window_max_offset,
