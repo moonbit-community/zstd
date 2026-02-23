@@ -112,3 +112,15 @@ fn greedy_sequence_search_depth(
     base
   }
 }
+
+///|
+fn greedy_sequence_min_match(level : Int, block_len : Int) -> Int {
+  ignore(block_len)
+  if level <= 2 {
+    5
+  } else if level <= 4 {
+    4
+  } else {
+    3
+  }
+}

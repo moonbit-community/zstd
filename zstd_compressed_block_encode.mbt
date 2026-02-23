@@ -91,31 +91,9 @@ fn encode_offset_symbol_with_repcodes(
   rep2 : Int,
   rep3 : Int,
 ) -> (UInt, UInt, Int) raise ZstdError {
-  if offset <= 0 {
-    raise CorruptionDetected
-  }
-  if literal_length == 0 {
-    if offset == rep2 {
-      return (0, 0, 0)
-    }
-    if offset == rep3 {
-      return (1, 0, 1)
-    }
-    if rep1 > 1 && offset == rep1 - 1 {
-      return (1, 1, 1)
-    }
-  } else {
-    if offset == rep1 {
-      return (0, 0, 0)
-    }
-    if offset == rep2 {
-      return (1, 0, 1)
-    }
-    if offset == rep3 {
-      return (1, 1, 1)
-    }
-  }
-  encode_offset_symbol(offset)
+  let ll0 = literal_length == 0
+  let off_base = finalize_offset_off_base(offset, ll0, rep1, rep2, rep3)
+  offset_symbol_from_off_base(off_base)
 }
 
 ///|
@@ -687,13 +665,7 @@ fn append_compressed_repeat_block(
   let search_depth_base = level_single_match_search_depth(
     level, enable_long_distance_matching,
   )
-  let search_depth = if dictionary_history.length() > 0 &&
-    level < 10 &&
-    search_depth_base < 48 {
-    48
-  } else {
-    search_depth_base
-  }
+  let search_depth = search_depth_base
   let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
     src,
     start,

@@ -53,73 +53,6 @@ fn encode_symbol_for_value(
 }
 
 ///|
-fn collect_compressed_offset_symbol_candidates_for_context(
-  value : Int,
-  ll0 : Bool,
-  r1 : Int,
-  r2 : Int,
-  r3 : Int,
-  symbols : Array[Int],
-  extras : Array[UInt],
-  nb_add_bits : Array[Int],
-  out_r1 : Array[Int],
-  out_r2 : Array[Int],
-  out_r3 : Array[Int],
-) -> Unit raise ZstdError {
-  let mut symbol = 0
-  while symbol <= 31 {
-    let base = offset_base_from_code(symbol.reinterpret_as_uint())
-    if symbol > 1 {
-      let span = (((1 : UInt64) << symbol) - (1 : UInt64)).to_int()
-      let limit = base + span
-      if value >= base && value <= limit {
-        symbols.push(symbol)
-        extras.push((value - base).reinterpret_as_uint())
-        nb_add_bits.push(symbol)
-        out_r1.push(value)
-        out_r2.push(r1)
-        out_r3.push(r2)
-      }
-    } else if symbol == 0 {
-      let decoded = if ll0 { r2 } else { r1 }
-      if decoded == value && decoded > 0 {
-        symbols.push(0)
-        extras.push((0 : UInt))
-        nb_add_bits.push(0)
-        out_r1.push(decoded)
-        out_r2.push(if ll0 { r1 } else { r2 })
-        out_r3.push(r3)
-      }
-    } else {
-      let mut low = 0
-      while low <= 1 {
-        let offset_code = base + (if ll0 { 1 } else { 0 }) + low
-        let (ok, decoded, nr1, nr2, nr3) = if offset_code == 1 {
-          (r2 > 0, r2, r2, r1, r3)
-        } else if offset_code == 2 {
-          (r3 > 0, r3, r3, r1, r2)
-        } else if offset_code == 3 {
-          let v = r1 - 1
-          (v > 0, v, v, r1, r2)
-        } else {
-          (false, 0, 0, 0, 0)
-        }
-        if ok && decoded == value {
-          symbols.push(1)
-          extras.push(low.reinterpret_as_uint())
-          nb_add_bits.push(1)
-          out_r1.push(nr1)
-          out_r2.push(nr2)
-          out_r3.push(nr3)
-        }
-        low = low + 1
-      }
-    }
-    symbol = symbol + 1
-  }
-}
-
-///|
 fn choose_offset_symbols_with_repcodes(
   off_values : Array[Int],
   ll_values : Array[Int],
@@ -139,52 +72,18 @@ fn choose_offset_symbols_with_repcodes(
 
   let mut i = 0
   while i < off_values.length() {
-    let cand_symbols : Array[Int] = Array::new()
-    let cand_extras : Array[UInt] = Array::new()
-    let cand_add_bits : Array[Int] = Array::new()
-    let cand_out_r1 : Array[Int] = Array::new()
-    let cand_out_r2 : Array[Int] = Array::new()
-    let cand_out_r3 : Array[Int] = Array::new()
-    collect_compressed_offset_symbol_candidates_for_context(
-      off_values[i],
-      ll_values[i] == 0,
-      r1,
-      r2,
-      r3,
-      cand_symbols,
-      cand_extras,
-      cand_add_bits,
-      cand_out_r1,
-      cand_out_r2,
-      cand_out_r3,
+    let ll0 = ll_values[i] == 0
+    let off_base = finalize_offset_off_base(off_values[i], ll0, r1, r2, r3)
+    let (symbol, extra, add_bits) = offset_symbol_from_off_base(off_base)
+    symbols.push(symbol.reinterpret_as_int())
+    extras.push(extra)
+    extra_bits.push(add_bits)
+    let (nr1, nr2, nr3) = update_repcodes_with_off_base(
+      ll0, off_base, r1, r2, r3,
     )
-    if cand_symbols.length() == 0 {
-      return (false, Array::new(), Array::new(), Array::new())
-    }
-    let mut best = 0
-    let mut c = 1
-    while c < cand_symbols.length() {
-      if cand_add_bits[c] < cand_add_bits[best] ||
-        (
-          cand_add_bits[c] == cand_add_bits[best] &&
-          (
-            cand_symbols[c] < cand_symbols[best] ||
-            (
-              cand_symbols[c] == cand_symbols[best] &&
-              cand_extras[c] < cand_extras[best]
-            )
-          )
-        ) {
-        best = c
-      }
-      c = c + 1
-    }
-    symbols.push(cand_symbols[best])
-    extras.push(cand_extras[best])
-    extra_bits.push(cand_add_bits[best])
-    r1 = cand_out_r1[best]
-    r2 = cand_out_r2[best]
-    r3 = cand_out_r3[best]
+    r1 = nr1
+    r2 = nr2
+    r3 = nr3
     i = i + 1
   }
   (true, symbols, extras, extra_bits)
@@ -964,13 +863,8 @@ fn build_general_compressed_fse_payload(
     block_len,
     enable_long_distance_matching~,
   )
-  let search_depth = if dictionary_history.length() > 0 &&
-    level < 10 &&
-    search_depth_base < 24 {
-    24
-  } else {
-    search_depth_base
-  }
+  let search_depth = search_depth_base
+  let min_match = greedy_sequence_min_match(level, block_len)
   collect_greedy_sequences(
     src,
     start,
@@ -985,6 +879,7 @@ fn build_general_compressed_fse_payload(
     rep1~,
     rep2~,
     rep3~,
+    min_match~,
   )
   let seq_count = ll_values.length()
   if seq_count < 3 {

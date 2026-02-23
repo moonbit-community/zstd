@@ -271,13 +271,8 @@ fn build_general_predefined_payload(
     block_len,
     enable_long_distance_matching~,
   )
-  let search_depth = if dictionary_history.length() > 0 &&
-    level < 10 &&
-    search_depth_base < 24 {
-    24
-  } else {
-    search_depth_base
-  }
+  let search_depth = search_depth_base
+  let min_match = greedy_sequence_min_match(level, block_len)
   collect_greedy_sequences(
     src,
     start,
@@ -292,6 +287,7 @@ fn build_general_predefined_payload(
     rep1~,
     rep2~,
     rep3~,
+    min_match~,
   )
   let seq_count = ll_values.length()
   if seq_count < 2 {

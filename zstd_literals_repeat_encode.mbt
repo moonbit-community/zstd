@@ -347,7 +347,19 @@ fn rewrite_literals_section_to_treeless_if_repeat(
     let four_section = build_treeless_literals_section_with_stream_payload(
       lit_size, four_stream_payload, false,
     )
-    let chosen = if single_section.length() == 0 {
+    let chosen = if size_format == 0 {
+      if single_section.length() > 0 {
+        single_section
+      } else {
+        four_section
+      }
+    } else if size_format == 1 || size_format == 2 || size_format == 3 {
+      if four_section.length() > 0 {
+        four_section
+      } else {
+        single_section
+      }
+    } else if single_section.length() == 0 {
       four_section
     } else if four_section.length() == 0 {
       single_section
