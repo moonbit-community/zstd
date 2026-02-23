@@ -135,7 +135,7 @@ fn index_overlap_check(prefix_lowest_index : Int, rep_index : Int) -> Bool {
   if prefix_lowest_index <= 0 {
     return true
   }
-  rep_index <= prefix_lowest_index - 4 || rep_index >= prefix_lowest_index
+  rep_index <= prefix_lowest_index || rep_index >= prefix_lowest_index + 4
 }
 
 ///|
