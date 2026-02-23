@@ -2790,3 +2790,23 @@ test "trim_history_to_window keeps history when window is non-positive" {
   assert_eq(trim_history_to_window(history, 0), history)
   assert_eq(trim_history_to_window(history, -1), history)
 }
+
+///|
+test "index_overlap_check matches zstd unsigned boundary window" {
+  // Equivalent to ZSTD_index_overlap_check(prefixLowest, repIndex):
+  // only reject repIndex in [prefixLowest-3, prefixLowest-1].
+  assert_true(index_overlap_check(100, 96))
+  assert_true(index_overlap_check(100, 100))
+  assert_true(index_overlap_check(100, 101))
+  assert_true(!index_overlap_check(100, 97))
+  assert_true(!index_overlap_check(100, 98))
+  assert_true(!index_overlap_check(100, 99))
+}
+
+///|
+test "index_overlap_check accepts non-negative reps when prefix is non-positive" {
+  assert_true(index_overlap_check(0, 0))
+  assert_true(index_overlap_check(0, 7))
+  assert_true(index_overlap_check(-5, 3))
+  assert_true(!index_overlap_check(0, -1))
+}
