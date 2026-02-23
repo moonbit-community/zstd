@@ -273,10 +273,11 @@ fn build_general_predefined_payload(
   )
   let search_depth = search_depth_base
   let min_match = greedy_sequence_min_match(level, block_len)
-  collect_greedy_sequences(
+  collect_level_aligned_sequences(
     src,
     start,
     block_len,
+    level,
     ll_values,
     off_values,
     ml_values,
