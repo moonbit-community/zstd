@@ -157,6 +157,73 @@ fn simulate_common_repcode_code1(
 }
 
 ///|
+fn greedy_match_length_with_offset(
+  history : Bytes,
+  src : Bytes,
+  start : Int,
+  history_len : Int,
+  pos : Int,
+  block_len : Int,
+  offset : Int,
+) -> Int {
+  if offset <= 0 {
+    return 0
+  }
+  let current_virtual = history_len + pos
+  let cand = current_virtual - offset
+  if cand < 0 {
+    return 0
+  }
+  if virtual_match_source_byte(history, src, start, history_len, cand) !=
+    src[start + pos] {
+    return 0
+  }
+  if pos + 1 >= block_len ||
+    virtual_match_source_byte(history, src, start, history_len, cand + 1) !=
+    src[start + pos + 1] {
+    return 0
+  }
+  if pos + 2 >= block_len ||
+    virtual_match_source_byte(history, src, start, history_len, cand + 2) !=
+    src[start + pos + 2] {
+    return 0
+  }
+  let mut ml = 3
+  while pos + ml < block_len &&
+        virtual_match_source_byte(history, src, start, history_len, cand + ml) ==
+        src[start + pos + ml] {
+    ml = ml + 1
+  }
+  ml
+}
+
+///|
+fn update_repcodes_after_greedy_offset(
+  ll0 : Bool,
+  offset : Int,
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> (Int, Int, Int) {
+  if offset <= 0 {
+    return (rep1, rep2, rep3)
+  }
+  if ll0 && offset == rep2 {
+    return (rep2, rep1, rep3)
+  }
+  if !ll0 && offset == rep1 {
+    return (rep1, rep2, rep3)
+  }
+  if offset == rep3 {
+    return (rep3, rep1, rep2)
+  }
+  if ll0 && rep1 > 1 && offset == rep1 - 1 {
+    return (rep1 - 1, rep1, rep2)
+  }
+  (offset, rep1, rep2)
+}
+
+///|
 fn collect_greedy_sequences(
   src : Bytes,
   start : Int,
@@ -168,6 +235,9 @@ fn collect_greedy_sequences(
   history? : Bytes = b"",
   search_depth? : Int = 1,
   max_match_offset? : Int = 0,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
 ) -> Unit {
   let history_len = history.length()
   let virtual_len = history_len + block_len
@@ -186,6 +256,9 @@ fn collect_greedy_sequences(
   let depth_limit = if depth_limit0 > 0 { depth_limit0 } else { 1 }
   let mut pos = 0
   let mut anchor = 0
+  let mut r1 = rep1
+  let mut r2 = rep2
+  let mut r3 = rep3
 
   while pos + 4 <= block_len && ll_values.length() < max_sequences {
     let abs_pos = start + pos
@@ -198,6 +271,8 @@ fn collect_greedy_sequences(
     let mut matched = false
     let mut best_ml = 0
     let mut best_offset = 0
+    let mut best_is_rep = false
+    let mut best_rep_rank = 1 << 30
     let window_limit = history_len + pos
     let effective_max_offset = if max_match_offset > 0 &&
       max_match_offset < window_limit {
@@ -205,33 +280,70 @@ fn collect_greedy_sequences(
     } else {
       window_limit
     }
+    let ll0 = pos == anchor
+
+    let rep0 = if ll0 { r2 } else { r1 }
+    if rep0 > 0 && rep0 <= effective_max_offset {
+      let ml = greedy_match_length_with_offset(
+        history, src, start, history_len, pos, block_len, rep0,
+      )
+      if ml >= 3 {
+        best_ml = ml
+        best_offset = rep0
+        best_is_rep = true
+        best_rep_rank = 0
+      }
+    }
+    if r3 > 0 && r3 <= effective_max_offset {
+      let ml = greedy_match_length_with_offset(
+        history, src, start, history_len, pos, block_len, r3,
+      )
+      if ml >= 3 &&
+        (ml > best_ml || (ml == best_ml && (!best_is_rep || 1 < best_rep_rank))) {
+        best_ml = ml
+        best_offset = r3
+        best_is_rep = true
+        best_rep_rank = 1
+      }
+    }
+    if ll0 && r1 > 1 {
+      let r1m1 = r1 - 1
+      if r1m1 > 0 && r1m1 <= effective_max_offset {
+        let ml = greedy_match_length_with_offset(
+          history, src, start, history_len, pos, block_len, r1m1,
+        )
+        if ml >= 3 &&
+          (
+            ml > best_ml ||
+            (ml == best_ml && (!best_is_rep || 2 < best_rep_rank))
+          ) {
+          best_ml = ml
+          best_offset = r1m1
+          best_is_rep = true
+          best_rep_rank = 2
+        }
+      }
+    }
     let mut cand = prev_pos
     let mut depth = 0
     while cand >= 0 && depth < depth_limit {
       let offset = current_virtual - cand
-      if offset > 0 &&
-        offset <= effective_max_offset &&
-        virtual_match_source_byte(history, src, start, history_len, cand) ==
-        src[abs_pos] &&
-        virtual_match_source_byte(history, src, start, history_len, cand + 1) ==
-        src[abs_pos + 1] &&
-        virtual_match_source_byte(history, src, start, history_len, cand + 2) ==
-        src[abs_pos + 2] {
-        let mut ml = 3
-        while pos + ml < block_len &&
-              virtual_match_source_byte(
-                history,
-                src,
-                start,
-                history_len,
-                cand + ml,
-              ) ==
-              src[start + pos + ml] {
-          ml = ml + 1
-        }
-        if ml > best_ml {
+      if offset > 0 && offset <= effective_max_offset {
+        let ml = greedy_match_length_with_offset(
+          history, src, start, history_len, pos, block_len, offset,
+        )
+        if ml >= 3 &&
+          (
+            ml > best_ml ||
+            (
+              ml == best_ml &&
+              !best_is_rep &&
+              (best_offset == 0 || offset < best_offset)
+            )
+          ) {
           best_ml = ml
           best_offset = offset
+          best_is_rep = false
         }
       }
       cand = chain[cand]
@@ -250,6 +362,16 @@ fn collect_greedy_sequences(
         hash_head[hu] = uv
         update_pos = update_pos + 1
       }
+      let (nr1, nr2, nr3) = update_repcodes_after_greedy_offset(
+        ll_values[ll_values.length() - 1] == 0,
+        best_offset,
+        r1,
+        r2,
+        r3,
+      )
+      r1 = nr1
+      r2 = nr2
+      r3 = nr3
       pos = end_pos
       anchor = pos
       matched = true
@@ -308,6 +430,9 @@ fn build_general_rle_payload(
     history=dictionary_history,
     search_depth~,
     max_match_offset~,
+    rep1~,
+    rep2~,
+    rep3~,
   )
   let seq_count = ll_values.length()
   if seq_count == 0 {

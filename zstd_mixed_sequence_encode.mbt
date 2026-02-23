@@ -407,6 +407,9 @@ fn build_general_mixed_sequence_payload(
     history=dictionary_history,
     search_depth~,
     max_match_offset~,
+    rep1~,
+    rep2~,
+    rep3~,
   )
   let seq_count = ll_values.length()
   if seq_count < 2 {

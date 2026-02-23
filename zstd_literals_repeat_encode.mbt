@@ -388,5 +388,48 @@ fn rewrite_literals_section_to_treeless_if_repeat(
   }
   append_bytes(rewritten, payload, payload_pos + tree_size, bitstream_size)
   append_bytes(rewritten, payload, payload_end, payload.length() - payload_end)
-  Bytes::from_array(rewritten)
+  let candidate = Bytes::from_array(rewritten)
+  if size_format == 0 && lit_size >= 6 {
+    let (ok_codes, codes, nb_bits) = build_codes_from_decode_tree(
+      cur_max_bits, cur_left, cur_right, cur_symbol,
+    )
+    if ok_codes {
+      let literals_result = try? decode_huffman_single_stream(
+        payload,
+        payload_pos + tree_size,
+        payload_end,
+        lit_size,
+        cur_max_bits,
+        cur_left,
+        cur_right,
+        cur_symbol,
+      )
+      match literals_result {
+        Ok(literals) => {
+          let four_stream_payload = encode_literals_huffman_four_stream(
+            literals, codes, nb_bits,
+          )
+          let four_section = build_treeless_literals_section_with_stream_payload(
+            lit_size, four_stream_payload, false,
+          )
+          if four_section.length() > 0 {
+            let rewritten4 : Array[Byte] = Array::new()
+            append_bytes(rewritten4, four_section, 0, four_section.length())
+            append_bytes(
+              rewritten4,
+              payload,
+              payload_end,
+              payload.length() - payload_end,
+            )
+            let candidate4 = Bytes::from_array(rewritten4)
+            if candidate4.length() <= candidate.length() + 2 {
+              return candidate4
+            }
+          }
+        }
+        Err(_) => ()
+      }
+    }
+  }
+  candidate
 }

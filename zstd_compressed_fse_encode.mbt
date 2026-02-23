@@ -805,18 +805,54 @@ fn build_compressed_sequence_source_from_symbols(
     freq[sym] = freq[sym] + 1
     i = i + 1
   }
+  let norm_freq = Array::make(max_symbol + 1, 0)
+  i = 0
+  while i <= max_symbol {
+    norm_freq[i] = freq[i]
+    i = i + 1
+  }
+  let mut norm_seq_count = n
+  let init_symbol = symbols[n - 1]
+  if init_symbol < 0 || init_symbol > max_symbol {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  if norm_freq[init_symbol] > 1 {
+    norm_freq[init_symbol] = norm_freq[init_symbol] - 1
+    norm_seq_count = norm_seq_count - 1
+  }
+  if norm_seq_count <= 1 {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
 
   let mut highest_symbol = 0
   i = max_symbol
   while i >= 0 {
-    if freq[i] > 0 {
+    if norm_freq[i] > 0 {
       highest_symbol = i
       i = -1
     } else {
       i = i - 1
     }
   }
-  let active_symbols = count_active_symbols(freq, highest_symbol)
+  let active_symbols = count_active_symbols(norm_freq, highest_symbol)
   if active_symbols < 2 {
     return (
       false,
@@ -831,10 +867,10 @@ fn build_compressed_sequence_source_from_symbols(
   }
   let table_log = choose_compressed_table_log(n, highest_symbol, table_log_max)
   let (norm_ok, normalized) = normalize_symbol_frequencies(
-    freq,
+    norm_freq,
     highest_symbol,
     table_log,
-    should_use_low_prob_count(n),
+    should_use_low_prob_count(norm_seq_count),
   )
   if !norm_ok {
     return (
@@ -946,6 +982,9 @@ fn build_general_compressed_fse_payload(
     history=dictionary_history,
     search_depth~,
     max_match_offset~,
+    rep1~,
+    rep2~,
+    rep3~,
   )
   let seq_count = ll_values.length()
   if seq_count < 3 {
