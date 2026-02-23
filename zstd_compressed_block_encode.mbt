@@ -684,9 +684,16 @@ fn append_compressed_repeat_block(
     8192
   }
   let search_limit = combine_max_offsets(search_base_limit, window_max_offset)
-  let search_depth = level_single_match_search_depth(
+  let search_depth_base = level_single_match_search_depth(
     level, enable_long_distance_matching,
   )
+  let search_depth = if dictionary_history.length() > 0 &&
+    level < 10 &&
+    search_depth_base < 48 {
+    48
+  } else {
+    search_depth_base
+  }
   let (ll, offset, ml) = detect_best_single_match_with_dictionary_history(
     src,
     start,

@@ -383,6 +383,7 @@ test "compress_with_dictionary default level can emit compressed block with stan
   let input = rv_up_http_payload()
   let frame = compress_with_dictionary(input, dict)
   assert_eq(first_block_type_encode_test(frame), 2)
+  assert_true(frame.length() <= 430)
   assert_true(frame.length() < input.length())
   assert_eq(decompress_with_dictionary(frame, dict), input)
 }
