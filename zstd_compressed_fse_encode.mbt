@@ -786,8 +786,23 @@ fn build_compressed_sequence_source_from_symbols(
   let (table_symbol, next_state, nb_add_bits, nb_bits, _) = build_sequence_fse_decode_table_with_symbols(
     normalized, highest_symbol, table_log, symbol_type,
   )
-  let (path_ok, states, trans_bits, trans_nb_bits) = select_fse_state_path(
-    symbols, table_symbol, next_state, nb_bits,
+  let (ct_ok, state_table, delta_nb_bits, delta_find_state) = build_fse_compression_table_from_normalized(
+    normalized, highest_symbol, table_log,
+  )
+  if !ct_ok {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let (path_ok, init_state, trans_bits, trans_nb_bits, states) = build_reference_fse_state_path(
+    symbols, table_symbol, next_state, nb_bits, state_table, delta_nb_bits, delta_find_state,
   )
   if !path_ok || states.length() != n {
     return (
@@ -822,14 +837,7 @@ fn build_compressed_sequence_source_from_symbols(
 
   let header = write_fse_ncount_header(normalized, highest_symbol, table_log)
   (
-    true,
-    header,
-    states[0],
-    table_log,
-    extras,
-    extra_bits,
-    trans_bits,
-    trans_nb_bits,
+    true, header, init_state, table_log, extras, extra_bits, trans_bits, trans_nb_bits,
   )
 }
 

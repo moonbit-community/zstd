@@ -77,73 +77,84 @@ fn write_fse_ncount_header(
   if normalized_counter_abs_sum(normalized_counter, max_symbol) != table_size {
     raise CorruptionDetected
   }
-
-  let bits : Array[Int] = Array::new()
-  append_forward_bits_lsb(bits, table_log - fse_min_table_log, 4)
-
+  let out : Array[Byte] = Array::new()
+  let mut bit_stream = (table_log - fse_min_table_log).to_uint64()
+  let mut bit_count = 4
   let mut remaining = table_size + 1
   let mut threshold = table_size
   let mut nb_bits = table_log + 1
-  let mut charnum = 0
-  let mut previous0 = false
+  let mut symbol = 0
+  let alphabet_size = max_symbol + 1
+  let mut previous_is0 = false
 
-  while remaining > 1 && charnum <= max_symbol {
-    if previous0 {
-      let mut repeat = 0
-      let mut p = charnum
-      while p <= max_symbol && normalized_counter[p] == 0 {
-        repeat = repeat + 1
-        p = p + 1
+  while symbol < alphabet_size && remaining > 1 {
+    if previous_is0 {
+      let mut start = symbol
+      while symbol < alphabet_size && normalized_counter[symbol] == 0 {
+        symbol = symbol + 1
       }
-      let mut r = repeat
-      while r >= 3 {
-        append_forward_bits_lsb(bits, 3, 2)
-        r = r - 3
-      }
-      append_forward_bits_lsb(bits, r, 2)
-      charnum = charnum + repeat
-      if charnum > max_symbol {
+      if symbol == alphabet_size {
         break
       }
+      while symbol >= start + 24 {
+        start = start + 24
+        bit_stream = bit_stream + ((0xFFFF : UInt64) << bit_count)
+        out.push((bit_stream & 0xFF).to_byte())
+        out.push(((bit_stream >> 8) & 0xFF).to_byte())
+        bit_stream = bit_stream >> 16
+      }
+      while symbol >= start + 3 {
+        start = start + 3
+        bit_stream = bit_stream + ((3 : UInt64) << bit_count)
+        bit_count = bit_count + 2
+      }
+      bit_stream = bit_stream + ((symbol - start).to_uint64() << bit_count)
+      bit_count = bit_count + 2
+      if bit_count > 16 {
+        out.push((bit_stream & 0xFF).to_byte())
+        out.push(((bit_stream >> 8) & 0xFF).to_byte())
+        bit_stream = bit_stream >> 16
+        bit_count = bit_count - 16
+      }
     }
 
-    let decoded = normalized_counter[charnum]
-    let count = decoded + 1
-    if count < 0 || count > remaining {
-      raise CorruptionDetected
-    }
+    let mut count = normalized_counter[symbol]
+    symbol = symbol + 1
     let max = 2 * threshold - 1 - remaining
-    if max < 0 {
+    remaining = remaining - (if count < 0 { -count } else { count })
+    count = count + 1
+    if count >= threshold {
+      count = count + max
+    }
+    bit_stream = bit_stream + (count.to_uint64() << bit_count)
+    bit_count = bit_count + nb_bits
+    if count < max {
+      bit_count = bit_count - 1
+    }
+    previous_is0 = count == 1
+    if remaining < 1 {
       raise CorruptionDetected
     }
-    if count < max {
-      append_forward_bits_lsb(bits, count, nb_bits - 1)
-    } else {
-      let value = if count < threshold { count } else { count + max }
-      append_forward_bits_lsb(bits, value, nb_bits)
+    while remaining < threshold {
+      nb_bits = nb_bits - 1
+      threshold = threshold >> 1
     }
-
-    remaining = if decoded >= 0 {
-      remaining - decoded
-    } else {
-      remaining + decoded
-    }
-    charnum = charnum + 1
-    previous0 = decoded == 0
-
-    if remaining < threshold {
-      if remaining <= 1 {
-        break
-      }
-      nb_bits = high_bit_positive(remaining) + 1
-      threshold = 1 << (nb_bits - 1)
+    if bit_count > 16 {
+      out.push((bit_stream & 0xFF).to_byte())
+      out.push(((bit_stream >> 8) & 0xFF).to_byte())
+      bit_stream = bit_stream >> 16
+      bit_count = bit_count - 16
     }
   }
 
   if remaining != 1 {
     raise CorruptionDetected
   }
-  let header = pack_forward_bits_lsb(bits)
+  out.push((bit_stream & 0xFF).to_byte())
+  if bit_count > 8 {
+    out.push(((bit_stream >> 8) & 0xFF).to_byte())
+  }
+  let header = Bytes::from_array(out)
   if header.length() == 0 {
     raise CorruptionDetected
   }
