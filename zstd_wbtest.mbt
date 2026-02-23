@@ -2725,3 +2725,21 @@ test "non-single-segment decode accepts offsets within declared window size" {
     Err(_) => fail("failed to build single-match payload for window-pass test")
   }
 }
+
+///|
+test "trim_history_to_window keeps only suffix within limit" {
+  let history = Bytes::makei(10, i => i.reinterpret_as_uint().to_byte())
+  let trimmed = trim_history_to_window(history, 4)
+  assert_eq(trimmed.length(), 4)
+  assert_eq(trimmed[0], (6 : UInt).to_byte())
+  assert_eq(trimmed[1], (7 : UInt).to_byte())
+  assert_eq(trimmed[2], (8 : UInt).to_byte())
+  assert_eq(trimmed[3], (9 : UInt).to_byte())
+}
+
+///|
+test "trim_history_to_window keeps history when window is non-positive" {
+  let history = b"abcdef"
+  assert_eq(trim_history_to_window(history, 0), history)
+  assert_eq(trim_history_to_window(history, -1), history)
+}

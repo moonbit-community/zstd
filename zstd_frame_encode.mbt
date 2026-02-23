@@ -203,6 +203,14 @@ fn is_rle_block(src : Bytes, start : Int, block_len : Int) -> Bool {
 }
 
 ///|
+fn trim_history_to_window(history : Bytes, window_max_offset : Int) -> Bytes {
+  if window_max_offset <= 0 || history.length() <= window_max_offset {
+    return history
+  }
+  history[history.length() - window_max_offset:].to_bytes()
+}
+
+///|
 fn append_frame_blocks_minimal(
   out : Array[Byte],
   src : Bytes,
@@ -321,6 +329,9 @@ fn append_frame_blocks_minimal(
     } else {
       0
     }
+    let limited_history = trim_history_to_window(
+      compression_history, window_max_offset,
+    )
     if is_rle_block(src, pos, block_len) {
       append_rle_block(out, src[pos], block_len, last_block)
       let mut i = 0
@@ -330,11 +341,11 @@ fn append_frame_blocks_minimal(
       }
     } else if level >= 10 &&
       append_compressed_repeat_block(
-        out, src, pos, block_len, last_block, level, compression_history, sim_rep1,
-        sim_rep2, sim_rep3, enable_long_distance_matching, target_compressed_block_size,
-        window_max_offset, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code,
-        prev_predefined_valid, prev_compressed_valid, prev_ll_header, prev_off_header,
-        prev_ml_header, prev_lit_huf_valid, prev_lit_huf_tree_desc, selected_payload,
+        out, src, pos, block_len, last_block, level, limited_history, sim_rep1, sim_rep2,
+        sim_rep3, enable_long_distance_matching, target_compressed_block_size, window_max_offset,
+        prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
+        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header, prev_lit_huf_valid,
+        prev_lit_huf_tree_desc, selected_payload,
       ) {
       let (next_pos, produced, next_rep1, next_rep2, next_rep3) = decode_compressed_block_minimal(
         selected_payload.val,
