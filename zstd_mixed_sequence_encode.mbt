@@ -380,7 +380,7 @@ fn build_general_mixed_sequence_payload(
   let ml_values : Array[Int] = Array::new()
   let max_sequences_base = mixed_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 && level < 10 {
-    sequence_cap_by_block(64, block_len)
+    sequence_cap_by_block(55, block_len)
   } else {
     max_sequences_base
   }
@@ -412,6 +412,11 @@ fn build_general_mixed_sequence_payload(
   if seq_count < 2 {
     return b""
   }
+  let offset_mode_level = if dictionary_history.length() > 0 && level < 13 {
+    13
+  } else {
+    level
+  }
   let (
     ll_ok,
     ll_mode,
@@ -439,7 +444,7 @@ fn build_general_mixed_sequence_payload(
     off_trans_bits,
     off_trans_nb_bits,
   ) = choose_offset_source_mode_with_repcodes(
-    off_values, ll_values, level, rep1, rep2, rep3,
+    off_values, ll_values, offset_mode_level, rep1, rep2, rep3,
   )
   if !off_ok {
     return b""

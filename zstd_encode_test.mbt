@@ -72,60 +72,109 @@ fn read_sequence_meta_from_compressed_payload(
     return (-1, -1)
   }
   let lit_desc = frame[payload_start].to_uint()
-  if (lit_desc & 0x3) != 0 {
-    return (-1, -1)
-  }
+  let literals_block_type = lit_desc & 0x3
   let size_format = (lit_desc >> 2) & 0x3
-  let (lit_header_size, lit_len) = if size_format == 0 {
-    (1, (lit_desc >> 3).reinterpret_as_int())
-  } else if size_format == 1 {
-    if payload_start + 1 >= frame.length() {
+  let seq_count_pos = if literals_block_type == 0 || literals_block_type == 1 {
+    let (lit_header_size, lit_len) = if size_format == 0 {
+      (1, (lit_desc >> 3).reinterpret_as_int())
+    } else if size_format == 1 {
+      if payload_start + 1 >= payload_end {
+        return (-1, -1)
+      }
+      let lit = ((lit_desc >> 4) + (frame[payload_start + 1].to_uint() << 4)).reinterpret_as_int()
+      (2, lit)
+    } else if size_format == 2 {
+      (1, (lit_desc >> 3).reinterpret_as_int())
+    } else if size_format == 3 {
+      if payload_start + 2 >= payload_end {
+        return (-1, -1)
+      }
+      let lit = ((lit_desc >> 4) +
+      (frame[payload_start + 1].to_uint() << 4) +
+      (frame[payload_start + 2].to_uint() << 12)).reinterpret_as_int()
+      (3, lit)
+    } else {
       return (-1, -1)
     }
-    let lit = ((lit_desc >> 4) + (frame[payload_start + 1].to_uint() << 4)).reinterpret_as_int()
-    (2, lit)
-  } else if size_format == 3 {
-    if payload_start + 2 >= frame.length() {
+    let literals_data_len = if literals_block_type == 0 {
+      lit_len
+    } else if lit_len == 0 {
+      0
+    } else {
+      1
+    }
+    payload_start + lit_header_size + literals_data_len
+  } else if literals_block_type == 2 || literals_block_type == 3 {
+    if payload_start + 3 >= payload_end {
       return (-1, -1)
     }
-    let lit = ((lit_desc >> 4) +
-    (frame[payload_start + 1].to_uint() << 4) +
-    (frame[payload_start + 2].to_uint() << 12)).reinterpret_as_int()
-    (3, lit)
+    let lhc = read_u32_le_test(frame, payload_start)
+    let (lit_header_size, lit_c_size) = if size_format == 0 || size_format == 1 {
+      (3, ((lhc >> 14) & 0x3FF).reinterpret_as_int())
+    } else if size_format == 2 {
+      (4, (lhc >> 18).reinterpret_as_int())
+    } else {
+      if payload_start + 4 >= payload_end {
+        return (-1, -1)
+      }
+      let b4 = frame[payload_start + 4].to_uint()
+      (5, ((lhc >> 22) + (b4 << 10)).reinterpret_as_int())
+    }
+    payload_start + lit_header_size + lit_c_size
   } else {
     return (-1, -1)
   }
-  let seq_count_pos = payload_start + lit_header_size + lit_len
   if seq_count_pos >= payload_end {
     return (-1, -1)
   }
   let seq0 = frame[seq_count_pos].to_uint()
-  let seq_count_header_len = if seq0 < 128 {
-    1
+  let (seq_count, seq_count_header_len) = if seq0 < 128 {
+    (seq0.reinterpret_as_int(), 1)
   } else if seq0 < 255 {
-    2
+    if seq_count_pos + 1 >= payload_end {
+      return (-1, -1)
+    }
+    (
+      (((seq0 - 0x80) << 8) + frame[seq_count_pos + 1].to_uint()).reinterpret_as_int(),
+      2,
+    )
   } else {
-    3
+    if seq_count_pos + 2 >= payload_end {
+      return (-1, -1)
+    }
+    (
+      (frame[seq_count_pos + 1].to_uint() +
+      (frame[seq_count_pos + 2].to_uint() << 8) +
+      0x7F00).reinterpret_as_int(),
+      3,
+    )
+  }
+  if seq_count == 0 {
+    return (0, -1)
   }
   let modes_pos = seq_count_pos + seq_count_header_len
   if modes_pos >= payload_end {
     return (-1, -1)
   }
-  (seq0.reinterpret_as_int(), frame[modes_pos].to_uint().reinterpret_as_int())
+  (seq_count, frame[modes_pos].to_uint().reinterpret_as_int())
 }
 
 ///|
 fn read_first_block_sequence_meta(frame : Bytes) -> (Int, Int) {
-  if frame.length() < 13 {
+  let header_size = frame_header_size_encode_test(frame)
+  if header_size < 0 || header_size + 3 > frame.length() {
     return (-1, -1)
   }
-  let block_header = read_u24_le_test(frame, 9)
+  let block_header = read_u24_le_test(frame, header_size)
   if ((block_header >> 1) & 0x3) != 2 {
     return (-1, -1)
   }
   let block_size = (block_header >> 3).reinterpret_as_int()
-  let payload_start = 12
+  let payload_start = header_size + 3
   let payload_end = payload_start + block_size
+  if payload_end > frame.length() {
+    return (-1, -1)
+  }
   read_sequence_meta_from_compressed_payload(frame, payload_start, payload_end)
 }
 
@@ -386,6 +435,15 @@ test "compress_with_dictionary default level can emit compressed block with stan
   assert_true(frame.length() <= 430)
   assert_true(frame.length() < input.length())
   assert_eq(decompress_with_dictionary(frame, dict), input)
+}
+
+///|
+test "sequence metadata parser can parse upstream missing-symbol dictionary frame" {
+  let (seq_count, modes) = read_first_block_sequence_meta(
+    rv_up_gdict_missing_symbols_http_frame_default_nocheck(),
+  )
+  assert_true(seq_count > 0)
+  assert_true(modes >= 0)
 }
 
 ///|

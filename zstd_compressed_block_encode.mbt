@@ -718,7 +718,11 @@ fn append_compressed_repeat_block(
   } else {
     b""
   }
-  let payload_pref = if compressed_fse_payload.length() > 0 &&
+  let payload_pref = if dictionary_history.length() > 0 &&
+    level < 10 &&
+    mixed_payload.length() > 0 {
+    mixed_payload
+  } else if compressed_fse_payload.length() > 0 &&
     prefer_compressed_fse_candidate(level, block_len) {
     compressed_fse_payload
   } else if mixed_payload.length() > 0 &&
@@ -755,7 +759,11 @@ fn append_compressed_repeat_block(
     best
   }
   let mut payload0 = payload_pref
-  if prev_compressed_valid.val || prev_lit_huf_valid.val {
+  let prefer_seeded_rewrite = (
+      prev_compressed_valid.val || prev_lit_huf_valid.val
+    ) &&
+    (level >= 10 || dictionary_history.length() == 0)
+  if prefer_seeded_rewrite {
     payload0 = choose_seeded_best_payload(
       payload_pref,
       periodic_payload,
