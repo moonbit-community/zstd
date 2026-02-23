@@ -108,6 +108,15 @@ pub fn compress_with_dictionary_and_options(
   }
   let out : Array[Byte] = Array::new()
   let dictionary_state = parse_dictionary_state(dictionary)
+  let max_window_size = if normalized_options.single_segment {
+    (0 : UInt64)
+  } else {
+    let descriptor = frame_header_window_descriptor(
+      src_len,
+      normalized_options.window_log,
+    )
+    window_size_from_descriptor(descriptor)
+  }
 
   append_frame_header(
     out,
@@ -136,6 +145,7 @@ pub fn compress_with_dictionary_and_options(
     dictionary_state~,
     enable_long_distance_matching=normalized_options.enable_long_distance_matching,
     target_compressed_block_size=normalized_options.target_compressed_block_size,
+    max_window_size~,
   )
   if normalized_options.checksum {
     append_frame_checksum(out, src)

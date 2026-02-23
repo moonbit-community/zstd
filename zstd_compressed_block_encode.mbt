@@ -577,6 +577,21 @@ fn build_best_periodic_payload(
 }
 
 ///|
+fn combine_max_offsets(base_limit : Int, extra_limit : Int) -> Int {
+  if base_limit > 0 && extra_limit > 0 {
+    if base_limit < extra_limit {
+      base_limit
+    } else {
+      extra_limit
+    }
+  } else if base_limit > 0 {
+    base_limit
+  } else {
+    extra_limit
+  }
+}
+
+///|
 fn append_compressed_repeat_block(
   out : Array[Byte],
   src : Bytes,
@@ -590,6 +605,7 @@ fn append_compressed_repeat_block(
   dictionary_rep3 : Int,
   enable_long_distance_matching : Bool,
   target_compressed_block_size : Int,
+  window_max_offset : Int,
   prev_rle_valid : Ref[Bool],
   prev_ll_code : Ref[UInt],
   prev_off_code : Ref[UInt],
@@ -607,7 +623,10 @@ fn append_compressed_repeat_block(
   let periodic_payload = build_best_periodic_payload(
     src, start, block_len, level,
   )
-  let sequence_max_offset = if enable_long_distance_matching { 0 } else { 8192 }
+  let sequence_base_limit = if enable_long_distance_matching { 0 } else { 8192 }
+  let sequence_max_offset = combine_max_offsets(
+    sequence_base_limit, window_max_offset,
+  )
   let predefined_payload = build_general_predefined_payload(
     src,
     start,
@@ -659,11 +678,12 @@ fn append_compressed_repeat_block(
     rep2=dictionary_rep2,
     rep3=dictionary_rep3,
   )
-  let search_limit = if enable_long_distance_matching {
+  let search_base_limit = if enable_long_distance_matching {
     block_len
   } else {
     8192
   }
+  let search_limit = combine_max_offsets(search_base_limit, window_max_offset)
   let search_depth = level_single_match_search_depth(
     level, enable_long_distance_matching,
   )
@@ -677,8 +697,12 @@ fn append_compressed_repeat_block(
     rep3=dictionary_rep3,
     search_limit~,
     search_depth~,
+    max_match_offset=sequence_max_offset,
   )
-  let max_offset = ll + dictionary_history.length()
+  let max_offset = combine_max_offsets(
+    ll + dictionary_history.length(),
+    sequence_max_offset,
+  )
   let single_payload = if ml >= 3 {
     build_single_match_payload(
       src, start, block_len, ll, offset, ml, max_offset, dictionary_rep1, dictionary_rep2,

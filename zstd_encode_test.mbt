@@ -259,6 +259,27 @@ test "compress_with_options can emit non-single-segment frame with content size 
 }
 
 ///|
+test "compress_with_options honors declared non-single-segment window for cross-block matches" {
+  let first_block = Bytes::makei(128 << 10, i => {
+    ((i * 37 + 17) % 251).reinterpret_as_uint().to_byte()
+  })
+  let second_block = first_block[:4096].to_bytes()
+  let input = first_block + second_block
+  let frame = compress_with_options(
+    input,
+    default_compress_options(level=12)
+    .with_single_segment(false)
+    .with_window_log(10)
+    .with_long_distance_matching(true),
+  )
+  let descriptor = frame[4].to_uint()
+  assert_eq((descriptor >> 5) & 1, (0 : UInt))
+  let window_size = window_size_from_descriptor_encode_test(frame[5].to_uint())
+  assert_eq(window_size, (1 : UInt64) << 10)
+  assert_eq(decompress(frame), input)
+}
+
+///|
 test "compact frame header option can emit 1-byte single-segment content size" {
   let input = b"tiny-header"
   let frame = compress_with_options(

@@ -19,6 +19,7 @@ fn detect_best_single_match_with_dictionary_history(
   rep3? : Int = 8,
   search_limit? : Int = 8192,
   search_depth? : Int = 0,
+  max_match_offset? : Int = 0,
   allow_internal? : Bool = true,
 ) -> (Int, Int, Int) {
   let (best_ll0, best_offset0, best_ml0) = if allow_internal {
@@ -35,6 +36,11 @@ fn detect_best_single_match_with_dictionary_history(
   let mut best_ll = best_ll0
   let mut best_offset = best_offset0
   let mut best_ml = best_ml0
+  if max_match_offset > 0 && best_offset > max_match_offset {
+    best_ll = 0
+    best_offset = 0
+    best_ml = 0
+  }
   let history_len = history.length()
   if block_len < 4 || history_len < 4 {
     return (best_ll, best_offset, best_ml)
@@ -83,22 +89,31 @@ fn detect_best_single_match_with_dictionary_history(
           ml = ml + 1
         }
         let candidate_offset = history_len + ll - cand
-        let candidate_rep = is_dictionary_rep_offset(
-          candidate_offset, rep1, rep2, rep3,
-        )
-        let best_rep = is_dictionary_rep_offset(best_offset, rep1, rep2, rep3)
-        if ml > best_ml ||
-          (
-            ml == best_ml &&
+        let available_limit = history_len + ll
+        let effective_max_offset = if max_match_offset > 0 &&
+          max_match_offset < available_limit {
+          max_match_offset
+        } else {
+          available_limit
+        }
+        if candidate_offset <= effective_max_offset {
+          let candidate_rep = is_dictionary_rep_offset(
+            candidate_offset, rep1, rep2, rep3,
+          )
+          let best_rep = is_dictionary_rep_offset(best_offset, rep1, rep2, rep3)
+          if ml > best_ml ||
             (
-              best_ml == 0 ||
-              (candidate_rep && !best_rep) ||
-              (candidate_rep == best_rep && ll < best_ll)
-            )
-          ) {
-          best_ll = ll
-          best_ml = ml
-          best_offset = candidate_offset
+              ml == best_ml &&
+              (
+                best_ml == 0 ||
+                (candidate_rep && !best_rep) ||
+                (candidate_rep == best_rep && ll < best_ll)
+              )
+            ) {
+            best_ll = ll
+            best_ml = ml
+            best_offset = candidate_offset
+          }
         }
       }
       cand = dict_chain[cand]

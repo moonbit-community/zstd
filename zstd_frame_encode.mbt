@@ -210,6 +210,7 @@ fn append_frame_blocks_minimal(
   dictionary_state? : DictionaryState = empty_dictionary_state(),
   enable_long_distance_matching? : Bool = false,
   target_compressed_block_size? : Int = 0,
+  max_window_size? : UInt64 = (0 : UInt64),
 ) -> Unit raise ZstdError {
   let seed_has_sequence_headers = dictionary_state.ll_kind ==
     sequence_table_kind_compressed &&
@@ -310,6 +311,16 @@ fn append_frame_blocks_minimal(
     } else {
       dictionary_state.history + frame_history
     }
+    let window_max_offset = if max_window_size > (0 : UInt64) {
+      let capped = if max_window_size < compression_history.length().to_uint64() {
+        max_window_size
+      } else {
+        compression_history.length().to_uint64()
+      }
+      capped.to_int()
+    } else {
+      0
+    }
     if is_rle_block(src, pos, block_len) {
       append_rle_block(out, src[pos], block_len, last_block)
       let mut i = 0
@@ -321,9 +332,9 @@ fn append_frame_blocks_minimal(
       append_compressed_repeat_block(
         out, src, pos, block_len, last_block, level, compression_history, sim_rep1,
         sim_rep2, sim_rep3, enable_long_distance_matching, target_compressed_block_size,
-        prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
-        prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header, prev_lit_huf_valid,
-        prev_lit_huf_tree_desc, selected_payload,
+        window_max_offset, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code,
+        prev_predefined_valid, prev_compressed_valid, prev_ll_header, prev_off_header,
+        prev_ml_header, prev_lit_huf_valid, prev_lit_huf_tree_desc, selected_payload,
       ) {
       let (next_pos, produced, next_rep1, next_rep2, next_rep3) = decode_compressed_block_minimal(
         selected_payload.val,
