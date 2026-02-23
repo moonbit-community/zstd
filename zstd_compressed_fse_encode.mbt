@@ -663,6 +663,40 @@ fn build_compressed_offset_sequence_source_with_repcodes(
 }
 
 ///|
+fn build_compressed_offset_sequence_source_from_off_bases(
+  off_base_values : Array[Int],
+) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  if off_base_values.length() <= 0 {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let symbols : Array[Int] = Array::new()
+  let extras : Array[UInt] = Array::new()
+  let extra_bits : Array[Int] = Array::new()
+  let mut i = 0
+  while i < off_base_values.length() {
+    let (symbol, extra, add_bits) = offset_symbol_from_off_base(
+      off_base_values[i],
+    )
+    symbols.push(symbol.reinterpret_as_int())
+    extras.push(extra)
+    extra_bits.push(add_bits)
+    i = i + 1
+  }
+  build_compressed_sequence_source_from_symbols(
+    sequence_symbol_offset, symbols, extras, extra_bits,
+  )
+}
+
+///|
 fn build_compressed_sequence_source_from_symbols(
   symbol_type : Int,
   symbols : Array[Int],
@@ -859,6 +893,7 @@ fn build_general_compressed_fse_payload(
   }
   let ll_values : Array[Int] = Array::new()
   let off_values : Array[Int] = Array::new()
+  let off_base_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences_base = compressed_fse_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 && level < 10 {
@@ -889,6 +924,7 @@ fn build_general_compressed_fse_payload(
     rep2~,
     rep3~,
     min_match~,
+    off_base_values~,
   )
   let seq_count = ll_values.length()
   if seq_count < 3 {
@@ -919,9 +955,13 @@ fn build_general_compressed_fse_payload(
     off_extra_bits,
     off_trans_bits,
     off_trans_nb_bits,
-  ) = build_compressed_offset_sequence_source_with_repcodes(
-    off_values, ll_values, rep1, rep2, rep3,
-  )
+  ) = if off_base_values.length() == seq_count {
+    build_compressed_offset_sequence_source_from_off_bases(off_base_values)
+  } else {
+    build_compressed_offset_sequence_source_with_repcodes(
+      off_values, ll_values, rep1, rep2, rep3,
+    )
+  }
   if !off_ok {
     return b""
   }

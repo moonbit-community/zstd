@@ -209,6 +209,7 @@ fn choose_offset_source_mode_with_repcodes(
   rep1 : Int,
   rep2 : Int,
   rep3 : Int,
+  off_base_values? : Array[Int] = Array::new(),
 ) -> (
   Bool,
   UInt,
@@ -297,9 +298,13 @@ fn choose_offset_source_mode_with_repcodes(
 
   // Compressed mode (10)
   if level >= 13 {
-    let compressed = build_compressed_offset_sequence_source_with_repcodes(
-      off_values, ll_values, rep1, rep2, rep3,
-    )
+    let compressed = if off_base_values.length() == off_values.length() {
+      build_compressed_offset_sequence_source_from_off_bases(off_base_values)
+    } else {
+      build_compressed_offset_sequence_source_with_repcodes(
+        off_values, ll_values, rep1, rep2, rep3,
+      )
+    }
     match compressed {
       (
         true,
@@ -377,6 +382,7 @@ fn build_general_mixed_sequence_payload(
   }
   let ll_values : Array[Int] = Array::new()
   let off_values : Array[Int] = Array::new()
+  let off_base_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences_base = mixed_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 && level < 10 {
@@ -407,6 +413,7 @@ fn build_general_mixed_sequence_payload(
     rep2~,
     rep3~,
     min_match~,
+    off_base_values~,
   )
   let seq_count = ll_values.length()
   if seq_count < 2 {
@@ -444,7 +451,13 @@ fn build_general_mixed_sequence_payload(
     off_trans_bits,
     off_trans_nb_bits,
   ) = choose_offset_source_mode_with_repcodes(
-    off_values, ll_values, offset_mode_level, rep1, rep2, rep3,
+    off_values,
+    ll_values,
+    offset_mode_level,
+    rep1,
+    rep2,
+    rep3,
+    off_base_values~,
   )
   if !off_ok {
     return b""

@@ -40,6 +40,146 @@ fn collect_predefined_candidates_for_value(
 }
 
 ///|
+fn predefined_default_norm_data(
+  symbol_type : Int,
+) -> (Bool, Array[Int], Int, Int) {
+  if symbol_type == sequence_symbol_literal_length {
+    (
+      true,
+      [
+        4, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        3, 2, 1, 1, 1, 1, 1, -1, -1, -1, -1,
+      ],
+      35,
+      6,
+    )
+  } else if symbol_type == sequence_symbol_match_length {
+    (
+      true,
+      [
+        1, 4, 3, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1, -1, -1,
+        -1, -1, -1, -1,
+      ],
+      52,
+      6,
+    )
+  } else if symbol_type == sequence_symbol_offset {
+    (
+      true,
+      [
+        1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, -1,
+        -1, -1, -1, -1,
+      ],
+      28,
+      5,
+    )
+  } else {
+    (false, Array::new(), 0, 0)
+  }
+}
+
+///|
+fn select_predefined_state_path_reference(
+  values : Array[Int],
+  symbol_type : Int,
+) -> (Bool, Array[Int], Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  let n = values.length()
+  if n <= 0 {
+    return (
+      false,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let symbols : Array[Int] = Array::new()
+  let extras : Array[UInt] = Array::new()
+  let extra_bits : Array[Int] = Array::new()
+  let mut i = 0
+  while i < n {
+    let (ok, symbol, extra, add_bits) = encode_symbol_for_value(
+      symbol_type,
+      values[i],
+    )
+    if !ok {
+      return (
+        false,
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+      )
+    }
+    symbols.push(symbol)
+    extras.push(extra)
+    extra_bits.push(add_bits)
+    i = i + 1
+  }
+
+  let (norm_ok, norm, max_symbol, table_log) = predefined_default_norm_data(
+    symbol_type,
+  )
+  if !norm_ok {
+    return (
+      false,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let (table_symbol, next_state, nb_add_bits, nb_bits, _) = build_sequence_fse_decode_table_with_symbols(
+    norm, max_symbol, table_log, symbol_type,
+  )
+  let (ct_ok, state_table, delta_nb_bits, delta_find_state) = build_fse_compression_table_from_normalized(
+    norm, max_symbol, table_log,
+  )
+  if !ct_ok {
+    return (
+      false,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let (path_ok, _, trans_bits, trans_nb_bits, states) = build_reference_fse_state_path(
+    symbols, table_symbol, next_state, nb_bits, state_table, delta_nb_bits, delta_find_state,
+  )
+  if !path_ok || states.length() != n {
+    return (
+      false,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  i = 0
+  while i < n {
+    if nb_add_bits[states[i]] != extra_bits[i] {
+      return (
+        false,
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+      )
+    }
+    i = i + 1
+  }
+  (true, states, extras, extra_bits, trans_bits, trans_nb_bits)
+}
+
+///|
 fn select_predefined_state_path(
   values : Array[Int],
   symbol_type : Int,
@@ -54,6 +194,9 @@ fn select_predefined_state_path(
       Array::new(),
       Array::new(),
     )
+  }
+  if symbol_type != sequence_symbol_offset {
+    return select_predefined_state_path_reference(values, symbol_type)
   }
 
   let states_per_pos : Array[Array[Int]] = Array::new()

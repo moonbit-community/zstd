@@ -1,5 +1,4 @@
 ///|
-#skip("TODO(zstd-rdl.39): enable when level=3 dictionary encode reaches byte-for-byte upstream parity")
 test "upstream missing-symbol dictionary encode byte parity default checksum" {
   let frame = compress_with_dictionary_and_options(
     rv_up_http_payload(),
@@ -10,7 +9,6 @@ test "upstream missing-symbol dictionary encode byte parity default checksum" {
 }
 
 ///|
-#skip("TODO(zstd-rdl.39): enable when level=3 dictionary encode reaches byte-for-byte upstream parity")
 test "upstream missing-symbol dictionary encode byte parity default no-check" {
   let frame = compress_with_dictionary_and_options(
     rv_up_http_payload(),

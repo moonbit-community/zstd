@@ -168,6 +168,7 @@ fn collect_level3_dict_dfast_sequences(
   block_len : Int,
   ll_values : Array[Int],
   off_values : Array[Int],
+  off_base_values : Array[Int],
   ml_values : Array[Int],
   max_sequences : Int,
   history : Bytes,
@@ -281,10 +282,36 @@ fn collect_level3_dict_dfast_sequences(
       ip = ip + 1
       ll_values.push(ip - anchor)
       off_values.push(offset_1)
+      off_base_values.push(1)
       ml_values.push(rep_length)
       ip = ip + rep_length
       anchor = ip
       if ip <= ilimit {
+        let index_to_insert = old_ip + 2
+        if index_to_insert + 8 <= block_len {
+          let h_insert_long = hash8_with_bits(
+            src,
+            start + index_to_insert,
+            h_bits_long,
+          )
+          prefix_hash_long[h_insert_long] = old_current_virtual + 2
+        }
+        if ip - 2 >= 0 && ip - 2 + 8 <= block_len {
+          let h_ip_long = hash8_with_bits(src, start + ip - 2, h_bits_long)
+          prefix_hash_long[h_ip_long] = history_len + ip - 2
+        }
+        if index_to_insert + 4 <= block_len {
+          let h_insert_short = hash4_with_bits(
+            src,
+            start + index_to_insert,
+            h_bits_short,
+          )
+          prefix_hash_short[h_insert_short] = old_current_virtual + 2
+        }
+        if ip - 1 >= 0 && ip - 1 + 4 <= block_len {
+          let h_ip_short = hash4_with_bits(src, start + ip - 1, h_bits_short)
+          prefix_hash_short[h_ip_short] = history_len + ip - 1
+        }
         while ip <= ilimit && ll_values.length() < max_sequences {
           let current2 = history_len + ip
           let rep_index2 = current2 - offset_2
@@ -301,6 +328,7 @@ fn collect_level3_dict_dfast_sequences(
           offset_1 = tmp_offset
           ll_values.push(0)
           off_values.push(tmp_offset)
+          off_base_values.push(1)
           ml_values.push(rep_length2)
           if ip + 8 <= block_len {
             let h_rep_long = hash8_with_bits(src, start + ip, h_bits_long)
@@ -463,6 +491,7 @@ fn collect_level3_dict_dfast_sequences(
     }
     ll_values.push(ll)
     off_values.push(found_offset)
+    off_base_values.push(found_offset + 3)
     ml_values.push(new_ml)
     if ll_values.length() >= max_sequences {
       break
@@ -516,6 +545,7 @@ fn collect_level3_dict_dfast_sequences(
         offset_1 = tmp_offset
         ll_values.push(0)
         off_values.push(tmp_offset)
+        off_base_values.push(1)
         ml_values.push(rep_length2)
         if ip + 8 <= block_len {
           let h_rep_long = hash8_with_bits(src, start + ip, h_bits_long)
@@ -563,11 +593,12 @@ fn collect_level_aligned_sequences(
   rep2? : Int = 4,
   rep3? : Int = 8,
   min_match? : Int = 3,
+  off_base_values? : Array[Int] = Array::new(),
 ) -> Unit {
   if should_use_level3_dict_dfast(level, history.length(), block_len, min_match) {
     collect_level3_dict_dfast_sequences(
-      src, start, block_len, ll_values, off_values, ml_values, max_sequences, history,
-      max_match_offset, rep1, rep2,
+      src, start, block_len, ll_values, off_values, off_base_values, ml_values, max_sequences,
+      history, max_match_offset, rep1, rep2,
     )
     return
   }
