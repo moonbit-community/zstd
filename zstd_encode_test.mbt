@@ -400,7 +400,7 @@ test "compress_with_options honors declared non-single-segment window for cross-
   let input = first_block + second_block
   let frame = compress_with_options(
     input,
-    default_compress_options(level=3)
+    default_compress_options(level=12)
     .with_single_segment(false)
     .with_window_log(10),
   )

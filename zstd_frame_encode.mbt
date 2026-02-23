@@ -187,6 +187,21 @@ fn append_rle_block(
 }
 
 ///|
+fn append_compressed_block_payload(
+  out : Array[Byte],
+  payload : Bytes,
+  last_block : Bool,
+) -> Unit {
+  let last_block_bit : UInt = if last_block { 1 } else { 0 }
+  let block_type_compressed : UInt = 2
+  let block_header : UInt = (payload.length().reinterpret_as_uint() << 3) +
+    (block_type_compressed << 1) +
+    last_block_bit
+  append_u24_le(out, block_header)
+  append_bytes(out, payload, 0, payload.length())
+}
+
+///|
 fn is_rle_block(src : Bytes, start : Int, block_len : Int) -> Bool {
   if block_len <= 1 {
     return false
@@ -322,12 +337,7 @@ fn append_frame_blocks_minimal(
       dictionary_state.history + frame_history
     }
     let window_max_offset = if max_window_size > (0 : UInt64) {
-      let capped = if max_window_size < compression_history.length().to_uint64() {
-        max_window_size
-      } else {
-        compression_history.length().to_uint64()
-      }
-      capped.to_int()
+      max_window_size.to_int()
     } else {
       0
     }
@@ -343,13 +353,14 @@ fn append_frame_blocks_minimal(
       }
     } else if (level >= 10 || allow_low_level_dictionary_compressed) &&
       append_compressed_repeat_block(
-        out, src, pos, block_len, last_block, level, limited_history, sim_rep1, sim_rep2,
-        sim_rep3, enable_long_distance_matching, target_compressed_block_size, window_max_offset,
+        src, pos, block_len, level, limited_history, sim_rep1, sim_rep2, sim_rep3,
+        enable_long_distance_matching, target_compressed_block_size, window_max_offset,
         prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
         prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header, prev_lit_huf_valid,
         prev_lit_huf_tree_desc, selected_payload,
       ) {
-      let (next_pos, produced, next_rep1, next_rep2, next_rep3) = decode_compressed_block_minimal(
+      let sim_out_len_before = sim_out.length()
+      let decode_result = try? decode_compressed_block_minimal(
         selected_payload.val,
         0,
         selected_payload.val.length(),
@@ -388,21 +399,47 @@ fn append_frame_blocks_minimal(
         sim_prev_ml_table_nb_add_bits,
         sim_prev_ml_table_nb_bits,
         sim_prev_ml_table_base_values,
+        window_size=window_max_offset,
       )
-      if next_pos != selected_payload.val.length() ||
-        produced != block_len.to_uint64() {
-        raise CorruptionDetected
+      let mut payload_valid = false
+      let mut next_rep1 = sim_rep1
+      let mut next_rep2 = sim_rep2
+      let mut next_rep3 = sim_rep3
+      match decode_result {
+        Ok((next_pos, produced, rep1, rep2, rep3)) =>
+          if next_pos == selected_payload.val.length() &&
+            produced == block_len.to_uint64() {
+            let mut i = 0
+            let mut same = true
+            while i < block_len {
+              if sim_out[sim_out.length() - block_len + i] != src[pos + i] {
+                same = false
+                i = block_len
+              } else {
+                i = i + 1
+              }
+            }
+            if same {
+              payload_valid = true
+              next_rep1 = rep1
+              next_rep2 = rep2
+              next_rep3 = rep3
+            }
+          }
+        Err(_) => ()
       }
-      let mut i = 0
-      while i < block_len {
-        if sim_out[sim_out.length() - block_len + i] != src[pos + i] {
-          raise CorruptionDetected
+      if payload_valid {
+        append_compressed_block_payload(out, selected_payload.val, last_block)
+        sim_rep1 = next_rep1
+        sim_rep2 = next_rep2
+        sim_rep3 = next_rep3
+      } else {
+        while sim_out.length() > sim_out_len_before {
+          ignore(sim_out.pop())
         }
-        i = i + 1
+        append_raw_block(out, src, pos, block_len, last_block)
+        append_bytes(sim_out, src, pos, block_len)
       }
-      sim_rep1 = next_rep1
-      sim_rep2 = next_rep2
-      sim_rep3 = next_rep3
     } else {
       append_raw_block(out, src, pos, block_len, last_block)
       append_bytes(sim_out, src, pos, block_len)

@@ -571,11 +571,9 @@ fn combine_max_offsets(base_limit : Int, extra_limit : Int) -> Int {
 
 ///|
 fn append_compressed_repeat_block(
-  out : Array[Byte],
   src : Bytes,
   start : Int,
   block_len : Int,
-  last_block : Bool,
   level : Int,
   dictionary_history : Bytes,
   dictionary_rep1 : Int,
@@ -782,13 +780,6 @@ fn append_compressed_repeat_block(
     return false
   }
 
-  let last_block_bit : UInt = if last_block { 1 } else { 0 }
-  let block_type_compressed : UInt = 2
-  let block_header : UInt = (payload.length().reinterpret_as_uint() << 3) +
-    (block_type_compressed << 1) +
-    last_block_bit
-  append_u24_le(out, block_header)
-  append_bytes(out, payload, 0, payload.length())
   selected_payload.val = payload
   true
 }
