@@ -128,18 +128,6 @@ fn extend_virtual_match_backward(
 }
 
 ///|
-fn effective_max_offset_with_limit(
-  current_virtual : Int,
-  max_match_offset : Int,
-) -> Int {
-  if max_match_offset > 0 && max_match_offset < current_virtual {
-    max_match_offset
-  } else {
-    current_virtual
-  }
-}
-
-///|
 fn index_overlap_check(prefix_lowest_index : Int, rep_index : Int) -> Bool {
   if rep_index < 0 {
     return false
@@ -191,6 +179,17 @@ fn collect_level3_dict_dfast_sequences(
   if block_len < 8 || history_len < 8 {
     return
   }
+  let end_virtual = history_len + block_len
+  let lowest_index = if max_match_offset > 0 && end_virtual > max_match_offset {
+    end_virtual - max_match_offset
+  } else {
+    0
+  }
+  let dict_start_index = if lowest_index < history_len {
+    lowest_index
+  } else {
+    history_len
+  }
 
   let (h_bits_long, h_bits_short) = dfast_hash_bits_for_level3_dict(
     history_len, block_len,
@@ -233,9 +232,8 @@ fn collect_level3_dict_dfast_sequences(
 
   while ip < ilimit && ll_values.length() < max_sequences {
     let current_virtual = history_len + ip
-    let max_offset_here = effective_max_offset_with_limit(
-      current_virtual, max_match_offset,
-    )
+    let old_ip = ip
+    let old_current_virtual = current_virtual
     let h_long = hash8_with_bits(src, start + ip, h_bits_long)
     let h_short = hash4_with_bits(src, start + ip, h_bits_short)
     let (dict_h_long, dict_tag_long) = hash8_with_tag(
@@ -268,9 +266,8 @@ fn collect_level3_dict_dfast_sequences(
 
     let rep_index = current_virtual + 1 - offset_1
     if offset_1 > 0 &&
-      offset_1 <= max_offset_here &&
+      rep_index >= lowest_index &&
       index_overlap_check(history_len, rep_index) &&
-      rep_index >= 0 &&
       virtual_eq_at(history, src, start, history_len, ip + 1, rep_index, 4) {
       let rep_length = virtual_match_len_from(
         history,
@@ -297,11 +294,8 @@ fn collect_level3_dict_dfast_sequences(
     let mut found_ml = 0
     let mut found_offset = 0
     let mut found_cand_low = 0
-    let old_ip = ip
-    let old_current_virtual = current_virtual
-
     if match_index_long >= history_len &&
-      current_virtual - match_index_long <= max_offset_here &&
+      match_index_long >= lowest_index &&
       virtual_eq_at(history, src, start, history_len, ip, match_index_long, 8) {
       found = true
       found_pos = ip
@@ -311,8 +305,7 @@ fn collect_level3_dict_dfast_sequences(
       )
       found_offset = current_virtual - match_index_long
       found_cand_low = history_len
-    } else if dict_match_index_long >= 0 &&
-      current_virtual - dict_match_index_long <= max_offset_here &&
+    } else if dict_match_index_long > dict_start_index &&
       virtual_eq_at(
         history, src, start, history_len, ip, dict_match_index_long, 8,
       ) {
@@ -323,20 +316,19 @@ fn collect_level3_dict_dfast_sequences(
         history, src, start, history_len, ip, dict_match_index_long, block_len, 8,
       )
       found_offset = current_virtual - dict_match_index_long
-      found_cand_low = 0
+      found_cand_low = dict_start_index
     }
 
     if !found {
       let mut short_cand = -1
       let mut short_is_dict = false
-      if match_index_short >= history_len &&
-        current_virtual - match_index_short <= max_offset_here &&
+      if match_index_short > history_len &&
+        match_index_short >= lowest_index &&
         virtual_eq_at(
           history, src, start, history_len, ip, match_index_short, 4,
         ) {
         short_cand = match_index_short
-      } else if dict_match_index_short >= 0 &&
-        current_virtual - dict_match_index_short <= max_offset_here &&
+      } else if dict_match_index_short > dict_start_index &&
         virtual_eq_at(
           history, src, start, history_len, ip, dict_match_index_short, 4,
         ) {
@@ -361,8 +353,7 @@ fn collect_level3_dict_dfast_sequences(
         prefix_hash_long[h_long_p1] = current_virtual + 1
 
         if match_long_p1 >= history_len &&
-          current_virtual + 1 - match_long_p1 <=
-          effective_max_offset_with_limit(current_virtual + 1, max_match_offset) &&
+          match_long_p1 >= lowest_index &&
           virtual_eq_at(
             history,
             src,
@@ -387,9 +378,7 @@ fn collect_level3_dict_dfast_sequences(
           )
           found_offset = history_len + found_pos - match_long_p1
           found_cand_low = history_len
-        } else if dict_match_long_p1 >= 0 &&
-          current_virtual + 1 - dict_match_long_p1 <=
-          effective_max_offset_with_limit(current_virtual + 1, max_match_offset) &&
+        } else if dict_match_long_p1 > dict_start_index &&
           virtual_eq_at(
             history,
             src,
@@ -413,7 +402,7 @@ fn collect_level3_dict_dfast_sequences(
             8,
           )
           found_offset = history_len + found_pos - dict_match_long_p1
-          found_cand_low = 0
+          found_cand_low = dict_start_index
         } else {
           found = true
           found_pos = ip
@@ -422,7 +411,11 @@ fn collect_level3_dict_dfast_sequences(
             history, src, start, history_len, ip, short_cand, block_len, 4,
           )
           found_offset = current_virtual - short_cand
-          found_cand_low = if short_is_dict { 0 } else { history_len }
+          found_cand_low = if short_is_dict {
+            dict_start_index
+          } else {
+            history_len
+          }
         }
       }
     }
@@ -482,14 +475,10 @@ fn collect_level3_dict_dfast_sequences(
 
       while ip <= ilimit && ll_values.length() < max_sequences {
         let current2 = history_len + ip
-        let max_offset2 = effective_max_offset_with_limit(
-          current2, max_match_offset,
-        )
         let rep_index2 = current2 - offset_2
         if offset_2 <= 0 ||
-          offset_2 > max_offset2 ||
+          rep_index2 < lowest_index ||
           !index_overlap_check(history_len, rep_index2) ||
-          rep_index2 < 0 ||
           !virtual_eq_at(history, src, start, history_len, ip, rep_index2, 4) {
           break
         }
