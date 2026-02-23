@@ -529,7 +529,7 @@ fn try_build_compressed_literals_section(
   if four_section.length() == 0 {
     return single_section
   }
-  if four_section.length() < single_section.length() {
+  if lit_len >= 256 {
     four_section
   } else {
     single_section
