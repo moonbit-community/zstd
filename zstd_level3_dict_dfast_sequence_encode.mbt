@@ -266,7 +266,6 @@ fn collect_level3_dict_dfast_sequences(
 
     let rep_index = current_virtual + 1 - offset_1
     if offset_1 > 0 &&
-      rep_index >= lowest_index &&
       index_overlap_check(history_len, rep_index) &&
       virtual_eq_at(history, src, start, history_len, ip + 1, rep_index, 4) {
       let rep_length = virtual_match_len_from(
@@ -285,6 +284,34 @@ fn collect_level3_dict_dfast_sequences(
       ml_values.push(rep_length)
       ip = ip + rep_length
       anchor = ip
+      if ip <= ilimit {
+        while ip <= ilimit && ll_values.length() < max_sequences {
+          let current2 = history_len + ip
+          let rep_index2 = current2 - offset_2
+          if offset_2 <= 0 ||
+            !index_overlap_check(history_len, rep_index2) ||
+            !virtual_eq_at(history, src, start, history_len, ip, rep_index2, 4) {
+            break
+          }
+          let rep_length2 = virtual_match_len_from(
+            history, src, start, history_len, ip, rep_index2, block_len, 4,
+          )
+          let tmp_offset = offset_2
+          offset_2 = offset_1
+          offset_1 = tmp_offset
+          ll_values.push(0)
+          off_values.push(tmp_offset)
+          ml_values.push(rep_length2)
+          if ip + 8 <= block_len {
+            let h_rep_long = hash8_with_bits(src, start + ip, h_bits_long)
+            prefix_hash_long[h_rep_long] = current2
+          }
+          let h_rep_short = hash4_with_bits(src, start + ip, h_bits_short)
+          prefix_hash_short[h_rep_short] = current2
+          ip = ip + rep_length2
+          anchor = ip
+        }
+      }
       continue
     }
 
@@ -477,7 +504,6 @@ fn collect_level3_dict_dfast_sequences(
         let current2 = history_len + ip
         let rep_index2 = current2 - offset_2
         if offset_2 <= 0 ||
-          rep_index2 < lowest_index ||
           !index_overlap_check(history_len, rep_index2) ||
           !virtual_eq_at(history, src, start, history_len, ip, rep_index2, 4) {
           break
