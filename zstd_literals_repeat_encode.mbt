@@ -24,33 +24,59 @@ fn bytes_slice(src : Bytes, start : Int, len : Int) -> Bytes {
 }
 
 ///|
-fn parse_single_stream_compressed_literals_header(
+fn parse_compressed_literals_header(
   payload : Bytes,
-) -> (Bool, UInt, Int, Int, Int, Int) {
+) -> (Bool, UInt, UInt, Int, Int, Int, Int) {
   if payload.length() < 4 {
-    return (false, 0, 0, 0, 0, 0)
+    return (false, 0, 0, 0, 0, 0, 0)
   }
   let byte0 = payload[0].to_uint()
   let literals_block_type = byte0 & 0x3
   if literals_block_type != 2 && literals_block_type != 3 {
-    return (false, 0, 0, 0, 0, 0)
+    return (false, 0, 0, 0, 0, 0, 0)
   }
   let size_format = (byte0 >> 2) & 0x3
-  if size_format != 0 {
-    return (false, 0, 0, 0, 0, 0)
-  }
   let lhc = payload[0].to_uint() +
     (payload[1].to_uint() << 8) +
-    (payload[2].to_uint() << 16)
-  let lit_size = ((lhc >> 4) & 0x3FF).reinterpret_as_int()
-  let lit_c_size = ((lhc >> 14) & 0x3FF).reinterpret_as_int()
-  let header_size = 3
+    (payload[2].to_uint() << 16) +
+    (payload[3].to_uint() << 24)
+  let (header_size, lit_size, lit_c_size) = if size_format == 0 ||
+    size_format == 1 {
+    (
+      3,
+      ((lhc >> 4) & 0x3FF).reinterpret_as_int(),
+      ((lhc >> 14) & 0x3FF).reinterpret_as_int(),
+    )
+  } else if size_format == 2 {
+    (
+      4,
+      ((lhc >> 4) & 0x3FFF).reinterpret_as_int(),
+      (lhc >> 18).reinterpret_as_int(),
+    )
+  } else if size_format == 3 {
+    if payload.length() < 5 {
+      return (false, 0, 0, 0, 0, 0, 0)
+    }
+    let b4 = payload[4].to_uint()
+    (
+      5,
+      ((lhc >> 4) & 0x3FFFF).reinterpret_as_int(),
+      ((lhc >> 22) + (b4 << 10)).reinterpret_as_int(),
+    )
+  } else {
+    return (false, 0, 0, 0, 0, 0, 0)
+  }
   let payload_pos = header_size
   let payload_end = payload_pos + lit_c_size
-  if lit_size < 0 || lit_c_size <= 0 || payload_end > payload.length() {
-    return (false, 0, 0, 0, 0, 0)
+  if lit_size < 0 ||
+    lit_c_size <= 0 ||
+    (size_format != 0 && lit_size < 6) ||
+    payload_end > payload.length() {
+    return (false, 0, 0, 0, 0, 0, 0)
   }
-  (true, literals_block_type, lit_size, lit_c_size, payload_pos, payload_end)
+  (
+    true, literals_block_type, size_format, lit_size, lit_c_size, payload_pos, payload_end,
+  )
 }
 
 ///|
@@ -170,14 +196,73 @@ fn build_treeless_literals_section_with_stream_payload(
 }
 
 ///|
+fn append_treeless_literals_header_with_size_format(
+  out : Array[Byte],
+  size_format : UInt,
+  lit_size : Int,
+  lit_c_size : Int,
+) -> Bool {
+  let literals_block_type : UInt = 3
+  if size_format == 0 || size_format == 1 {
+    if lit_size > 1023 || lit_c_size > 1023 {
+      return false
+    }
+    if size_format == 1 && lit_size < 6 {
+      return false
+    }
+    let header = ((lit_size.reinterpret_as_uint() & 0x3FF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
+      (size_format << 2) +
+      literals_block_type
+    append_u24_le(out, header)
+    return true
+  }
+  if size_format == 2 {
+    if lit_size > 0x3FFF || lit_c_size > 0x3FFF {
+      return false
+    }
+    let header = ((lit_size.reinterpret_as_uint() & 0x3FFF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FFF) << 18) +
+      (size_format << 2) +
+      literals_block_type
+    append_u32_le(out, header)
+    return true
+  }
+  if size_format == 3 {
+    if lit_size > 0x3FFFF || lit_c_size > 0x3FFFF {
+      return false
+    }
+    let lit_c_low = lit_c_size & 0x3FF
+    let lit_c_high = lit_c_size >> 10
+    if lit_c_high < 0 || lit_c_high > 0xFF {
+      return false
+    }
+    let header = ((lit_size.reinterpret_as_uint() & 0x3FFFF) << 4) +
+      ((lit_c_low.reinterpret_as_uint() & 0x3FF) << 22) +
+      (size_format << 2) +
+      literals_block_type
+    append_u32_le(out, header)
+    out.push(lit_c_high.reinterpret_as_uint().to_byte())
+    return true
+  }
+  false
+}
+
+///|
 fn rewrite_literals_section_to_treeless_if_repeat(
   payload : Bytes,
   prev_huf_valid : Ref[Bool],
   prev_huf_tree_desc : Ref[Bytes],
 ) -> Bytes {
-  let (ok, literals_block_type, lit_size, lit_c_size, payload_pos, payload_end) = parse_single_stream_compressed_literals_header(
-    payload,
-  )
+  let (
+    ok,
+    literals_block_type,
+    size_format,
+    lit_size,
+    lit_c_size,
+    payload_pos,
+    payload_end,
+  ) = parse_compressed_literals_header(payload)
   if !ok || literals_block_type == 3 {
     return payload
   }
@@ -204,16 +289,29 @@ fn rewrite_literals_section_to_treeless_if_repeat(
     return payload
   }
   if !bytes_equal(prev_huf_tree_desc.val, tree_desc) {
-    let literals_result = try? decode_huffman_single_stream(
-      payload,
-      payload_pos + tree_size,
-      payload_end,
-      lit_size,
-      cur_max_bits,
-      cur_left,
-      cur_right,
-      cur_symbol,
-    )
+    let literals_result = if size_format == 0 {
+      try? decode_huffman_single_stream(
+        payload,
+        payload_pos + tree_size,
+        payload_end,
+        lit_size,
+        cur_max_bits,
+        cur_left,
+        cur_right,
+        cur_symbol,
+      )
+    } else {
+      try? decode_huffman_four_streams(
+        payload,
+        payload_pos + tree_size,
+        payload_end,
+        lit_size,
+        cur_max_bits,
+        cur_left,
+        cur_right,
+        cur_symbol,
+      )
+    }
     let literals = match literals_result {
       Ok(v) => v
       Err(_) => {
@@ -283,10 +381,11 @@ fn rewrite_literals_section_to_treeless_if_repeat(
     return payload
   }
   let rewritten : Array[Byte] = Array::new()
-  let new_header = ((lit_size.reinterpret_as_uint() & 0x3FF) << 4) +
-    ((bitstream_size.reinterpret_as_uint() & 0x3FF) << 14) +
-    3
-  append_u24_le(rewritten, new_header)
+  if !append_treeless_literals_header_with_size_format(
+      rewritten, size_format, lit_size, bitstream_size,
+    ) {
+    return payload
+  }
   append_bytes(rewritten, payload, payload_pos + tree_size, bitstream_size)
   append_bytes(rewritten, payload, payload_end, payload.length() - payload_end)
   Bytes::from_array(rewritten)

@@ -195,54 +195,172 @@ fn normalize_symbol_frequencies(
   freq : Array[Int],
   max_symbol : Int,
   table_log : Int,
+  use_low_prob_count : Bool,
 ) -> (Bool, Array[Int]) raise ZstdError {
   if max_symbol < 0 || max_symbol >= freq.length() {
     return (false, Array::new())
   }
   let table_size = 1 << table_log
-  let active : Array[Int] = Array::new()
   let mut total = 0
+  let mut active = 0
   let mut s = 0
   while s <= max_symbol {
-    let f = freq[s]
-    if f < 0 {
+    let c = freq[s]
+    if c < 0 {
       return (false, Array::new())
     }
-    if f > 0 {
-      active.push(s)
-      total = total + f
+    if c > 0 {
+      active = active + 1
+      total = total + c
     }
     s = s + 1
   }
-  if active.length() < 2 || active.length() > table_size || total <= 0 {
+  if active < 2 || active > table_size || total <= 1 {
     return (false, Array::new())
   }
 
   let normalized = Array::make(max_symbol + 1, 0)
+  let rtb = [0, 473195, 504333, 520860, 550000, 700000, 750000, 830000]
+  let low_prob_count = if use_low_prob_count { -1 } else { 1 }
+  let scale = 62 - table_log
+  let step = ((1 : UInt64) << 62) / total.to_uint64()
+  let v_step = if scale >= 20 {
+    (1 : UInt64) << (scale - 20)
+  } else {
+    (1 : UInt64)
+  }
+  let mut still_to_distribute = table_size
+  let mut largest = 0
+  let mut largest_p = 0
+  let low_threshold = total >> table_log
   s = 0
-  while s < active.length() {
-    normalized[active[s]] = 1
+  while s <= max_symbol {
+    let count = freq[s]
+    if count == 0 {
+      normalized[s] = 0
+      s = s + 1
+      continue
+    }
+    if count <= low_threshold {
+      normalized[s] = low_prob_count
+      still_to_distribute = still_to_distribute - 1
+      s = s + 1
+      continue
+    }
+    let scaled = count.to_uint64() * step
+    let mut proba = (scaled >> scale).to_int()
+    if proba < 8 {
+      let rest_to_beat = v_step * rtb[proba].to_uint64()
+      let base = proba.to_uint64() << scale
+      if scaled > base && scaled - base > rest_to_beat {
+        proba = proba + 1
+      }
+    }
+    if proba > largest_p {
+      largest_p = proba
+      largest = s
+    }
+    normalized[s] = proba
+    still_to_distribute = still_to_distribute - proba
     s = s + 1
   }
 
-  let remaining = table_size - active.length()
-  let mut allocated = 0
-  s = 0
-  while s < active.length() {
-    let sym = active[s]
-    let add = freq[sym] * remaining / total
-    normalized[sym] = normalized[sym] + add
-    allocated = allocated + add
-    s = s + 1
-  }
+  if -still_to_distribute >= normalized[largest] >> 1 {
+    let not_yet_assigned = -2
+    let mut distributed = 0
+    let mut total_m2 = total
+    let mut low_one = (total_m2 * 3) >> (table_log + 1)
+    s = 0
+    while s <= max_symbol {
+      let count = freq[s]
+      if count == 0 {
+        normalized[s] = 0
+      } else if count <= low_threshold {
+        normalized[s] = low_prob_count
+        distributed = distributed + 1
+        total_m2 = total_m2 - count
+      } else if count <= low_one {
+        normalized[s] = 1
+        distributed = distributed + 1
+        total_m2 = total_m2 - count
+      } else {
+        normalized[s] = not_yet_assigned
+      }
+      s = s + 1
+    }
+    let mut to_distribute = table_size - distributed
+    if to_distribute == 0 {
+      let sum = normalized_counter_abs_sum(normalized, max_symbol)
+      if sum == table_size {
+        return (true, normalized)
+      }
+      return (false, Array::new())
+    }
 
-  let mut left = remaining - allocated
-  let mut i = 0
-  while left > 0 {
-    let sym = active[i % active.length()]
-    normalized[sym] = normalized[sym] + 1
-    left = left - 1
-    i = i + 1
+    if total_m2 > 0 && total_m2 / to_distribute > low_one {
+      low_one = total_m2 * 3 / (to_distribute * 2)
+      s = 0
+      while s <= max_symbol {
+        if normalized[s] == not_yet_assigned && freq[s] <= low_one {
+          normalized[s] = 1
+          distributed = distributed + 1
+          total_m2 = total_m2 - freq[s]
+        }
+        s = s + 1
+      }
+      to_distribute = table_size - distributed
+    }
+
+    if distributed == max_symbol + 1 {
+      let mut max_v = 0
+      let mut max_c = 0
+      s = 0
+      while s <= max_symbol {
+        if freq[s] > max_c {
+          max_v = s
+          max_c = freq[s]
+        }
+        s = s + 1
+      }
+      normalized[max_v] = normalized[max_v] + to_distribute
+    } else if total_m2 == 0 {
+      s = 0
+      while to_distribute > 0 {
+        if normalized[s] > 0 {
+          normalized[s] = normalized[s] + 1
+          to_distribute = to_distribute - 1
+        }
+        s = s + 1
+        if s > max_symbol {
+          s = 0
+        }
+      }
+    } else {
+      let v_step_log = 62 - table_log
+      let mid = ((1 : UInt64) << (v_step_log - 1)) - 1
+      let r_step = (
+          ((1 : UInt64) << v_step_log) * to_distribute.to_uint64() + mid
+        ) /
+        total_m2.to_uint64()
+      let mut tmp_total = mid
+      s = 0
+      while s <= max_symbol {
+        if normalized[s] == not_yet_assigned {
+          let end = tmp_total + freq[s].to_uint64() * r_step
+          let s_start = (tmp_total >> v_step_log).to_int()
+          let s_end = (end >> v_step_log).to_int()
+          let weight = s_end - s_start
+          if weight < 1 {
+            return (false, Array::new())
+          }
+          normalized[s] = weight
+          tmp_total = end
+        }
+        s = s + 1
+      }
+    }
+  } else {
+    normalized[largest] = normalized[largest] + still_to_distribute
   }
 
   let sum = normalized_counter_abs_sum(normalized, max_symbol)
@@ -253,21 +371,80 @@ fn normalize_symbol_frequencies(
 }
 
 ///|
+fn high_bit_floor_non_zero(value : Int) -> Int {
+  if value <= 0 {
+    return -1
+  }
+  let mut bit = 0
+  let mut v = value
+  while v > 1 {
+    v = v >> 1
+    bit = bit + 1
+  }
+  bit
+}
+
+///|
 fn choose_compressed_table_log(
   seq_count : Int,
-  active_symbols : Int,
+  max_symbol : Int,
   table_log_max : Int,
 ) -> Int {
-  let mut table_log = fse_min_table_log
-  let needed = if seq_count > active_symbols {
-    seq_count
-  } else {
-    active_symbols
+  if seq_count <= 1 {
+    return fse_min_table_log
   }
-  while table_log < table_log_max && 1 << table_log < needed {
-    table_log = table_log + 1
+  let mut table_log = if table_log_max == 0 {
+    fse_default_table_log
+  } else {
+    table_log_max
+  }
+  let src_hb = high_bit_floor_non_zero(seq_count - 1)
+  let max_bits_src = if src_hb > 2 { src_hb - 2 } else { 0 }
+  if max_bits_src < table_log {
+    table_log = max_bits_src
+  }
+  let min_bits_src = high_bit_floor_non_zero(seq_count) + 1
+  let min_bits_symbols = if max_symbol > 0 {
+    high_bit_floor_non_zero(max_symbol) + 2
+  } else {
+    2
+  }
+  let min_bits = if min_bits_src < min_bits_symbols {
+    min_bits_src
+  } else {
+    min_bits_symbols
+  }
+  if min_bits > table_log {
+    table_log = min_bits
+  }
+  if table_log < fse_min_table_log {
+    table_log = fse_min_table_log
+  }
+  if table_log > fse_table_log_absolute_max {
+    table_log = fse_table_log_absolute_max
   }
   table_log
+}
+
+///|
+let fse_default_table_log = 11
+
+///|
+fn should_use_low_prob_count(seq_count : Int) -> Bool {
+  seq_count >= 2048
+}
+
+///|
+fn count_active_symbols(freq : Array[Int], highest_symbol : Int) -> Int {
+  let mut count = 0
+  let mut i = 0
+  while i <= highest_symbol {
+    if freq[i] > 0 {
+      count = count + 1
+    }
+    i = i + 1
+  }
+  count
 }
 
 ///|
@@ -630,7 +807,6 @@ fn build_compressed_sequence_source_from_symbols(
   }
 
   let mut highest_symbol = 0
-  let mut active_symbols = 0
   i = max_symbol
   while i >= 0 {
     if freq[i] > 0 {
@@ -640,16 +816,25 @@ fn build_compressed_sequence_source_from_symbols(
       i = i - 1
     }
   }
-  i = 0
-  while i <= highest_symbol {
-    if freq[i] > 0 {
-      active_symbols = active_symbols + 1
-    }
-    i = i + 1
+  let active_symbols = count_active_symbols(freq, highest_symbol)
+  if active_symbols < 2 {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
   }
-  let table_log = choose_compressed_table_log(n, active_symbols, table_log_max)
+  let table_log = choose_compressed_table_log(n, highest_symbol, table_log_max)
   let (norm_ok, normalized) = normalize_symbol_frequencies(
-    freq, highest_symbol, table_log,
+    freq,
+    highest_symbol,
+    table_log,
+    should_use_low_prob_count(n),
   )
   if !norm_ok {
     return (

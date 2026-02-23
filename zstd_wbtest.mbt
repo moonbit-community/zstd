@@ -1785,6 +1785,53 @@ test "dictionary Huffman tree can seed treeless literals rewrite for first paylo
 }
 
 ///|
+test "treeless literals rewrite preserves size_format=1 for four-stream payload" {
+  let parsed = try? parse_dictionary_state(
+    wb_standard_dictionary_fixture_dictionary(),
+  )
+  let state = match parsed {
+    Ok(v) => v
+    Err(_) => fail("parse_dictionary_state failed")
+  }
+  let lit_size = 8
+  let four_stream_payload = b"\x01\x00\x01\x00\x01\x00\x11\x22\x33\x44"
+  let lit_c_size = state.huf_tree_desc.length() + four_stream_payload.length()
+  let header : UInt = ((lit_size.reinterpret_as_uint() & 0x3FF) << 4) +
+    ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
+    (1 << 2) +
+    2
+  let payload_arr : Array[Byte] = Array::new()
+  append_u24_le(payload_arr, header)
+  append_bytes(
+    payload_arr,
+    state.huf_tree_desc,
+    0,
+    state.huf_tree_desc.length(),
+  )
+  append_bytes(
+    payload_arr,
+    four_stream_payload,
+    0,
+    four_stream_payload.length(),
+  )
+  payload_arr.push((0 : UInt).to_byte()) // sequence count = 0
+  let payload = Bytes::from_array(payload_arr)
+
+  let prev_huf_valid : Ref[Bool] = { val: true }
+  let prev_huf_tree_desc : Ref[Bytes] = { val: state.huf_tree_desc }
+  let rewritten = rewrite_literals_section_to_treeless_if_repeat(
+    payload, prev_huf_valid, prev_huf_tree_desc,
+  )
+  assert_eq(rewritten[0].to_uint() & 0x3, 3)
+  assert_eq((rewritten[0].to_uint() >> 2) & 0x3, 1)
+  assert_eq(rewritten.length(), payload.length() - state.huf_tree_desc.length())
+  assert_eq(
+    bytes_slice(rewritten, 3, four_stream_payload.length()),
+    four_stream_payload,
+  )
+}
+
+///|
 test "standard dictionary internal paths comparison" {
   let dict = wb_standard_dictionary_fixture_dictionary()
   let frame = wb_standard_dictionary_fixture_frame()
