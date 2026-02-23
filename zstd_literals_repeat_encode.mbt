@@ -54,6 +54,122 @@ fn parse_single_stream_compressed_literals_header(
 }
 
 ///|
+fn build_codes_from_decode_tree(
+  max_bits : Int,
+  left : Array[Int],
+  right : Array[Int],
+  symbol : Array[Int],
+) -> (Bool, Array[UInt], Array[Int]) {
+  if max_bits <= 0 || symbol.length() == 0 {
+    return (false, Array::new(), Array::new())
+  }
+  let codes = Array::make(256, (0 : UInt))
+  let nb_bits = Array::make(256, 0)
+  let stack_node : Array[Int] = Array::new()
+  let stack_code : Array[UInt] = Array::new()
+  let stack_depth : Array[Int] = Array::new()
+  stack_node.push(0)
+  stack_code.push((0 : UInt))
+  stack_depth.push(0)
+  let mut assigned = 0
+  while stack_node.length() > 0 {
+    let top = stack_node.length() - 1
+    let node = stack_node[top]
+    let code = stack_code[top]
+    let depth = stack_depth[top]
+    ignore(stack_node.pop())
+    ignore(stack_code.pop())
+    ignore(stack_depth.pop())
+    if node < 0 || node >= symbol.length() || depth > max_bits {
+      return (false, Array::new(), Array::new())
+    }
+    let value = symbol[node]
+    if value >= 0 {
+      if value >= 256 || depth <= 0 {
+        return (false, Array::new(), Array::new())
+      }
+      codes[value] = code
+      nb_bits[value] = depth
+      assigned = assigned + 1
+    } else {
+      let l = left[node]
+      let r = right[node]
+      if l == -1 && r == -1 {
+        return (false, Array::new(), Array::new())
+      }
+      if r != -1 {
+        stack_node.push(r)
+        stack_code.push((code << 1) + 1)
+        stack_depth.push(depth + 1)
+      }
+      if l != -1 {
+        stack_node.push(l)
+        stack_code.push(code << 1)
+        stack_depth.push(depth + 1)
+      }
+    }
+  }
+  if assigned <= 0 {
+    return (false, Array::new(), Array::new())
+  }
+  (true, codes, nb_bits)
+}
+
+///|
+fn build_treeless_literals_section_with_stream_payload(
+  lit_len : Int,
+  stream_payload : Bytes,
+  single_stream : Bool,
+) -> Bytes {
+  if lit_len <= 0 || stream_payload.length() == 0 {
+    return b""
+  }
+  let lit_c_size = stream_payload.length()
+  let literals_block_type : UInt = 3
+  let out : Array[Byte] = Array::new()
+  if single_stream {
+    if lit_len > 1023 || lit_c_size > 1023 {
+      return b""
+    }
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
+      literals_block_type
+    append_u24_le(out, header)
+  } else if lit_len >= 6 && lit_len <= 1023 && lit_c_size <= 1023 {
+    let size_format_1 : UInt = 1
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
+      (size_format_1 << 2) +
+      literals_block_type
+    append_u24_le(out, header)
+  } else if lit_len <= 0x3FFF && lit_c_size <= 0x3FFF {
+    let size_format_2 : UInt = 2
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FFF) << 4) +
+      ((lit_c_size.reinterpret_as_uint() & 0x3FFF) << 18) +
+      (size_format_2 << 2) +
+      literals_block_type
+    append_u32_le(out, header)
+  } else if lit_len <= 0x3FFFF && lit_c_size <= 0x3FFFF {
+    let size_format_3 : UInt = 3
+    let lit_c_low = lit_c_size & 0x3FF
+    let lit_c_high = lit_c_size >> 10
+    if lit_c_high < 0 || lit_c_high > 0xFF {
+      return b""
+    }
+    let header = ((lit_len.reinterpret_as_uint() & 0x3FFFF) << 4) +
+      ((lit_c_low.reinterpret_as_uint() & 0x3FF) << 22) +
+      (size_format_3 << 2) +
+      literals_block_type
+    append_u32_le(out, header)
+    out.push(lit_c_high.reinterpret_as_uint().to_byte())
+  } else {
+    return b""
+  }
+  append_bytes(out, stream_payload, 0, stream_payload.length())
+  Bytes::from_array(out)
+}
+
+///|
 fn rewrite_literals_section_to_treeless_if_repeat(
   payload : Bytes,
   prev_huf_valid : Ref[Bool],
@@ -69,7 +185,8 @@ fn rewrite_literals_section_to_treeless_if_repeat(
   let tree_result = try? read_huffman_tree_description(
     payload, payload_pos, payload_end,
   )
-  let (tree_size, _, _, _, _) = match tree_result {
+  let (tree_size, cur_max_bits, cur_left, cur_right, cur_symbol) = match
+    tree_result {
     Ok(v) => v
     Err(_) => return payload
   }
@@ -87,6 +204,76 @@ fn rewrite_literals_section_to_treeless_if_repeat(
     return payload
   }
   if !bytes_equal(prev_huf_tree_desc.val, tree_desc) {
+    let literals_result = try? decode_huffman_single_stream(
+      payload,
+      payload_pos + tree_size,
+      payload_end,
+      lit_size,
+      cur_max_bits,
+      cur_left,
+      cur_right,
+      cur_symbol,
+    )
+    let literals = match literals_result {
+      Ok(v) => v
+      Err(_) => {
+        prev_huf_tree_desc.val = tree_desc
+        return payload
+      }
+    }
+    let prev_tree_result = try? read_huffman_tree_description(
+      prev_huf_tree_desc.val,
+      0,
+      prev_huf_tree_desc.val.length(),
+    )
+    let (ok_codes, codes, nb_bits) = match prev_tree_result {
+      Ok((_, prev_max_bits, prev_left, prev_right, prev_symbol)) =>
+        build_codes_from_decode_tree(
+          prev_max_bits, prev_left, prev_right, prev_symbol,
+        )
+      Err(_) => (false, Array::new(), Array::new())
+    }
+    if !ok_codes {
+      prev_huf_tree_desc.val = tree_desc
+      return payload
+    }
+    let single_stream_payload = encode_literals_huffman_single_stream(
+      literals, codes, nb_bits,
+    )
+    let four_stream_payload = encode_literals_huffman_four_stream(
+      literals, codes, nb_bits,
+    )
+    let single_section = build_treeless_literals_section_with_stream_payload(
+      lit_size, single_stream_payload, true,
+    )
+    let four_section = build_treeless_literals_section_with_stream_payload(
+      lit_size, four_stream_payload, false,
+    )
+    let chosen = if single_section.length() == 0 {
+      four_section
+    } else if four_section.length() == 0 {
+      single_section
+    } else if four_section.length() <= single_section.length() {
+      four_section
+    } else {
+      single_section
+    }
+    if chosen.length() == 0 {
+      prev_huf_tree_desc.val = tree_desc
+      return payload
+    }
+    let rewritten : Array[Byte] = Array::new()
+    append_bytes(rewritten, chosen, 0, chosen.length())
+    append_bytes(
+      rewritten,
+      payload,
+      payload_end,
+      payload.length() - payload_end,
+    )
+    let candidate = Bytes::from_array(rewritten)
+    if candidate.length() <= payload.length() + 4 {
+      return candidate
+    }
     prev_huf_tree_desc.val = tree_desc
     return payload
   }

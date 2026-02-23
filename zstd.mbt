@@ -108,6 +108,12 @@ pub fn compress_with_dictionary_and_options(
   }
   let out : Array[Byte] = Array::new()
   let dictionary_state = parse_dictionary_state(dictionary)
+  let use_compact_frame_header = normalized_options.compact_frame_header ||
+    (
+      dictionary_state.history.length() > 0 &&
+      normalized_options.single_segment &&
+      normalized_options.write_content_size
+    )
   let max_window_size = if normalized_options.single_segment {
     (0 : UInt64)
   } else {
@@ -125,7 +131,7 @@ pub fn compress_with_dictionary_and_options(
     dictionary_id=dictionary_state.dict_id,
     single_segment=normalized_options.single_segment,
     write_content_size=normalized_options.write_content_size,
-    compact_frame_header=normalized_options.compact_frame_header,
+    compact_frame_header=use_compact_frame_header,
     window_log=normalized_options.window_log,
   )
 
