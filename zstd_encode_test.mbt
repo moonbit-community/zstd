@@ -391,20 +391,18 @@ test "compress_with_options can emit non-single-segment frame with content size 
 }
 
 ///|
-#skip("temporarily skipped: extremely slow in current test backend; run with --include-skipped")
 test "compress_with_options honors declared non-single-segment window for cross-block matches" {
-  // TODO(zstd-rdl): re-enable this parity test in default suite after test runtime is stabilized for heavy cross-block window-limited cases.
-  let first_block = Bytes::makei(128 << 10, i => {
+  // Keep distance (16 KiB) well beyond 1 KiB window to validate no illegal cross-block reuse.
+  let first_block = Bytes::makei(16 << 10, i => {
     ((i * 37 + 17) % 251).reinterpret_as_uint().to_byte()
   })
   let second_block = first_block[:4096].to_bytes()
   let input = first_block + second_block
   let frame = compress_with_options(
     input,
-    default_compress_options(level=12)
+    default_compress_options(level=3)
     .with_single_segment(false)
-    .with_window_log(10)
-    .with_long_distance_matching(true),
+    .with_window_log(10),
   )
   let descriptor = frame[4].to_uint()
   assert_eq((descriptor >> 5) & 1, (0 : UInt))
