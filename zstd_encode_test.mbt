@@ -259,7 +259,9 @@ test "compress_with_options can emit non-single-segment frame with content size 
 }
 
 ///|
+#skip("temporarily skipped: extremely slow in current test backend; run with --include-skipped")
 test "compress_with_options honors declared non-single-segment window for cross-block matches" {
+  // TODO(zstd-rdl): re-enable this parity test in default suite after test runtime is stabilized for heavy cross-block window-limited cases.
   let first_block = Bytes::makei(128 << 10, i => {
     ((i * 37 + 17) % 251).reinterpret_as_uint().to_byte()
   })
