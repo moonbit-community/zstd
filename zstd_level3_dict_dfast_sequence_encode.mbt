@@ -135,7 +135,7 @@ fn index_overlap_check(prefix_lowest_index : Int, rep_index : Int) -> Bool {
   if prefix_lowest_index <= 0 {
     return true
   }
-  rep_index <= prefix_lowest_index || rep_index >= prefix_lowest_index + 4
+  rep_index <= prefix_lowest_index - 4 || rep_index >= prefix_lowest_index
 }
 
 ///|
@@ -266,7 +266,7 @@ fn collect_level3_dict_dfast_sequences(
 
     let rep_index = current_virtual + 1 - offset_1
     if offset_1 > 0 &&
-      index_overlap_check(history_len, rep_index) &&
+      index_overlap_check(lowest_index, rep_index) &&
       virtual_eq_at(history, src, start, history_len, ip + 1, rep_index, 4) {
       let rep_length = virtual_match_len_from(
         history,
@@ -289,7 +289,7 @@ fn collect_level3_dict_dfast_sequences(
           let current2 = history_len + ip
           let rep_index2 = current2 - offset_2
           if offset_2 <= 0 ||
-            !index_overlap_check(history_len, rep_index2) ||
+            !index_overlap_check(lowest_index, rep_index2) ||
             !virtual_eq_at(history, src, start, history_len, ip, rep_index2, 4) {
             break
           }
@@ -504,7 +504,7 @@ fn collect_level3_dict_dfast_sequences(
         let current2 = history_len + ip
         let rep_index2 = current2 - offset_2
         if offset_2 <= 0 ||
-          !index_overlap_check(history_len, rep_index2) ||
+          !index_overlap_check(lowest_index, rep_index2) ||
           !virtual_eq_at(history, src, start, history_len, ip, rep_index2, 4) {
           break
         }
