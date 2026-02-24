@@ -489,7 +489,9 @@ fn try_build_compressed_literals_section(
     weights, last_symbol,
   )
   let fse_tree_desc = try_build_huffman_fse_weights_description(
-    weights, last_symbol,
+    weights,
+    last_symbol,
+    allow_ctable_fallback=lit_len >= 384,
   )
   let tree_desc = if direct_tree_desc.length() == 0 {
     fse_tree_desc

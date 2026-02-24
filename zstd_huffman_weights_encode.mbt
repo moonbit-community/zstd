@@ -160,6 +160,239 @@ fn decode_weight_fse_bitstream_matches(
 }
 
 ///|
+fn bitc_add_bits_lsb_u64(
+  bit_container : Ref[UInt64],
+  bit_pos : Ref[Int],
+  value : Int,
+  nb_bits : Int,
+) -> Bool {
+  if nb_bits < 0 || nb_bits >= 32 {
+    return false
+  }
+  if nb_bits == 0 {
+    return true
+  }
+  if value < 0 || bit_pos.val < 0 || bit_pos.val + nb_bits >= 64 {
+    return false
+  }
+  let mask = ((1 : UInt64) << nb_bits) - (1 : UInt64)
+  let low = value.reinterpret_as_uint().to_uint64() & mask
+  bit_container.val = bit_container.val | (low << bit_pos.val)
+  bit_pos.val = bit_pos.val + nb_bits
+  true
+}
+
+///|
+fn bitc_flush_bits_lsb_u64(
+  out : Array[Byte],
+  bit_container : Ref[UInt64],
+  bit_pos : Ref[Int],
+) -> Unit {
+  let nb_bytes = bit_pos.val >> 3
+  let mut i = 0
+  while i < nb_bytes {
+    out.push(
+      ((bit_container.val >> (i * 8)) & (0xFF : UInt64)).to_uint().to_byte(),
+    )
+    i = i + 1
+  }
+  bit_container.val = bit_container.val >> (nb_bytes * 8)
+  bit_pos.val = bit_pos.val & 7
+}
+
+///|
+fn build_weight_fse_bitstream_using_ctable(
+  values : Array[Int],
+  table_log : Int,
+  state_table : Array[Int],
+  delta_nb_bits : Array[Int],
+  delta_find_state : Array[Int],
+) -> Bytes {
+  let src_size = values.length()
+  if src_size <= 2 || table_log <= 0 {
+    return b""
+  }
+  let bit_container : Ref[UInt64] = { val: (0 : UInt64) }
+  let bit_pos : Ref[Int] = { val: 0 }
+  let out : Array[Byte] = Array::new()
+  let state1 : Ref[Int] = { val: 0 }
+  let state2 : Ref[Int] = { val: 0 }
+  let mut ip = src_size
+
+  if (src_size & 1) != 0 {
+    let (ok1, s1) = fse_init_cstate2_with_table(
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+      values[ip - 1],
+    )
+    if !ok1 {
+      return b""
+    }
+    ip = ip - 1
+    let (ok2, s2) = fse_init_cstate2_with_table(
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+      values[ip - 1],
+    )
+    if !ok2 {
+      return b""
+    }
+    ip = ip - 1
+    state1.val = s1
+    state2.val = s2
+
+    let (enc_ok, bits, nb_out, next_s1) = fse_encode_symbol_with_table(
+      state1.val,
+      values[ip - 1],
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+    )
+    if !enc_ok || !bitc_add_bits_lsb_u64(bit_container, bit_pos, bits, nb_out) {
+      return b""
+    }
+    ip = ip - 1
+    state1.val = next_s1
+    bitc_flush_bits_lsb_u64(out, bit_container, bit_pos)
+  } else {
+    let (ok2, s2) = fse_init_cstate2_with_table(
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+      values[ip - 1],
+    )
+    if !ok2 {
+      return b""
+    }
+    ip = ip - 1
+    let (ok1, s1) = fse_init_cstate2_with_table(
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+      values[ip - 1],
+    )
+    if !ok1 {
+      return b""
+    }
+    ip = ip - 1
+    state1.val = s1
+    state2.val = s2
+  }
+
+  let adjusted_size = src_size - 2
+  if (adjusted_size & 2) != 0 {
+    let (ok2, bits2, nb2, next_s2) = fse_encode_symbol_with_table(
+      state2.val,
+      values[ip - 1],
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+    )
+    if !ok2 || !bitc_add_bits_lsb_u64(bit_container, bit_pos, bits2, nb2) {
+      return b""
+    }
+    ip = ip - 1
+    state2.val = next_s2
+
+    let (ok1, bits1, nb1, next_s1) = fse_encode_symbol_with_table(
+      state1.val,
+      values[ip - 1],
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+    )
+    if !ok1 || !bitc_add_bits_lsb_u64(bit_container, bit_pos, bits1, nb1) {
+      return b""
+    }
+    ip = ip - 1
+    state1.val = next_s1
+    bitc_flush_bits_lsb_u64(out, bit_container, bit_pos)
+  }
+
+  while ip > 0 {
+    let (ok2a, bits2a, nb2a, next_s2a) = fse_encode_symbol_with_table(
+      state2.val,
+      values[ip - 1],
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+    )
+    if !ok2a || !bitc_add_bits_lsb_u64(bit_container, bit_pos, bits2a, nb2a) {
+      return b""
+    }
+    ip = ip - 1
+    state2.val = next_s2a
+
+    let (ok1a, bits1a, nb1a, next_s1a) = fse_encode_symbol_with_table(
+      state1.val,
+      values[ip - 1],
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+    )
+    if !ok1a || !bitc_add_bits_lsb_u64(bit_container, bit_pos, bits1a, nb1a) {
+      return b""
+    }
+    ip = ip - 1
+    state1.val = next_s1a
+
+    if ip <= 0 {
+      return b""
+    }
+    let (ok2b, bits2b, nb2b, next_s2b) = fse_encode_symbol_with_table(
+      state2.val,
+      values[ip - 1],
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+    )
+    if !ok2b || !bitc_add_bits_lsb_u64(bit_container, bit_pos, bits2b, nb2b) {
+      return b""
+    }
+    ip = ip - 1
+    state2.val = next_s2b
+
+    if ip <= 0 {
+      return b""
+    }
+    let (ok1b, bits1b, nb1b, next_s1b) = fse_encode_symbol_with_table(
+      state1.val,
+      values[ip - 1],
+      state_table,
+      delta_nb_bits,
+      delta_find_state,
+    )
+    if !ok1b || !bitc_add_bits_lsb_u64(bit_container, bit_pos, bits1b, nb1b) {
+      return b""
+    }
+    ip = ip - 1
+    state1.val = next_s1b
+
+    bitc_flush_bits_lsb_u64(out, bit_container, bit_pos)
+  }
+
+  if !bitc_add_bits_lsb_u64(bit_container, bit_pos, state2.val, table_log) {
+    return b""
+  }
+  bitc_flush_bits_lsb_u64(out, bit_container, bit_pos)
+  if !bitc_add_bits_lsb_u64(bit_container, bit_pos, state1.val, table_log) {
+    return b""
+  }
+  bitc_flush_bits_lsb_u64(out, bit_container, bit_pos)
+
+  if !bitc_add_bits_lsb_u64(bit_container, bit_pos, 1, 1) {
+    return b""
+  }
+  bitc_flush_bits_lsb_u64(out, bit_container, bit_pos)
+  if bit_pos.val > 0 {
+    out.push((bit_container.val & (0xFF : UInt64)).to_uint().to_byte())
+  }
+  Bytes::from_array(out)
+}
+
+///|
 fn try_update_weight_fse_bitstream_best_with_ops(
   best : Bytes,
   op_values : Array[Int],
@@ -481,6 +714,7 @@ fn try_update_huffman_weight_fse_best_candidate(
   normalized : Array[Int],
   highest_symbol : Int,
   table_log : Int,
+  allow_ctable_fallback : Bool,
 ) -> Bytes raise ZstdError {
   let header = write_fse_ncount_header(normalized, highest_symbol, table_log)
   if header.length() == 0 {
@@ -501,7 +735,10 @@ fn try_update_huffman_weight_fse_best_candidate(
   if dummy_candidates.length() == 0 {
     return best
   }
-  let bitstream = if (values.length() & 1) == 0 {
+  let fallback_bitstream = build_weight_fse_bitstream_using_ctable(
+    values, table_log, state_table, delta_nb_bits, delta_find_state,
+  )
+  let primary_bitstream = if (values.length() & 1) == 0 {
     build_two_state_weight_fse_bitstream_even(
       values, table_symbols, next_state, nb_bits, table_log, dummy_candidates, state_table,
       delta_nb_bits, delta_find_state,
@@ -511,6 +748,14 @@ fn try_update_huffman_weight_fse_best_candidate(
       values, table_symbols, next_state, nb_bits, table_log, dummy_candidates, state_table,
       delta_nb_bits, delta_find_state,
     )
+  }
+  let bitstream = if primary_bitstream.length() > 0 {
+    primary_bitstream
+  } else if allow_ctable_fallback && values.length() >= 120 {
+    // Keep legacy behavior on small/medium models that already match vectors.
+    fallback_bitstream
+  } else {
+    b""
   }
   if bitstream.length() == 0 {
     return best
@@ -540,6 +785,7 @@ fn try_update_huffman_weight_fse_best_candidate(
 ///|
 fn build_huffman_weights_fse_payload(
   values : Array[Int],
+  allow_ctable_fallback? : Bool = false,
 ) -> Bytes raise ZstdError {
   if values.length() < 2 || values.length() > 255 {
     return b""
@@ -587,7 +833,7 @@ fn build_huffman_weights_fse_payload(
       )
       if norm_ok {
         best = try_update_huffman_weight_fse_best_candidate(
-          best, values, normalized, highest_symbol, table_log,
+          best, values, normalized, highest_symbol, table_log, allow_ctable_fallback,
         )
       }
       let (norm_lp_ok, normalized_lp) = normalize_symbol_frequencies(
@@ -595,7 +841,7 @@ fn build_huffman_weights_fse_payload(
       )
       if norm_lp_ok {
         best = try_update_huffman_weight_fse_best_candidate(
-          best, values, normalized_lp, highest_symbol, table_log,
+          best, values, normalized_lp, highest_symbol, table_log, allow_ctable_fallback,
         )
       }
 
@@ -611,7 +857,7 @@ fn build_huffman_weights_fse_payload(
         )
         if norm_ok {
           best = try_update_huffman_weight_fse_best_candidate(
-            best, values, normalized, highest_symbol, table_log,
+            best, values, normalized, highest_symbol, table_log, allow_ctable_fallback,
           )
         }
         offset = offset + 1
@@ -626,6 +872,7 @@ fn build_huffman_weights_fse_payload(
 fn try_build_huffman_fse_weights_description(
   weights : Array[Int],
   last_symbol : Int,
+  allow_ctable_fallback? : Bool = false,
 ) -> Bytes raise ZstdError {
   if last_symbol <= 1 || last_symbol > 128 || last_symbol > weights.length() {
     return b""
@@ -640,9 +887,22 @@ fn try_build_huffman_fse_weights_description(
     values.push(v)
     i = i + 1
   }
-  let payload = build_huffman_weights_fse_payload(values)
+  let payload = build_huffman_weights_fse_payload(
+    values,
+    allow_ctable_fallback~,
+  )
   if payload.length() <= 0 || payload.length() >= 128 {
     return b""
+  }
+  if allow_ctable_fallback && last_symbol >= 120 {
+    let direct_desc = build_huffman_direct_weights_description(
+      weights, last_symbol,
+    )
+    let fse_desc_len = payload.length() + 1
+    // Guard experimental long-prefix fallback: require a clear size win.
+    if direct_desc.length() > 0 && fse_desc_len + 16 > direct_desc.length() {
+      return b""
+    }
   }
   let out : Array[Byte] = Array::new()
   out.push(payload.length().reinterpret_as_uint().to_byte())
