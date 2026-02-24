@@ -160,7 +160,8 @@ fn decode_weight_fse_bitstream_matches(
 }
 
 ///|
-fn build_weight_fse_bitstream_from_ops(
+fn try_update_weight_fse_bitstream_best_with_ops(
+  best : Bytes,
   op_values : Array[Int],
   op_counts : Array[Int],
   table_log : Int,
@@ -170,10 +171,9 @@ fn build_weight_fse_bitstream_from_ops(
   expected : Array[Int],
 ) -> Bytes raise ZstdError {
   if op_values.length() != op_counts.length() || op_values.length() == 0 {
-    return b""
+    return best
   }
-  let mut best = b""
-
+  let mut current_best = best
   let mut mode = 0
   while mode < 6 {
     let reverse_order = mode == 2 || mode == 3 || mode == 5
@@ -186,7 +186,7 @@ fn build_weight_fse_bitstream_from_ops(
       let value = op_values[idx]
       let count = op_counts[idx]
       if count < 0 || value < 0 {
-        return b""
+        return current_best
       }
       if use_lsb {
         append_forward_bits_lsb(bits, value, count)
@@ -206,10 +206,98 @@ fn build_weight_fse_bitstream_from_ops(
       decode_weight_fse_bitstream_matches(
         candidate, table_log, next_state, nb_bits, table_symbols, expected,
       ) &&
-      (best.length() == 0 || candidate.length() < best.length()) {
-      best = candidate
+      (current_best.length() == 0 || candidate.length() < current_best.length()) {
+      current_best = candidate
     }
     mode = mode + 1
+  }
+  current_best
+}
+
+///|
+fn build_weight_fse_bitstream_from_ops(
+  op_values : Array[Int],
+  op_counts : Array[Int],
+  table_log : Int,
+  next_state : Array[Int],
+  nb_bits : Array[Int],
+  table_symbols : Array[Int],
+  expected : Array[Int],
+) -> Bytes raise ZstdError {
+  if op_values.length() != op_counts.length() || op_values.length() == 0 {
+    return b""
+  }
+  let mut best = try_update_weight_fse_bitstream_best_with_ops(
+    b"", op_values, op_counts, table_log, next_state, nb_bits, table_symbols, expected,
+  )
+
+  if op_values.length() >= 2 {
+    let swapped_init_values : Array[Int] = Array::new()
+    let swapped_init_counts : Array[Int] = Array::new()
+    swapped_init_values.push(op_values[1])
+    swapped_init_counts.push(op_counts[1])
+    swapped_init_values.push(op_values[0])
+    swapped_init_counts.push(op_counts[0])
+    let mut i = 2
+    while i < op_values.length() {
+      swapped_init_values.push(op_values[i])
+      swapped_init_counts.push(op_counts[i])
+      i = i + 1
+    }
+    best = try_update_weight_fse_bitstream_best_with_ops(
+      best, swapped_init_values, swapped_init_counts, table_log, next_state, nb_bits,
+      table_symbols, expected,
+    )
+
+    let pair_swapped_values : Array[Int] = Array::new()
+    let pair_swapped_counts : Array[Int] = Array::new()
+    pair_swapped_values.push(op_values[0])
+    pair_swapped_counts.push(op_counts[0])
+    pair_swapped_values.push(op_values[1])
+    pair_swapped_counts.push(op_counts[1])
+    i = 2
+    while i < op_values.length() {
+      if i + 1 < op_values.length() {
+        pair_swapped_values.push(op_values[i + 1])
+        pair_swapped_counts.push(op_counts[i + 1])
+        pair_swapped_values.push(op_values[i])
+        pair_swapped_counts.push(op_counts[i])
+        i = i + 2
+      } else {
+        pair_swapped_values.push(op_values[i])
+        pair_swapped_counts.push(op_counts[i])
+        i = i + 1
+      }
+    }
+    best = try_update_weight_fse_bitstream_best_with_ops(
+      best, pair_swapped_values, pair_swapped_counts, table_log, next_state, nb_bits,
+      table_symbols, expected,
+    )
+
+    let pair_and_init_swapped_values : Array[Int] = Array::new()
+    let pair_and_init_swapped_counts : Array[Int] = Array::new()
+    pair_and_init_swapped_values.push(op_values[1])
+    pair_and_init_swapped_counts.push(op_counts[1])
+    pair_and_init_swapped_values.push(op_values[0])
+    pair_and_init_swapped_counts.push(op_counts[0])
+    i = 2
+    while i < op_values.length() {
+      if i + 1 < op_values.length() {
+        pair_and_init_swapped_values.push(op_values[i + 1])
+        pair_and_init_swapped_counts.push(op_counts[i + 1])
+        pair_and_init_swapped_values.push(op_values[i])
+        pair_and_init_swapped_counts.push(op_counts[i])
+        i = i + 2
+      } else {
+        pair_and_init_swapped_values.push(op_values[i])
+        pair_and_init_swapped_counts.push(op_counts[i])
+        i = i + 1
+      }
+    }
+    best = try_update_weight_fse_bitstream_best_with_ops(
+      best, pair_and_init_swapped_values, pair_and_init_swapped_counts, table_log,
+      next_state, nb_bits, table_symbols, expected,
+    )
   }
   best
 }
@@ -222,6 +310,9 @@ fn build_two_state_weight_fse_bitstream_even(
   nb_bits : Array[Int],
   table_log : Int,
   dummy_candidates : Array[Int],
+  state_table : Array[Int],
+  delta_nb_bits : Array[Int],
+  delta_find_state : Array[Int],
 ) -> Bytes {
   // Output pattern when ending after state1 update:
   // s1, s2, s1, s2, ..., s1, terminal(s2)
@@ -237,9 +328,9 @@ fn build_two_state_weight_fse_bitstream_even(
   if stream1_updates.length() <= 0 || stream2_full.length() <= 0 {
     return b""
   }
-
-  let (ok2, states2, trans_bits2, trans_nb2) = select_fse_state_path(
-    stream2_full, table_symbols, next_state, nb_bits,
+  let (ok2, init2, trans_bits2, trans_nb2, states2) = build_reference_fse_state_path(
+    stream2_full, table_symbols, next_state, nb_bits, state_table, delta_nb_bits,
+    delta_find_state,
   )
   if !ok2 || states2.length() != stream2_full.length() {
     return b""
@@ -249,14 +340,16 @@ fn build_two_state_weight_fse_bitstream_even(
     return b""
   }
 
+  let mut best = b""
   let mut c = 0
   while c < dummy_candidates.length() {
     let stream1_path_symbols = append_with_extra_symbol(
       stream1_updates,
       dummy_candidates[c],
     )
-    let (ok1, states1, trans_bits1, trans_nb1) = select_fse_state_path(
-      stream1_path_symbols, table_symbols, next_state, nb_bits,
+    let (ok1, init1, trans_bits1, trans_nb1, states1) = build_reference_fse_state_path(
+      stream1_path_symbols, table_symbols, next_state, nb_bits, state_table, delta_nb_bits,
+      delta_find_state,
     )
     if ok1 &&
       states1.length() == stream1_path_symbols.length() &&
@@ -264,9 +357,9 @@ fn build_two_state_weight_fse_bitstream_even(
       trans_nb1.length() == stream1_updates.length() {
       let op_values : Array[Int] = Array::new()
       let op_counts : Array[Int] = Array::new()
-      op_values.push(states1[0])
+      op_values.push(init1)
       op_counts.push(table_log)
-      op_values.push(states2[0])
+      op_values.push(init2)
       op_counts.push(table_log)
 
       let mut j = 0
@@ -284,13 +377,17 @@ fn build_two_state_weight_fse_bitstream_even(
         op_values, op_counts, table_log, next_state, nb_bits, table_symbols, values,
       )
       match bitstream {
-        Ok(candidate) => if candidate.length() > 0 { return candidate }
+        Ok(candidate) =>
+          if candidate.length() > 0 &&
+            (best.length() == 0 || candidate.length() < best.length()) {
+            best = candidate
+          }
         Err(_) => ()
       }
     }
     c = c + 1
   }
-  b""
+  best
 }
 
 ///|
@@ -301,6 +398,9 @@ fn build_two_state_weight_fse_bitstream_odd(
   nb_bits : Array[Int],
   table_log : Int,
   dummy_candidates : Array[Int],
+  state_table : Array[Int],
+  delta_nb_bits : Array[Int],
+  delta_find_state : Array[Int],
 ) -> Bytes {
   // Output pattern when ending after state2 update:
   // s1, s2, s1, s2, ..., s1, s2, terminal(s1)
@@ -316,9 +416,9 @@ fn build_two_state_weight_fse_bitstream_odd(
   if stream1_full.length() <= 1 || stream2_updates.length() <= 0 {
     return b""
   }
-
-  let (ok1, states1, trans_bits1, trans_nb1) = select_fse_state_path(
-    stream1_full, table_symbols, next_state, nb_bits,
+  let (ok1, init1, trans_bits1, trans_nb1, states1) = build_reference_fse_state_path(
+    stream1_full, table_symbols, next_state, nb_bits, state_table, delta_nb_bits,
+    delta_find_state,
   )
   if !ok1 || states1.length() != stream1_full.length() {
     return b""
@@ -328,14 +428,16 @@ fn build_two_state_weight_fse_bitstream_odd(
     return b""
   }
 
+  let mut best = b""
   let mut c = 0
   while c < dummy_candidates.length() {
     let stream2_path_symbols = append_with_extra_symbol(
       stream2_updates,
       dummy_candidates[c],
     )
-    let (ok2, states2, trans_bits2, trans_nb2) = select_fse_state_path(
-      stream2_path_symbols, table_symbols, next_state, nb_bits,
+    let (ok2, init2, trans_bits2, trans_nb2, states2) = build_reference_fse_state_path(
+      stream2_path_symbols, table_symbols, next_state, nb_bits, state_table, delta_nb_bits,
+      delta_find_state,
     )
     if ok2 &&
       states2.length() == stream2_path_symbols.length() &&
@@ -343,9 +445,9 @@ fn build_two_state_weight_fse_bitstream_odd(
       trans_nb2.length() == stream2_updates.length() {
       let op_values : Array[Int] = Array::new()
       let op_counts : Array[Int] = Array::new()
-      op_values.push(states1[0])
+      op_values.push(init1)
       op_counts.push(table_log)
-      op_values.push(states2[0])
+      op_values.push(init2)
       op_counts.push(table_log)
       let mut j = 0
       while j < stream2_updates.length() {
@@ -359,13 +461,80 @@ fn build_two_state_weight_fse_bitstream_odd(
         op_values, op_counts, table_log, next_state, nb_bits, table_symbols, values,
       )
       match bitstream {
-        Ok(candidate) => if candidate.length() > 0 { return candidate }
+        Ok(candidate) =>
+          if candidate.length() > 0 &&
+            (best.length() == 0 || candidate.length() < best.length()) {
+            best = candidate
+          }
         Err(_) => ()
       }
     }
     c = c + 1
   }
-  b""
+  best
+}
+
+///|
+fn try_update_huffman_weight_fse_best_candidate(
+  best : Bytes,
+  values : Array[Int],
+  normalized : Array[Int],
+  highest_symbol : Int,
+  table_log : Int,
+) -> Bytes raise ZstdError {
+  let header = write_fse_ncount_header(normalized, highest_symbol, table_log)
+  if header.length() == 0 {
+    return best
+  }
+  let (next_state, nb_bits, table_symbols) = build_fse_symbol_decode_table(
+    normalized, highest_symbol, table_log,
+  )
+  let (ctable_ok, state_table, delta_nb_bits, delta_find_state) = build_fse_compression_table_from_normalized(
+    normalized, highest_symbol, table_log,
+  )
+  if !ctable_ok {
+    return best
+  }
+  let dummy_candidates = unique_symbols_from_table(
+    table_symbols, highest_symbol,
+  )
+  if dummy_candidates.length() == 0 {
+    return best
+  }
+  let bitstream = if (values.length() & 1) == 0 {
+    build_two_state_weight_fse_bitstream_even(
+      values, table_symbols, next_state, nb_bits, table_log, dummy_candidates, state_table,
+      delta_nb_bits, delta_find_state,
+    )
+  } else {
+    build_two_state_weight_fse_bitstream_odd(
+      values, table_symbols, next_state, nb_bits, table_log, dummy_candidates, state_table,
+      delta_nb_bits, delta_find_state,
+    )
+  }
+  if bitstream.length() == 0 {
+    return best
+  }
+
+  let payload : Array[Byte] = Array::new()
+  append_bytes(payload, header, 0, header.length())
+  append_bytes(payload, bitstream, 0, bitstream.length())
+  let candidate = Bytes::from_array(payload)
+  if candidate.length() <= 0 || candidate.length() >= 128 {
+    return best
+  }
+
+  let decoded = try? read_huffman_weights_fse(candidate, 0, candidate.length())
+  match decoded {
+    Ok(out) =>
+      if int_arrays_equal(out, values) &&
+        (best.length() == 0 || candidate.length() < best.length()) {
+        candidate
+      } else {
+        best
+      }
+    Err(_) => best
+  }
 }
 
 ///|
@@ -413,6 +582,23 @@ fn build_huffman_weights_fse_payload(
   let mut table_log = fse_min_table_log
   while table_log <= huf_weight_fse_table_log_max {
     if 1 << table_log >= active_symbols {
+      let (norm_ok, normalized) = normalize_symbol_frequencies(
+        freq, highest_symbol, table_log, false,
+      )
+      if norm_ok {
+        best = try_update_huffman_weight_fse_best_candidate(
+          best, values, normalized, highest_symbol, table_log,
+        )
+      }
+      let (norm_lp_ok, normalized_lp) = normalize_symbol_frequencies(
+        freq, highest_symbol, table_log, true,
+      )
+      if norm_lp_ok {
+        best = try_update_huffman_weight_fse_best_candidate(
+          best, values, normalized_lp, highest_symbol, table_log,
+        )
+      }
+
       let mut offset = 0
       while offset < active_symbol_list.length() {
         let (norm_ok, normalized) = build_weight_normalized_counter(
@@ -424,52 +610,9 @@ fn build_huffman_weights_fse_payload(
           offset,
         )
         if norm_ok {
-          let header = write_fse_ncount_header(
-            normalized, highest_symbol, table_log,
+          best = try_update_huffman_weight_fse_best_candidate(
+            best, values, normalized, highest_symbol, table_log,
           )
-          if header.length() > 0 {
-            let (next_state, nb_bits, table_symbols) = build_fse_symbol_decode_table(
-              normalized, highest_symbol, table_log,
-            )
-            let dummy_candidates = unique_symbols_from_table(
-              table_symbols, highest_symbol,
-            )
-            if dummy_candidates.length() > 0 {
-              let bitstream = if (values.length() & 1) == 0 {
-                build_two_state_weight_fse_bitstream_even(
-                  values, table_symbols, next_state, nb_bits, table_log, dummy_candidates,
-                )
-              } else {
-                build_two_state_weight_fse_bitstream_odd(
-                  values, table_symbols, next_state, nb_bits, table_log, dummy_candidates,
-                )
-              }
-              if bitstream.length() > 0 {
-                let payload : Array[Byte] = Array::new()
-                append_bytes(payload, header, 0, header.length())
-                append_bytes(payload, bitstream, 0, bitstream.length())
-                let candidate = Bytes::from_array(payload)
-                if candidate.length() < 128 {
-                  let decoded = try? read_huffman_weights_fse(
-                    candidate,
-                    0,
-                    candidate.length(),
-                  )
-                  match decoded {
-                    Ok(out) =>
-                      if int_arrays_equal(out, values) &&
-                        (
-                          best.length() == 0 ||
-                          candidate.length() < best.length()
-                        ) {
-                        best = candidate
-                      }
-                    Err(_) => ()
-                  }
-                }
-              }
-            }
-          }
         }
         offset = offset + 1
       }
