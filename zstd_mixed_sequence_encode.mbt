@@ -140,7 +140,7 @@ fn choose_sequence_source_mode(
   }
 
   // Compressed mode (10)
-  if level >= 13 {
+  if level >= 9 {
     let compressed = build_compressed_sequence_source(values, symbol_type)
     match compressed {
       (
@@ -297,7 +297,7 @@ fn choose_offset_source_mode_with_repcodes(
   }
 
   // Compressed mode (10)
-  if level >= 13 {
+  if level >= 9 {
     let compressed = if off_base_values.length() == off_values.length() {
       build_compressed_offset_sequence_source_from_off_bases(off_base_values)
     } else {
@@ -396,7 +396,11 @@ fn build_general_mixed_sequence_payload(
     enable_long_distance_matching~,
   )
   let search_depth = search_depth_base
-  let min_match = greedy_sequence_min_match(level, block_len)
+  let min_match = if level == 9 && dictionary_history.length() == 0 {
+    5
+  } else {
+    greedy_sequence_min_match(level, block_len)
+  }
   collect_level_aligned_sequences(
     src,
     start,

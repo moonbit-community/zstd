@@ -453,7 +453,11 @@ fn build_general_rle_payload(
     enable_long_distance_matching~,
   )
   let search_depth = search_depth_base
-  let min_match = greedy_sequence_min_match(level, block_len)
+  let min_match = if level == 9 && dictionary_history.length() == 0 {
+    5
+  } else {
+    greedy_sequence_min_match(level, block_len)
+  }
   collect_level_aligned_sequences(
     src,
     start,
