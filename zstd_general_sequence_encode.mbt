@@ -435,7 +435,7 @@ fn build_general_rle_payload(
   rep2? : Int = 4,
   rep3? : Int = 8,
 ) -> Bytes raise ZstdError {
-  if (level < 11 && dictionary_history.length() == 0) || block_len < 32 {
+  if (level < 9 && dictionary_history.length() == 0) || block_len < 32 {
     return b""
   }
   let ll_values : Array[Int] = Array::new()

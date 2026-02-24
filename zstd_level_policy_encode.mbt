@@ -20,25 +20,33 @@ fn sequence_cap_by_block(base_cap : Int, block_len : Int) -> Int {
 
 ///|
 fn general_rle_sequence_cap(level : Int, block_len : Int) -> Int {
-  let base = if level >= 20 { 127 } else if level >= 16 { 63 } else { 31 }
+  let base = if level == 9 {
+    255
+  } else if level >= 20 {
+    127
+  } else if level >= 16 {
+    63
+  } else {
+    31
+  }
   sequence_cap_by_block(base, block_len)
 }
 
 ///|
 fn compressed_fse_sequence_cap(level : Int, block_len : Int) -> Int {
-  let base = if level >= 20 { 24 } else { 16 }
+  let base = if level == 9 { 255 } else if level >= 20 { 24 } else { 16 }
   sequence_cap_by_block(base, block_len)
 }
 
 ///|
 fn mixed_sequence_cap(level : Int, block_len : Int) -> Int {
-  let base = if level >= 22 { 32 } else { 20 }
+  let base = if level == 9 { 255 } else if level >= 22 { 32 } else { 20 }
   sequence_cap_by_block(base, block_len)
 }
 
 ///|
 fn predefined_multi_sequence_cap(level : Int, block_len : Int) -> Int {
-  let base = if level >= 20 { 24 } else { 12 }
+  let base = if level == 9 { 255 } else if level >= 20 { 24 } else { 12 }
   sequence_cap_by_block(base, block_len)
 }
 

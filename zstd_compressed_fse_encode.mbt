@@ -888,7 +888,7 @@ fn build_general_compressed_fse_payload(
   rep2? : Int = 4,
   rep3? : Int = 8,
 ) -> Bytes raise ZstdError {
-  if (level < 13 && dictionary_history.length() == 0) || block_len < 96 {
+  if (level < 9 && dictionary_history.length() == 0) || block_len < 96 {
     return b""
   }
   let ll_values : Array[Int] = Array::new()

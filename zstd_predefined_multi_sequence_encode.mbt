@@ -396,7 +396,7 @@ fn build_general_predefined_payload(
   rep2? : Int = 4,
   rep3? : Int = 8,
 ) -> Bytes raise ZstdError {
-  if (level < 12 && dictionary_history.length() == 0) || block_len < 64 {
+  if (level < 9 && dictionary_history.length() == 0) || block_len < 64 {
     return b""
   }
 
