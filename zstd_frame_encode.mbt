@@ -351,7 +351,7 @@ fn append_frame_blocks_minimal(
         sim_out.push(src[pos + i])
         i = i + 1
       }
-    } else if (level >= 10 || allow_low_level_dictionary_compressed) &&
+    } else if (level >= 9 || allow_low_level_dictionary_compressed) &&
       append_compressed_repeat_block(
         src, pos, block_len, level, limited_history, sim_rep1, sim_rep2, sim_rep3,
         enable_long_distance_matching, target_compressed_block_size, window_max_offset,
