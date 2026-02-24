@@ -689,7 +689,7 @@ fn append_compressed_repeat_block(
     b""
   }
   let payload_pref = if dictionary_history.length() > 0 &&
-    level < 10 &&
+    level == 3 &&
     mixed_payload.length() > 0 {
     mixed_payload
   } else if compressed_fse_payload.length() > 0 &&

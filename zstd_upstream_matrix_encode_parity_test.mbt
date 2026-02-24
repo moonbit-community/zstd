@@ -34,7 +34,11 @@ fn assert_frame_parity(
       ", got=0x" +
       got[diff].to_uint().to_string(radix=16) +
       ", expected=0x" +
-      expected[diff].to_uint().to_string(radix=16),
+      expected[diff].to_uint().to_string(radix=16) +
+      ", got_blocks=" +
+      frame_block_summary(got) +
+      ", expected_blocks=" +
+      frame_block_summary(expected),
     )
   } else {
     fail(
@@ -43,9 +47,94 @@ fn assert_frame_parity(
       " mismatch: prefix equal, got_len=" +
       got.length().to_string() +
       ", expected_len=" +
-      expected.length().to_string(),
+      expected.length().to_string() +
+      ", got_blocks=" +
+      frame_block_summary(got) +
+      ", expected_blocks=" +
+      frame_block_summary(expected),
     )
   }
+}
+
+///|
+fn read_u24_le_matrix_diag(src : Bytes, pos : Int) -> Int {
+  src[pos].to_int() +
+  (src[pos + 1].to_int() << 8) +
+  (src[pos + 2].to_int() << 16)
+}
+
+///|
+fn frame_block_summary(frame : Bytes) -> String {
+  if frame.length() < 10 {
+    return "short"
+  }
+  let descriptor = frame[4].to_uint()
+  let single_segment = ((descriptor >> 5) & 1) == (1 : UInt)
+  let dict_flag = (descriptor & 0x3).reinterpret_as_int()
+  let fcs_flag = (descriptor >> 6).reinterpret_as_int()
+  let mut pos = 5
+  if !single_segment {
+    pos = pos + 1
+  }
+  if dict_flag == 1 {
+    pos = pos + 1
+  } else if dict_flag == 2 {
+    pos = pos + 2
+  } else if dict_flag == 3 {
+    pos = pos + 4
+  }
+  let fcs_size = if single_segment {
+    if fcs_flag == 0 {
+      1
+    } else if fcs_flag == 1 {
+      2
+    } else {
+      4
+    }
+  } else if fcs_flag == 0 {
+    0
+  } else if fcs_flag == 1 {
+    2
+  } else {
+    4
+  }
+  pos = pos + fcs_size
+  if pos + 3 > frame.length() {
+    return "no-block"
+  }
+  let parts : Array[String] = Array::new()
+  let mut i = 0
+  let mut cursor = pos
+  while i < 4 && cursor + 3 <= frame.length() {
+    let raw = read_u24_le_matrix_diag(frame, cursor)
+    let last = (raw & 1) == 1
+    let block_type = (raw >> 1) & 0x3
+    let block_size = raw >> 3
+    parts.push(
+      i.to_string() +
+      ":" +
+      block_type.to_string() +
+      "/" +
+      block_size.to_string() +
+      "/" +
+      (if last { "L" } else { "N" }),
+    )
+    cursor = cursor + 3 + block_size
+    i = i + 1
+    if last {
+      i = 4
+    }
+  }
+  let mut joined = ""
+  let mut j = 0
+  while j < parts.length() {
+    if j > 0 {
+      joined = joined + ","
+    }
+    joined = joined + parts[j]
+    j = j + 1
+  }
+  "d=" + descriptor.to_string(radix=16) + ",b=[" + joined + "]"
 }
 
 ///|

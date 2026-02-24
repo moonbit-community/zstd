@@ -52,6 +52,8 @@ fn level_periodic_target_seq_count(level : Int, block_len : Int) -> Int {
     3
   } else if level >= 18 {
     2
+  } else if level >= 9 {
+    2
   } else {
     1
   }
