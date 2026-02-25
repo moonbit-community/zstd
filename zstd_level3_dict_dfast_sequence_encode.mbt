@@ -593,6 +593,7 @@ fn collect_level_aligned_sequences(
   rep2? : Int = 4,
   rep3? : Int = 8,
   min_match? : Int = 3,
+  prefer_offset_stability? : Bool = false,
   off_base_values? : Array[Int] = Array::new(),
 ) -> Unit {
   if should_use_level3_dict_dfast(level, history.length(), block_len, min_match) {
@@ -617,5 +618,6 @@ fn collect_level_aligned_sequences(
     rep2~,
     rep3~,
     min_match~,
+    prefer_offset_stability~,
   )
 }

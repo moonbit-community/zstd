@@ -420,6 +420,7 @@ fn build_general_predefined_payload(
   } else {
     greedy_sequence_min_match(level, block_len)
   }
+  let prefer_offset_stability = level == 9 && dictionary_history.length() == 0
   collect_level_aligned_sequences(
     src,
     start,
@@ -436,6 +437,7 @@ fn build_general_predefined_payload(
     rep2~,
     rep3~,
     min_match~,
+    prefer_offset_stability~,
   )
   let seq_count = ll_values.length()
   if seq_count < 2 {

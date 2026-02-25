@@ -749,7 +749,16 @@ fn try_update_huffman_weight_fse_best_candidate(
       delta_nb_bits, delta_find_state,
     )
   }
-  let bitstream = if primary_bitstream.length() > 0 {
+  let prefer_fallback = allow_ctable_fallback &&
+    values.length() >= 120 &&
+    fallback_bitstream.length() > 0 &&
+    (
+      primary_bitstream.length() == 0 ||
+      fallback_bitstream.length() < primary_bitstream.length()
+    )
+  let bitstream = if prefer_fallback {
+    fallback_bitstream
+  } else if primary_bitstream.length() > 0 {
     primary_bitstream
   } else if allow_ctable_fallback && values.length() >= 120 {
     // Keep legacy behavior on small/medium models that already match vectors.
