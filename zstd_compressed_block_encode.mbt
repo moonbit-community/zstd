@@ -638,7 +638,7 @@ fn append_compressed_repeat_block(
     rep2=dictionary_rep2,
     rep3=dictionary_rep3,
   )
-  let compressed_fse_payload = build_general_compressed_fse_payload(
+  let compressed_fse_payload0 = build_general_compressed_fse_payload(
     src,
     start,
     block_len,
@@ -650,6 +650,36 @@ fn append_compressed_repeat_block(
     rep2=dictionary_rep2,
     rep3=dictionary_rep3,
   )
+  let seeded_repeat_payload = if start == 0 &&
+    dictionary_history.length() > 0 &&
+    prev_ll_header.val.length() > 0 &&
+    prev_off_header.val.length() > 0 {
+    build_general_seeded_repeat_payload(
+      src,
+      start,
+      block_len,
+      level,
+      dictionary_history~,
+      max_match_offset=sequence_max_offset,
+      enable_long_distance_matching~,
+      rep1=dictionary_rep1,
+      rep2=dictionary_rep2,
+      rep3=dictionary_rep3,
+      prev_ll_header=prev_ll_header.val,
+      prev_off_header=prev_off_header.val,
+    )
+  } else {
+    b""
+  }
+  let compressed_fse_payload = if seeded_repeat_payload.length() > 0 &&
+    (
+      compressed_fse_payload0.length() == 0 ||
+      seeded_repeat_payload.length() < compressed_fse_payload0.length()
+    ) {
+    seeded_repeat_payload
+  } else {
+    compressed_fse_payload0
+  }
   let mixed_payload = build_general_mixed_sequence_payload(
     src,
     start,
@@ -826,7 +856,8 @@ fn append_compressed_repeat_block(
     payload0, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
     prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
   )
-  let force_dictionary_treeless = start == 0 &&
+  let force_dictionary_treeless = level == 3 &&
+    start == 0 &&
     dictionary_history.length() > 0 &&
     prev_lit_huf_valid.val
   let payload = rewrite_literals_section_to_treeless_if_repeat(

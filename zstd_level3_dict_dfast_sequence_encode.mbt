@@ -567,7 +567,6 @@ fn should_use_level3_dict_dfast(
   block_len : Int,
   min_match : Int,
 ) -> Bool {
-  // TODO(zstd-rdl.39.5): enable after full level-3 dict dfast parity validation.
   true &&
   level == 3 &&
   history_len >= 8 &&
@@ -596,6 +595,19 @@ fn collect_level_aligned_sequences(
   prefer_offset_stability? : Bool = false,
   off_base_values? : Array[Int] = Array::new(),
 ) -> Unit {
+  if should_use_level9_dict_lazy2(
+      level,
+      start,
+      src.length(),
+      history.length(),
+      block_len,
+    ) {
+    collect_level9_dict_lazy2_sequences(
+      src, start, block_len, ll_values, off_values, off_base_values, ml_values, max_sequences,
+      history, max_match_offset, rep1, rep2, rep3,
+    )
+    return
+  }
   if should_use_level3_dict_dfast(level, history.length(), block_len, min_match) {
     collect_level3_dict_dfast_sequences(
       src, start, block_len, ll_values, off_values, off_base_values, ml_values, max_sequences,

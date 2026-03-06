@@ -845,6 +845,303 @@ fn build_compressed_sequence_source_from_symbols(
 }
 
 ///|
+fn build_repeat_sequence_source_from_symbols(
+  symbol_type : Int,
+  symbols : Array[Int],
+  extras : Array[UInt],
+  extra_bits : Array[Int],
+  repeat_header : Bytes,
+) -> (Bool, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  let n = symbols.length()
+  if n <= 0 ||
+    extras.length() != n ||
+    extra_bits.length() != n ||
+    repeat_header.length() <= 0 {
+    return (false, 0, 0, Array::new(), Array::new(), Array::new(), Array::new())
+  }
+  let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
+  let parsed = try? read_fse_ncount_header(
+    repeat_header,
+    0,
+    repeat_header.length(),
+    max_symbol,
+    table_log_max,
+  )
+  let (header_size, table_log, highest_symbol, normalized) = match parsed {
+    Ok(v) => v
+    Err(_) =>
+      return (
+        false,
+        0,
+        0,
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+      )
+  }
+  if header_size != repeat_header.length() {
+    return (false, 0, 0, Array::new(), Array::new(), Array::new(), Array::new())
+  }
+  let (table_symbol, next_state, nb_add_bits, nb_bits, _) = build_sequence_fse_decode_table_with_symbols(
+    normalized, highest_symbol, table_log, symbol_type,
+  )
+  let (ct_ok, state_table, delta_nb_bits, delta_find_state) = build_fse_compression_table_from_normalized(
+    normalized, highest_symbol, table_log,
+  )
+  if !ct_ok {
+    return (false, 0, 0, Array::new(), Array::new(), Array::new(), Array::new())
+  }
+  let (path_ok, init_state, trans_bits, trans_nb_bits, states) = build_reference_fse_state_path(
+    symbols, table_symbol, next_state, nb_bits, state_table, delta_nb_bits, delta_find_state,
+  )
+  if !path_ok || states.length() != n {
+    return (false, 0, 0, Array::new(), Array::new(), Array::new(), Array::new())
+  }
+  let mut i = 0
+  while i < n {
+    if nb_add_bits[states[i]] != extra_bits[i] {
+      return (
+        false,
+        0,
+        0,
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+      )
+    }
+    i = i + 1
+  }
+  (true, init_state, table_log, extras, extra_bits, trans_bits, trans_nb_bits)
+}
+
+///|
+fn build_repeat_sequence_source(
+  values : Array[Int],
+  symbol_type : Int,
+  repeat_header : Bytes,
+) -> (Bool, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  let symbols : Array[Int] = Array::new()
+  let extras : Array[UInt] = Array::new()
+  let extra_bits : Array[Int] = Array::new()
+  let mut i = 0
+  while i < values.length() {
+    let (ok, sym, extra, add_bits) = encode_symbol_for_value(
+      symbol_type,
+      values[i],
+    )
+    if !ok {
+      return (
+        false,
+        0,
+        0,
+        Array::new(),
+        Array::new(),
+        Array::new(),
+        Array::new(),
+      )
+    }
+    symbols.push(sym)
+    extras.push(extra)
+    extra_bits.push(add_bits)
+    i = i + 1
+  }
+  build_repeat_sequence_source_from_symbols(
+    symbol_type, symbols, extras, extra_bits, repeat_header,
+  )
+}
+
+///|
+fn build_repeat_offset_sequence_source_from_off_bases(
+  off_base_values : Array[Int],
+  repeat_header : Bytes,
+) -> (Bool, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  if off_base_values.length() <= 0 {
+    return (false, 0, 0, Array::new(), Array::new(), Array::new(), Array::new())
+  }
+  let symbols : Array[Int] = Array::new()
+  let extras : Array[UInt] = Array::new()
+  let extra_bits : Array[Int] = Array::new()
+  let mut i = 0
+  while i < off_base_values.length() {
+    let (symbol, extra, add_bits) = offset_symbol_from_off_base(
+      off_base_values[i],
+    )
+    symbols.push(symbol.reinterpret_as_int())
+    extras.push(extra)
+    extra_bits.push(add_bits)
+    i = i + 1
+  }
+  build_repeat_sequence_source_from_symbols(
+    sequence_symbol_offset, symbols, extras, extra_bits, repeat_header,
+  )
+}
+
+///|
+fn build_general_seeded_repeat_payload(
+  src : Bytes,
+  start : Int,
+  block_len : Int,
+  level : Int,
+  dictionary_history? : Bytes = b"",
+  max_match_offset? : Int = 0,
+  enable_long_distance_matching? : Bool = false,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
+  prev_ll_header? : Bytes = b"",
+  prev_off_header? : Bytes = b"",
+) -> Bytes raise ZstdError {
+  if dictionary_history.length() == 0 ||
+    prev_ll_header.length() == 0 ||
+    prev_off_header.length() == 0 ||
+    block_len < 96 {
+    return b""
+  }
+  let ll_values : Array[Int] = Array::new()
+  let off_values : Array[Int] = Array::new()
+  let off_base_values : Array[Int] = Array::new()
+  let ml_values : Array[Int] = Array::new()
+  let max_sequences_base = compressed_fse_sequence_cap(level, block_len)
+  let max_sequences = if level < 10 &&
+    !should_use_level9_dict_lazy2(
+      level,
+      start,
+      src.length(),
+      dictionary_history.length(),
+      block_len,
+    ) {
+    sequence_cap_by_block(48, block_len)
+  } else {
+    max_sequences_base
+  }
+  let search_depth = greedy_sequence_search_depth(
+    level,
+    block_len,
+    enable_long_distance_matching~,
+  )
+  let min_match = if level == 9 && dictionary_history.length() == 0 {
+    5
+  } else {
+    greedy_sequence_min_match(level, block_len)
+  }
+  let prefer_offset_stability = level == 9 && dictionary_history.length() == 0
+  collect_level_aligned_sequences(
+    src,
+    start,
+    block_len,
+    level,
+    ll_values,
+    off_values,
+    ml_values,
+    max_sequences,
+    history=dictionary_history,
+    search_depth~,
+    max_match_offset~,
+    rep1~,
+    rep2~,
+    rep3~,
+    min_match~,
+    prefer_offset_stability~,
+    off_base_values~,
+  )
+  let seq_count = ll_values.length()
+  if seq_count < 2 {
+    return b""
+  }
+
+  let (
+    ll_ok,
+    ll_init_state,
+    ll_table_log,
+    ll_extras,
+    ll_extra_bits,
+    ll_trans_bits,
+    ll_trans_nb_bits,
+  ) = build_repeat_sequence_source(
+    ll_values, sequence_symbol_literal_length, prev_ll_header,
+  )
+  if !ll_ok {
+    return b""
+  }
+  let (
+    off_ok,
+    off_init_state,
+    off_table_log,
+    off_extras,
+    off_extra_bits,
+    off_trans_bits,
+    off_trans_nb_bits,
+  ) = build_repeat_offset_sequence_source_from_off_bases(
+    off_base_values, prev_off_header,
+  )
+  if !off_ok {
+    return b""
+  }
+  let (
+    ml_ok,
+    ml_states,
+    ml_extras,
+    ml_extra_bits,
+    ml_trans_bits,
+    ml_trans_nb_bits,
+  ) = select_predefined_state_path(ml_values, sequence_symbol_match_length)
+  if !ml_ok {
+    return b""
+  }
+
+  let literals = build_literals_from_sequences(
+    src, start, block_len, ll_values, ml_values,
+  )
+  let extra_bits : Array[Int] = Array::new()
+  append_bits_be(extra_bits, ll_init_state.reinterpret_as_uint(), ll_table_log)
+  append_bits_be(
+    extra_bits,
+    off_init_state.reinterpret_as_uint(),
+    off_table_log,
+  )
+  append_bits_be(
+    extra_bits,
+    ml_states[0].reinterpret_as_uint(),
+    ml_predefined_table_log,
+  )
+
+  let mut i = 0
+  while i < seq_count {
+    append_bits_be(extra_bits, off_extras[i], off_extra_bits[i])
+    append_bits_be(extra_bits, ml_extras[i], ml_extra_bits[i])
+    append_bits_be(extra_bits, ll_extras[i], ll_extra_bits[i])
+    if i + 1 < seq_count {
+      append_bits_be(
+        extra_bits,
+        ll_trans_bits[i].reinterpret_as_uint(),
+        ll_trans_nb_bits[i],
+      )
+      append_bits_be(
+        extra_bits,
+        ml_trans_bits[i].reinterpret_as_uint(),
+        ml_trans_nb_bits[i],
+      )
+      append_bits_be(
+        extra_bits,
+        off_trans_bits[i].reinterpret_as_uint(),
+        off_trans_nb_bits[i],
+      )
+    }
+    i = i + 1
+  }
+
+  let bitstream = build_reverse_bitstream(extra_bits)
+  let payload : Array[Byte] = Array::new()
+  append_best_literals_section(payload, literals)
+  append_sequence_count(payload, seq_count)
+  payload.push((0xF0 : UInt).to_byte())
+  append_bytes(payload, bitstream, 0, bitstream.length())
+  Bytes::from_array(payload)
+}
+
+///|
 fn build_general_compressed_fse_payload(
   src : Bytes,
   start : Int,
@@ -865,7 +1162,15 @@ fn build_general_compressed_fse_payload(
   let off_base_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences_base = compressed_fse_sequence_cap(level, block_len)
-  let max_sequences = if dictionary_history.length() > 0 && level < 10 {
+  let max_sequences = if dictionary_history.length() > 0 &&
+    level < 10 &&
+    !should_use_level9_dict_lazy2(
+      level,
+      start,
+      src.length(),
+      dictionary_history.length(),
+      block_len,
+    ) {
     sequence_cap_by_block(48, block_len)
   } else {
     max_sequences_base

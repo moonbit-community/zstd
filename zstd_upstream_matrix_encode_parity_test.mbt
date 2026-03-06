@@ -369,7 +369,6 @@ test "upstream matrix encode byte parity plain level9 no-check" {
 }
 
 ///|
-#skip("TODO(zstd-rdl.42): dictionary level9 matrix encode still diverges from upstream bytes")
 test "upstream matrix encode byte parity dictionary level9 default checksum" {
   let frame = compress_with_dictionary_and_options(
     rv_up_extra_http_x420_payload(),
@@ -380,7 +379,6 @@ test "upstream matrix encode byte parity dictionary level9 default checksum" {
 }
 
 ///|
-#skip("TODO(zstd-rdl.42): dictionary level9 matrix encode still diverges from upstream bytes")
 test "upstream matrix encode byte parity dictionary level9 no-check" {
   let frame = compress_with_dictionary_and_options(
     rv_up_extra_http_x420_payload(),

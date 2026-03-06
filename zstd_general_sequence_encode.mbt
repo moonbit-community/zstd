@@ -671,7 +671,15 @@ fn build_general_rle_payload(
   let off_values : Array[Int] = Array::new()
   let ml_values : Array[Int] = Array::new()
   let max_sequences_base = general_rle_sequence_cap(level, block_len)
-  let max_sequences = if dictionary_history.length() > 0 && level < 10 {
+  let max_sequences = if dictionary_history.length() > 0 &&
+    level < 10 &&
+    !should_use_level9_dict_lazy2(
+      level,
+      start,
+      src.length(),
+      dictionary_history.length(),
+      block_len,
+    ) {
     sequence_cap_by_block(127, block_len)
   } else {
     max_sequences_base
