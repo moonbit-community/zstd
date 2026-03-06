@@ -253,6 +253,7 @@ fn rewrite_literals_section_to_treeless_if_repeat(
   payload : Bytes,
   prev_huf_valid : Ref[Bool],
   prev_huf_tree_desc : Ref[Bytes],
+  force_reencode? : Bool = false,
 ) -> Bytes {
   let (
     ok,
@@ -381,7 +382,7 @@ fn rewrite_literals_section_to_treeless_if_repeat(
       payload.length() - payload_end,
     )
     let candidate = Bytes::from_array(rewritten)
-    if candidate.length() <= payload.length() + 4 {
+    if force_reencode || candidate.length() <= payload.length() + 4 {
       return candidate
     }
     prev_huf_tree_desc.val = tree_desc

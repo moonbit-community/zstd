@@ -355,6 +355,45 @@ fn greedy_best_match_at_position(
 }
 
 ///|
+fn greedy_offset_off_base(
+  raw_offset : Int,
+  ll0 : Bool,
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> Int {
+  if !ll0 && raw_offset == rep1 {
+    return 1
+  }
+  if raw_offset == rep2 {
+    return if ll0 { 1 } else { 2 }
+  }
+  if raw_offset == rep3 {
+    return if ll0 { 2 } else { 3 }
+  }
+  if ll0 && rep1 > 1 && raw_offset == rep1 - 1 {
+    return 3
+  }
+  raw_offset + 3
+}
+
+///|
+fn selected_offset_off_base(
+  raw_offset : Int,
+  ll0 : Bool,
+  selected_rep_match : Bool,
+  rep1 : Int,
+  rep2 : Int,
+  rep3 : Int,
+) -> Int {
+  if selected_rep_match {
+    greedy_offset_off_base(raw_offset, ll0, rep1, rep2, rep3)
+  } else {
+    raw_offset + 3
+  }
+}
+
+///|
 fn collect_greedy_sequences(
   src : Bytes,
   start : Int,
@@ -371,6 +410,7 @@ fn collect_greedy_sequences(
   rep3? : Int = 8,
   min_match? : Int = 3,
   prefer_offset_stability? : Bool = false,
+  off_base_values? : Array[Int] = Array::new(),
 ) -> Unit {
   let history_len = history.length()
   let virtual_len = history_len + block_len
@@ -567,8 +607,19 @@ fn collect_greedy_sequences(
           adjusted_pos = new_pos
           adjusted_ml = new_ml
         }
-        ll_values.push(adjusted_pos - anchor)
+        let literal_length = adjusted_pos - anchor
+        ll_values.push(literal_length)
         off_values.push(best_offset)
+        off_base_values.push(
+          selected_offset_off_base(
+            best_offset,
+            literal_length == 0,
+            best_is_rep,
+            r1,
+            r2,
+            r3,
+          ),
+        )
         ml_values.push(adjusted_ml)
         let end_pos = adjusted_pos + adjusted_ml
         let mut update_pos = pos + 1
@@ -580,7 +631,7 @@ fn collect_greedy_sequences(
           update_pos = update_pos + 1
         }
         let (nr1, nr2, nr3) = update_repcodes_after_greedy_offset(
-          ll_values[ll_values.length() - 1] == 0,
+          literal_length == 0,
           best_offset,
           r1,
           r2,

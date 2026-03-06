@@ -174,6 +174,9 @@ fn detect_best_single_match(
   block_len : Int,
   search_limit? : Int = 8192,
   search_depth? : Int = 0,
+  rep1? : Int = 1,
+  rep2? : Int = 4,
+  rep3? : Int = 8,
 ) -> (Int, Int, Int) {
   if block_len < 4 {
     return (0, 0, 0)
@@ -217,7 +220,27 @@ fn detect_best_single_match(
               src[start + cand + ml] == src[start + ll + ml] {
           ml = ml + 1
         }
-        if ml > best_ml || (ml == best_ml && (best_ll == 0 || ll < best_ll)) {
+        let candidate_rep = is_dictionary_rep_offset(offset, rep1, rep2, rep3)
+        let best_rep = is_dictionary_rep_offset(best_offset, rep1, rep2, rep3)
+        let near_smaller_offset = best_ml > 0 &&
+          ml + 1 >= best_ml &&
+          best_offset > 0 &&
+          offset < best_offset &&
+          (best_offset >= offset * 2 || best_offset - offset >= 64)
+        let near_rep_upgrade = candidate_rep &&
+          !best_rep &&
+          best_ml > 0 &&
+          ml + 1 >= best_ml
+        if ml > best_ml ||
+          near_smaller_offset ||
+          near_rep_upgrade ||
+          (
+            ml == best_ml &&
+            (
+              (candidate_rep && !best_rep) ||
+              (candidate_rep == best_rep && (best_ll == 0 || ll < best_ll))
+            )
+          ) {
           best_ll = ll
           best_offset = offset
           best_ml = ml
@@ -675,18 +698,51 @@ fn append_compressed_repeat_block(
     search_limit~,
     search_depth~,
     max_match_offset=sequence_max_offset,
+    allow_internal=dictionary_history.length() == 0,
   )
   let max_offset = combine_max_offsets(
     ll + dictionary_history.length(),
     sequence_max_offset,
   )
-  let single_payload = if ml >= 3 {
+  let single_payload0 = if ml >= 3 {
     build_single_match_payload(
       src, start, block_len, ll, offset, ml, max_offset, dictionary_rep1, dictionary_rep2,
       dictionary_rep3,
     )
   } else {
     b""
+  }
+  let shifted_single_payload = if start > 0 &&
+    ll == 0 &&
+    offset == dictionary_rep1 &&
+    ml > 3 {
+    let shifted_max_offset = combine_max_offsets(
+      1 + dictionary_history.length(),
+      sequence_max_offset,
+    )
+    build_single_match_payload(
+      src,
+      start,
+      block_len,
+      1,
+      offset,
+      ml - 1,
+      shifted_max_offset,
+      dictionary_rep1,
+      dictionary_rep2,
+      dictionary_rep3,
+    )
+  } else {
+    b""
+  }
+  let single_payload = if shifted_single_payload.length() > 0 &&
+    (
+      single_payload0.length() == 0 ||
+      shifted_single_payload.length() <= single_payload0.length()
+    ) {
+    shifted_single_payload
+  } else {
+    single_payload0
   }
   let payload_pref = if dictionary_history.length() > 0 &&
     level == 3 &&
@@ -732,7 +788,11 @@ fn append_compressed_repeat_block(
   let prefer_seeded_rewrite = (
       prev_compressed_valid.val || prev_lit_huf_valid.val
     ) &&
-    (level >= 10 || dictionary_history.length() == 0)
+    (
+      level >= 10 ||
+      dictionary_history.length() == 0 ||
+      (start == 0 && prev_lit_huf_valid.val)
+    )
   if prefer_seeded_rewrite {
     payload0 = choose_seeded_best_payload(
       payload_pref,
@@ -766,8 +826,14 @@ fn append_compressed_repeat_block(
     payload0, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
     prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
   )
+  let force_dictionary_treeless = start == 0 &&
+    dictionary_history.length() > 0 &&
+    prev_lit_huf_valid.val
   let payload = rewrite_literals_section_to_treeless_if_repeat(
-    payload0_rewrite, prev_lit_huf_valid, prev_lit_huf_tree_desc,
+    payload0_rewrite,
+    prev_lit_huf_valid,
+    prev_lit_huf_tree_desc,
+    force_reencode=force_dictionary_treeless,
   )
   if payload.length() == 0 {
     return false

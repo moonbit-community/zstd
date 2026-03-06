@@ -29,6 +29,9 @@ fn detect_best_single_match_with_dictionary_history(
       block_len,
       search_limit~,
       search_depth~,
+      rep1~,
+      rep2~,
+      rep3~,
     )
   } else {
     (0, 0, 0)
@@ -101,6 +104,14 @@ fn detect_best_single_match_with_dictionary_history(
             candidate_offset, rep1, rep2, rep3,
           )
           let best_rep = is_dictionary_rep_offset(best_offset, rep1, rep2, rep3)
+          let slight_gain_with_larger_offset = ml == best_ml + 1 &&
+            best_ml > 0 &&
+            best_offset > 0 &&
+            candidate_offset > best_offset &&
+            (
+              candidate_offset >= best_offset * 2 ||
+              candidate_offset - best_offset >= 64
+            )
           if ml > best_ml ||
             (
               ml == best_ml &&
@@ -110,6 +121,11 @@ fn detect_best_single_match_with_dictionary_history(
                 (candidate_rep == best_rep && ll < best_ll)
               )
             ) {
+            if slight_gain_with_larger_offset {
+              cand = dict_chain[cand]
+              depth = depth + 1
+              continue
+            }
             best_ll = ll
             best_ml = ml
             best_offset = candidate_offset

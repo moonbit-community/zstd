@@ -245,6 +245,110 @@ fn choose_offset_source_mode_with_repcodes(
   let mut best_trans_nb_bits : Array[Int] = Array::new()
   let mut best_score = 0
 
+  fn copy_int_array(values : Array[Int]) -> Array[Int] {
+    let out : Array[Int] = Array::new()
+    let mut i = 0
+    while i < values.length() {
+      out.push(values[i])
+      i = i + 1
+    }
+    out
+  }
+
+  fn count_secondary_rep_off_bases(
+    off_base_values : Array[Int],
+    ll_values : Array[Int],
+  ) -> Int {
+    let mut count = 0
+    let mut i = 0
+    while i < off_base_values.length() && i < ll_values.length() {
+      if ll_values[i] > 0 &&
+        (off_base_values[i] == 2 || off_base_values[i] == 3) {
+        count = count + 1
+      }
+      i = i + 1
+    }
+    count
+  }
+
+  fn choose_compressed_offset_source(
+    off_values : Array[Int],
+    ll_values : Array[Int],
+    rep1 : Int,
+    rep2 : Int,
+    rep3 : Int,
+    off_base_values : Array[Int],
+  ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+    if off_base_values.length() == off_values.length() {
+      let base = build_compressed_offset_sequence_source_from_off_bases(
+        off_base_values,
+      )
+      let (
+        base_ok,
+        base_header,
+        _base_init_state,
+        base_table_log,
+        _base_extras,
+        base_extra_bits,
+        _base_trans_bits,
+        base_trans_nb_bits,
+      ) = base
+      if !base_ok {
+        return base
+      }
+      let mut current_best = base
+      let mut best_score = source_option_score_bits(
+        base_header, base_table_log, base_extra_bits, base_trans_nb_bits,
+      )
+      let mut best_secondary_rep_count = count_secondary_rep_off_bases(
+        off_base_values, ll_values,
+      )
+
+      let mut i = 0
+      while i < off_base_values.length() {
+        if ll_values[i] > 0 &&
+          (off_base_values[i] == 2 || off_base_values[i] == 3) {
+          let alt_off_bases = copy_int_array(off_base_values)
+          alt_off_bases[i] = off_values[i] + 3
+          let candidate = build_compressed_offset_sequence_source_from_off_bases(
+            alt_off_bases,
+          )
+          let (
+            cand_ok,
+            cand_header,
+            _cand_init_state,
+            cand_table_log,
+            _cand_extras,
+            cand_extra_bits,
+            _cand_trans_bits,
+            cand_trans_nb_bits,
+          ) = candidate
+          if cand_ok {
+            let cand_score = source_option_score_bits(
+              cand_header, cand_table_log, cand_extra_bits, cand_trans_nb_bits,
+            )
+            let cand_secondary_rep_count = best_secondary_rep_count - 1
+            if cand_score < best_score ||
+              (
+                cand_score == best_score &&
+                cand_secondary_rep_count < best_secondary_rep_count
+              ) {
+              current_best = candidate
+              best_score = cand_score
+              best_secondary_rep_count = cand_secondary_rep_count
+            }
+          }
+        }
+        i = i + 1
+      }
+      current_best
+    } else {
+      build_compressed_offset_sequence_source_with_repcodes(
+        off_values, ll_values, rep1, rep2, rep3,
+      )
+    }
+  }
+
   // RLE mode (01)
   let rle = try_encode_common_offset_symbol_with_repcodes(
     off_values, ll_values, rep1, rep2, rep3,
@@ -298,13 +402,9 @@ fn choose_offset_source_mode_with_repcodes(
 
   // Compressed mode (10)
   if level >= 9 {
-    let compressed = if off_base_values.length() == off_values.length() {
-      build_compressed_offset_sequence_source_from_off_bases(off_base_values)
-    } else {
-      build_compressed_offset_sequence_source_with_repcodes(
-        off_values, ll_values, rep1, rep2, rep3,
-      )
-    }
+    let compressed = choose_compressed_offset_source(
+      off_values, ll_values, rep1, rep2, rep3, off_base_values,
+    )
     match compressed {
       (
         true,

@@ -2350,6 +2350,14 @@ test "sequence cap policy is bounded by block length" {
 }
 
 ///|
+test "selected offset off base keeps raw encoding for non-rep greedy matches" {
+  assert_eq(selected_offset_off_base(9, false, false, 5, 9, 17), 12)
+  assert_eq(selected_offset_off_base(9, false, true, 5, 9, 17), 2)
+  assert_eq(selected_offset_off_base(17, false, false, 5, 9, 17), 20)
+  assert_eq(selected_offset_off_base(17, false, true, 5, 9, 17), 3)
+}
+
+///|
 test "greedy collector can capture multiple dictionary-backed matches" {
   let part_a = Bytes::makei(96, i => {
     ((i * 7 + 1) % 113 + 16).reinterpret_as_uint().to_byte()
@@ -2420,32 +2428,34 @@ test "single-match repcode offset encoding covers rep3 and ll0 variants" {
 }
 
 ///|
-test "compressed FSE offset symbol chooser can follow repcode state transitions" {
+test "compressed FSE offset off-base builder can follow repcode state transitions" {
   let off_values = [17, 5, 4]
   let ll_values = [4, 0, 0]
-  let result = try? choose_offset_symbols_with_repcodes(
-    off_values, ll_values, 5, 9, 17,
+  let force_raw = Array::make(off_values.length(), false)
+  let result = try? build_offset_off_base_sequence(
+    off_values, ll_values, 5, 9, 17, force_raw,
   )
   match result {
-    Ok((ok, symbols, extras, extra_bits)) => {
+    Ok((ok, off_bases)) => {
       assert_true(ok)
-      assert_eq(symbols.length(), off_values.length())
-      assert_eq(extras.length(), off_values.length())
-      assert_eq(extra_bits.length(), off_values.length())
+      assert_eq(off_bases.length(), off_values.length())
 
-      assert_eq(symbols[0], 1)
-      assert_eq(extras[0], (1 : UInt))
-      assert_eq(extra_bits[0], 1)
+      let (s0, e0, b0) = offset_symbol_from_off_base(off_bases[0])
+      assert_eq(s0, (1 : UInt))
+      assert_eq(e0, (1 : UInt))
+      assert_eq(b0, 1)
 
-      assert_eq(symbols[1], 0)
-      assert_eq(extras[1], (0 : UInt))
-      assert_eq(extra_bits[1], 0)
+      let (s1, e1, b1) = offset_symbol_from_off_base(off_bases[1])
+      assert_eq(s1, (0 : UInt))
+      assert_eq(e1, (0 : UInt))
+      assert_eq(b1, 0)
 
-      assert_eq(symbols[2], 1)
-      assert_eq(extras[2], (1 : UInt))
-      assert_eq(extra_bits[2], 1)
+      let (s2, e2, b2) = offset_symbol_from_off_base(off_bases[2])
+      assert_eq(s2, (1 : UInt))
+      assert_eq(e2, (1 : UInt))
+      assert_eq(b2, 1)
     }
-    Err(_) => fail("failed to choose repcode-aware compressed OF symbols")
+    Err(_) => fail("failed to build repcode-aware compressed OF off-bases")
   }
 }
 

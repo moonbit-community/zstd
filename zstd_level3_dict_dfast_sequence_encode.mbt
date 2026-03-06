@@ -619,5 +619,6 @@ fn collect_level_aligned_sequences(
     rep3~,
     min_match~,
     prefer_offset_stability~,
+    off_base_values~,
   )
 }

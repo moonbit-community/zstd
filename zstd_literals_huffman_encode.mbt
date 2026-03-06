@@ -1,22 +1,169 @@
 ///|
-fn find_smallest_open_huffman_node(
-  node_weight : Array[Int],
-  node_parent : Array[Int],
-  exclude : Int,
+fn high_bit_positive_noerr_huf(value : Int) -> Int {
+  if value <= 0 {
+    return 0
+  }
+  let mut v = value
+  let mut bit = -1
+  while v > 0 {
+    bit = bit + 1
+    v = v >> 1
+  }
+  bit
+}
+
+///|
+fn huf_optimal_table_log_cheap(src_size : Int, max_symbol : Int) -> Int {
+  let mut table_log = 11
+  if src_size <= 1 {
+    return table_log
+  }
+  let max_bits_src = high_bit_positive_noerr_huf(src_size - 1) - 1
+  if max_bits_src < table_log {
+    table_log = max_bits_src
+  }
+  let min_bits_src = high_bit_positive_noerr_huf(src_size) + 1
+  let min_bits_symbols = high_bit_positive_noerr_huf(max_symbol) + 2
+  let min_bits = if min_bits_src < min_bits_symbols {
+    min_bits_src
+  } else {
+    min_bits_symbols
+  }
+  if min_bits > table_log {
+    table_log = min_bits
+  }
+  if table_log < 5 {
+    table_log = 5
+  }
+  if table_log > huf_max_nb_bits {
+    table_log = huf_max_nb_bits
+  }
+  table_log
+}
+
+///|
+fn enforce_huffman_max_height(
+  sorted_counts : Array[Int],
+  nb_bits : Array[Int],
+  leaf_count : Int,
+  target_nb_bits : Int,
 ) -> Int {
-  let mut best = -1
-  let mut i = 0
-  while i < node_weight.length() {
-    if node_parent[i] == -1 && i != exclude {
-      if best == -1 ||
-        node_weight[i] < node_weight[best] ||
-        (node_weight[i] == node_weight[best] && i < best) {
-        best = i
+  if leaf_count <= 0 {
+    return 0
+  }
+  let mut largest_bits = nb_bits[leaf_count - 1]
+  if largest_bits <= target_nb_bits {
+    return largest_bits
+  }
+
+  let mut total_cost = 0
+  let base_cost = 1 << (largest_bits - target_nb_bits)
+  let mut n = leaf_count - 1
+  while n >= 0 && nb_bits[n] > target_nb_bits {
+    total_cost = total_cost + base_cost - (1 << (largest_bits - nb_bits[n]))
+    nb_bits[n] = target_nb_bits
+    n = n - 1
+  }
+  while n >= 0 && nb_bits[n] == target_nb_bits {
+    n = n - 1
+  }
+  total_cost = total_cost >> (largest_bits - target_nb_bits)
+
+  let no_symbol = -1
+  let rank_last = Array::make(huf_max_nb_bits + 2, no_symbol)
+  let mut current_nb_bits = target_nb_bits
+  let mut pos = n
+  while pos >= 0 {
+    if nb_bits[pos] < current_nb_bits {
+      current_nb_bits = nb_bits[pos]
+      let rank = target_nb_bits - current_nb_bits
+      if rank >= 0 && rank < rank_last.length() {
+        rank_last[rank] = pos
       }
     }
-    i = i + 1
+    pos = pos - 1
   }
-  best
+
+  while total_cost > 0 {
+    let mut n_bits_to_decrease = high_bit_positive_noerr_huf(total_cost) + 1
+    while n_bits_to_decrease > 1 {
+      let high_pos = if n_bits_to_decrease < rank_last.length() {
+        rank_last[n_bits_to_decrease]
+      } else {
+        no_symbol
+      }
+      let low_pos = if n_bits_to_decrease - 1 < rank_last.length() {
+        rank_last[n_bits_to_decrease - 1]
+      } else {
+        no_symbol
+      }
+      if high_pos == no_symbol {
+        n_bits_to_decrease = n_bits_to_decrease - 1
+      } else if low_pos == no_symbol {
+        break
+      } else {
+        let high_total = sorted_counts[high_pos]
+        let low_total = 2 * sorted_counts[low_pos]
+        if high_total <= low_total {
+          break
+        }
+        n_bits_to_decrease = n_bits_to_decrease - 1
+      }
+    }
+
+    while n_bits_to_decrease <= huf_max_nb_bits &&
+          (
+            n_bits_to_decrease >= rank_last.length() ||
+            rank_last[n_bits_to_decrease] == no_symbol
+          ) {
+      n_bits_to_decrease = n_bits_to_decrease + 1
+    }
+    if n_bits_to_decrease >= rank_last.length() ||
+      rank_last[n_bits_to_decrease] == no_symbol {
+      break
+    }
+
+    total_cost = total_cost - (1 << (n_bits_to_decrease - 1))
+    let hp = rank_last[n_bits_to_decrease]
+    nb_bits[hp] = nb_bits[hp] + 1
+
+    if rank_last[n_bits_to_decrease - 1] == no_symbol {
+      rank_last[n_bits_to_decrease - 1] = hp
+    }
+    if hp == 0 {
+      rank_last[n_bits_to_decrease] = no_symbol
+    } else {
+      rank_last[n_bits_to_decrease] = hp - 1
+      let expected_bits = target_nb_bits - n_bits_to_decrease
+      if nb_bits[rank_last[n_bits_to_decrease]] != expected_bits {
+        rank_last[n_bits_to_decrease] = no_symbol
+      }
+    }
+  }
+
+  while total_cost < 0 {
+    if rank_last[1] == no_symbol {
+      while n >= 0 && nb_bits[n] == target_nb_bits {
+        n = n - 1
+      }
+      if n + 1 < 0 || n + 1 >= leaf_count {
+        break
+      }
+      nb_bits[n + 1] = nb_bits[n + 1] - 1
+      rank_last[1] = n + 1
+      total_cost = total_cost + 1
+      continue
+    }
+    if rank_last[1] + 1 >= leaf_count {
+      break
+    }
+    nb_bits[rank_last[1] + 1] = nb_bits[rank_last[1] + 1] - 1
+    rank_last[1] = rank_last[1] + 1
+    total_cost = total_cost + 1
+  }
+
+  largest_bits = target_nb_bits
+  largest_bits
 }
 
 ///|
@@ -35,57 +182,126 @@ fn build_literal_huffman_lengths_from_frequencies(
     }
     s = s + 1
   }
-  if leaves.length() < 2 {
+  let leaf_count = leaves.length()
+  if leaf_count < 2 {
     return (false, Array::new(), 0)
   }
 
-  let node_weight : Array[Int] = Array::new()
-  let node_parent : Array[Int] = Array::new()
-  let node_symbol : Array[Int] = Array::new()
-  let mut i = 0
-  while i < leaves.length() {
-    let symbol = leaves[i]
-    node_weight.push(freq[symbol])
-    node_parent.push(-1)
-    node_symbol.push(symbol)
+  let mut i = 1
+  while i < leaf_count {
+    let key_symbol = leaves[i]
+    let key_count = freq[key_symbol]
+    let mut j = i - 1
+    while j >= 0 && freq[leaves[j]] < key_count {
+      leaves[j + 1] = leaves[j]
+      j = j - 1
+    }
+    leaves[j + 1] = key_symbol
     i = i + 1
   }
 
-  let mut open_nodes = leaves.length()
-  while open_nodes > 1 {
-    let first = find_smallest_open_huffman_node(node_weight, node_parent, -1)
-    if first < 0 {
-      return (false, Array::new(), 0)
-    }
-    let second = find_smallest_open_huffman_node(
-      node_weight, node_parent, first,
-    )
-    if second < 0 {
-      return (false, Array::new(), 0)
-    }
-    node_weight.push(node_weight[first] + node_weight[second])
-    node_parent.push(-1)
-    node_symbol.push(-1)
-    let parent_idx = node_weight.length() - 1
-    node_parent[first] = parent_idx
-    node_parent[second] = parent_idx
-    open_nodes = open_nodes - 1
+  let total_nodes = leaf_count * 2
+  let node_weight : Array[Int] = Array::make(total_nodes, 0)
+  let node_parent : Array[Int] = Array::make(total_nodes, -1)
+  let node_depth : Array[Int] = Array::make(total_nodes, 0)
+  let node_symbol : Array[Int] = Array::make(total_nodes, -1)
+
+  i = 0
+  while i < leaf_count {
+    let symbol = leaves[i]
+    node_weight[i] = freq[symbol]
+    node_symbol[i] = symbol
+    i = i + 1
   }
+
+  let mut low_s = leaf_count - 1
+  let mut low_n = leaf_count
+  let mut node_nb = leaf_count
+  let node_root = 2 * leaf_count - 2
+
+  if leaf_count < 2 || node_root >= total_nodes {
+    return (false, Array::new(), 0)
+  }
+
+  node_weight[node_nb] = node_weight[low_s] + node_weight[low_s - 1]
+  node_parent[low_s] = node_nb
+  node_parent[low_s - 1] = node_nb
+  node_nb = node_nb + 1
+  low_s = low_s - 2
+
+  while node_nb <= node_root {
+    let n1 = if low_s >= 0 &&
+      (low_n >= node_nb || node_weight[low_s] < node_weight[low_n]) {
+      let idx = low_s
+      low_s = low_s - 1
+      idx
+    } else {
+      let idx = low_n
+      low_n = low_n + 1
+      idx
+    }
+    let n2 = if low_s >= 0 &&
+      (low_n >= node_nb || node_weight[low_s] < node_weight[low_n]) {
+      let idx = low_s
+      low_s = low_s - 1
+      idx
+    } else {
+      let idx = low_n
+      low_n = low_n + 1
+      idx
+    }
+    if n1 < 0 || n2 < 0 || n1 >= total_nodes || n2 >= total_nodes {
+      return (false, Array::new(), 0)
+    }
+    node_weight[node_nb] = node_weight[n1] + node_weight[n2]
+    node_parent[n1] = node_nb
+    node_parent[n2] = node_nb
+    node_nb = node_nb + 1
+  }
+
+  node_depth[node_root] = 0
+  let mut n = node_root - 1
+  while n >= leaf_count {
+    let p = node_parent[n]
+    if p < 0 || p >= total_nodes {
+      return (false, Array::new(), 0)
+    }
+    node_depth[n] = node_depth[p] + 1
+    n = n - 1
+  }
+
+  let mut total = 0
+  i = 0
+  while i < leaf_count {
+    let p = node_parent[i]
+    if p < 0 || p >= total_nodes {
+      return (false, Array::new(), 0)
+    }
+    node_depth[i] = node_depth[p] + 1
+    total = total + node_weight[i]
+    i = i + 1
+  }
+
+  let target_nb_bits = huf_optimal_table_log_cheap(total, max_symbol)
+  let leaf_nb_bits = Array::make(leaf_count, 0)
+  i = 0
+  while i < leaf_count {
+    leaf_nb_bits[i] = node_depth[i]
+    i = i + 1
+  }
+  let adjusted_max_bits = enforce_huffman_max_height(
+    node_weight, leaf_nb_bits, leaf_count, target_nb_bits,
+  )
 
   let lengths = Array::make(max_symbol + 1, 0)
   let mut max_len = 0
   i = 0
-  while i < leaves.length() {
+  while i < leaf_count {
     let symbol = node_symbol[i]
     if symbol < 0 || symbol > max_symbol {
       return (false, Array::new(), 0)
     }
-    let mut depth = 0
-    let mut node = i
-    while node_parent[node] != -1 {
-      depth = depth + 1
-      node = node_parent[node]
-    }
+    let depth = leaf_nb_bits[i]
     if depth <= 0 {
       return (false, Array::new(), 0)
     }
@@ -94,6 +310,9 @@ fn build_literal_huffman_lengths_from_frequencies(
       max_len = depth
     }
     i = i + 1
+  }
+  if adjusted_max_bits > 0 && adjusted_max_bits < max_len {
+    max_len = adjusted_max_bits
   }
   (true, lengths, max_len)
 }

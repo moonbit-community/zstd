@@ -347,7 +347,6 @@ fn first_block_payload_brief(frame : Bytes) -> String {
 }
 
 ///|
-#skip("TODO(zstd-rdl.42): plain level9 matrix encode still diverges from upstream bytes")
 test "upstream matrix encode byte parity plain level9 default checksum" {
   let frame = compress_with_options(
     rv_up_extra_http_x420_payload(),
@@ -357,7 +356,6 @@ test "upstream matrix encode byte parity plain level9 default checksum" {
 }
 
 ///|
-#skip("TODO(zstd-rdl.42): plain level9 matrix encode still diverges from upstream bytes")
 test "upstream matrix encode byte parity plain level9 no-check" {
   let frame = compress_with_options(
     rv_up_extra_http_x420_payload(),

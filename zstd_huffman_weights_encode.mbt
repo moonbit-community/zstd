@@ -70,68 +70,6 @@ fn append_with_extra_symbol(values : Array[Int], symbol : Int) -> Array[Int] {
 }
 
 ///|
-fn build_weight_normalized_counter(
-  freq : Array[Int],
-  active_symbols : Array[Int],
-  total : Int,
-  highest_symbol : Int,
-  table_log : Int,
-  offset : Int,
-) -> (Bool, Array[Int]) {
-  if total <= 0 || highest_symbol < 0 || highest_symbol >= freq.length() {
-    return (false, Array::new())
-  }
-  if active_symbols.length() < 2 {
-    return (false, Array::new())
-  }
-  let table_size = 1 << table_log
-  if table_size < active_symbols.length() {
-    return (false, Array::new())
-  }
-
-  let normalized = Array::make(highest_symbol + 1, 0)
-  let mut i = 0
-  while i < active_symbols.length() {
-    let sym = active_symbols[i]
-    if sym < 0 || sym > highest_symbol || freq[sym] <= 0 {
-      return (false, Array::new())
-    }
-    normalized[sym] = 1
-    i = i + 1
-  }
-
-  let remaining = table_size - active_symbols.length()
-  let mut allocated = 0
-  i = 0
-  while i < active_symbols.length() {
-    let sym = active_symbols[i]
-    let add = freq[sym] * remaining / total
-    normalized[sym] = normalized[sym] + add
-    allocated = allocated + add
-    i = i + 1
-  }
-
-  let mut left = remaining - allocated
-  i = 0
-  while left > 0 {
-    let sym = active_symbols[(offset + i) % active_symbols.length()]
-    normalized[sym] = normalized[sym] + 1
-    left = left - 1
-    i = i + 1
-  }
-  let mut sum = 0
-  i = 0
-  while i <= highest_symbol {
-    sum = sum + normalized[i]
-    i = i + 1
-  }
-  if sum != table_size {
-    return (false, Array::new())
-  }
-  (true, normalized)
-}
-
-///|
 fn decode_weight_fse_bitstream_matches(
   bitstream : Bytes,
   table_log : Int,
@@ -749,20 +687,13 @@ fn try_update_huffman_weight_fse_best_candidate(
       delta_nb_bits, delta_find_state,
     )
   }
-  let prefer_fallback = allow_ctable_fallback &&
-    values.length() >= 120 &&
-    fallback_bitstream.length() > 0 &&
-    (
-      primary_bitstream.length() == 0 ||
-      fallback_bitstream.length() < primary_bitstream.length()
-    )
+  let prefer_fallback = fallback_bitstream.length() > 0
   let bitstream = if prefer_fallback {
     fallback_bitstream
   } else if primary_bitstream.length() > 0 {
     primary_bitstream
-  } else if allow_ctable_fallback && values.length() >= 120 {
-    // Keep legacy behavior on small/medium models that already match vectors.
-    fallback_bitstream
+  } else if allow_ctable_fallback {
+    primary_bitstream
   } else {
     b""
   }
@@ -821,60 +752,27 @@ fn build_huffman_weights_fse_payload(
   if active_symbols < 2 {
     return b""
   }
-  let active_symbol_list : Array[Int] = Array::new()
-  s = 0
-  while s <= highest_symbol {
-    if freq[s] > 0 {
-      active_symbol_list.push(s)
-    }
-    s = s + 1
+  let table_log = choose_compressed_table_log(
+    values.length(),
+    highest_symbol,
+    huf_weight_fse_table_log_max,
+  )
+  if table_log < fse_min_table_log || table_log > huf_weight_fse_table_log_max {
+    return b""
   }
-  if active_symbol_list.length() != active_symbols {
+  if 1 << table_log < active_symbols {
     return b""
   }
 
-  let mut best = b""
-  let mut table_log = fse_min_table_log
-  while table_log <= huf_weight_fse_table_log_max {
-    if 1 << table_log >= active_symbols {
-      let (norm_ok, normalized) = normalize_symbol_frequencies(
-        freq, highest_symbol, table_log, false,
-      )
-      if norm_ok {
-        best = try_update_huffman_weight_fse_best_candidate(
-          best, values, normalized, highest_symbol, table_log, allow_ctable_fallback,
-        )
-      }
-      let (norm_lp_ok, normalized_lp) = normalize_symbol_frequencies(
-        freq, highest_symbol, table_log, true,
-      )
-      if norm_lp_ok {
-        best = try_update_huffman_weight_fse_best_candidate(
-          best, values, normalized_lp, highest_symbol, table_log, allow_ctable_fallback,
-        )
-      }
-
-      let mut offset = 0
-      while offset < active_symbol_list.length() {
-        let (norm_ok, normalized) = build_weight_normalized_counter(
-          freq,
-          active_symbol_list,
-          values.length(),
-          highest_symbol,
-          table_log,
-          offset,
-        )
-        if norm_ok {
-          best = try_update_huffman_weight_fse_best_candidate(
-            best, values, normalized, highest_symbol, table_log, allow_ctable_fallback,
-          )
-        }
-        offset = offset + 1
-      }
-    }
-    table_log = table_log + 1
+  let (norm_ok, normalized) = normalize_symbol_frequencies(
+    freq, highest_symbol, table_log, false,
+  )
+  if !norm_ok {
+    return b""
   }
-  best
+  try_update_huffman_weight_fse_best_candidate(
+    b"", values, normalized, highest_symbol, table_log, allow_ctable_fallback,
+  )
 }
 
 ///|
@@ -908,8 +806,8 @@ fn try_build_huffman_fse_weights_description(
       weights, last_symbol,
     )
     let fse_desc_len = payload.length() + 1
-    // Guard experimental long-prefix fallback: require a clear size win.
-    if direct_desc.length() > 0 && fse_desc_len + 16 > direct_desc.length() {
+    // Keep FSE only when it is strictly smaller than direct weights encoding.
+    if direct_desc.length() > 0 && fse_desc_len >= direct_desc.length() {
       return b""
     }
   }

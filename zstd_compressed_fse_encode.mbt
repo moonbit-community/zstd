@@ -53,31 +53,32 @@ fn encode_symbol_for_value(
 }
 
 ///|
-fn choose_offset_symbols_with_repcodes(
+fn build_offset_off_base_sequence(
   off_values : Array[Int],
   ll_values : Array[Int],
   rep1 : Int,
   rep2 : Int,
   rep3 : Int,
-) -> (Bool, Array[Int], Array[UInt], Array[Int]) raise ZstdError {
+  force_raw : Array[Bool],
+) -> (Bool, Array[Int]) raise ZstdError {
   if off_values.length() <= 0 || ll_values.length() != off_values.length() {
-    return (false, Array::new(), Array::new(), Array::new())
+    return (false, Array::new())
   }
-  let symbols : Array[Int] = Array::new()
-  let extras : Array[UInt] = Array::new()
-  let extra_bits : Array[Int] = Array::new()
+  let off_bases : Array[Int] = Array::new()
   let mut r1 = rep1
   let mut r2 = rep2
   let mut r3 = rep3
-
   let mut i = 0
   while i < off_values.length() {
     let ll0 = ll_values[i] == 0
-    let off_base = finalize_offset_off_base(off_values[i], ll0, r1, r2, r3)
-    let (symbol, extra, add_bits) = offset_symbol_from_off_base(off_base)
-    symbols.push(symbol.reinterpret_as_int())
-    extras.push(extra)
-    extra_bits.push(add_bits)
+    let repcoded = finalize_offset_off_base(off_values[i], ll0, r1, r2, r3)
+    let raw = off_values[i] + 3
+    let off_base = if i < force_raw.length() && force_raw[i] {
+      raw
+    } else {
+      repcoded
+    }
+    off_bases.push(off_base)
     let (nr1, nr2, nr3) = update_repcodes_with_off_base(
       ll0, off_base, r1, r2, r3,
     )
@@ -86,7 +87,7 @@ fn choose_offset_symbols_with_repcodes(
     r3 = nr3
     i = i + 1
   }
-  (true, symbols, extras, extra_bits)
+  (true, off_bases)
 }
 
 ///|
@@ -503,10 +504,7 @@ fn build_compressed_offset_sequence_source_with_repcodes(
   rep2 : Int,
   rep3 : Int,
 ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
-  let (ok, symbols, extras, extra_bits) = choose_offset_symbols_with_repcodes(
-    off_values, ll_values, rep1, rep2, rep3,
-  )
-  if !ok {
+  if off_values.length() <= 0 || ll_values.length() != off_values.length() {
     return (
       false,
       b"",
@@ -518,8 +516,118 @@ fn build_compressed_offset_sequence_source_with_repcodes(
       Array::new(),
     )
   }
-  build_compressed_sequence_source_from_symbols(
-    sequence_symbol_offset, symbols, extras, extra_bits,
+  let force_raw = Array::make(off_values.length(), false)
+  let (bases_ok0, best_off_bases0) = build_offset_off_base_sequence(
+    off_values, ll_values, rep1, rep2, rep3, force_raw,
+  )
+  if !bases_ok0 {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let best0 = build_compressed_offset_sequence_source_from_off_bases(
+    best_off_bases0,
+  )
+  let (
+    best_ok0,
+    best_header0,
+    best_init_state0,
+    best_table_log0,
+    best_extras0,
+    best_extra_bits0,
+    best_trans_bits0,
+    best_trans_nb_bits0,
+  ) = best0
+  if !best_ok0 {
+    return (
+      false,
+      b"",
+      0,
+      0,
+      Array::new(),
+      Array::new(),
+      Array::new(),
+      Array::new(),
+    )
+  }
+  let mut best_header = best_header0
+  let mut best_init_state = best_init_state0
+  let mut best_table_log = best_table_log0
+  let mut best_extras = best_extras0
+  let mut best_extra_bits = best_extra_bits0
+  let mut best_trans_bits = best_trans_bits0
+  let mut best_trans_nb_bits = best_trans_nb_bits0
+  let mut best_off_bases = best_off_bases0
+  let mut best_score = source_option_score_bits(
+    best_header, best_table_log, best_extra_bits, best_trans_nb_bits,
+  )
+  let mut changed = true
+  while changed {
+    changed = false
+    let mut i = 0
+    while i < off_values.length() {
+      if !force_raw[i] {
+        force_raw[i] = true
+        let (cand_bases_ok, candidate_off_bases) = build_offset_off_base_sequence(
+          off_values, ll_values, rep1, rep2, rep3, force_raw,
+        )
+        if cand_bases_ok && candidate_off_bases[i] != best_off_bases[i] {
+          let (
+            cand_ok,
+            cand_header,
+            cand_init_state,
+            cand_table_log,
+            cand_extras,
+            cand_extra_bits,
+            cand_trans_bits,
+            cand_trans_nb_bits,
+          ) = build_compressed_offset_sequence_source_from_off_bases(
+            candidate_off_bases,
+          )
+          if cand_ok {
+            let cand_score = source_option_score_bits(
+              cand_header, cand_table_log, cand_extra_bits, cand_trans_nb_bits,
+            )
+            let better = cand_score < best_score ||
+              (
+                cand_score == best_score &&
+                candidate_off_bases[i] == off_values[i] + 3 &&
+                best_off_bases[i] != off_values[i] + 3
+              )
+            if better {
+              best_off_bases = candidate_off_bases
+              best_header = cand_header
+              best_init_state = cand_init_state
+              best_table_log = cand_table_log
+              best_extras = cand_extras
+              best_extra_bits = cand_extra_bits
+              best_trans_bits = cand_trans_bits
+              best_trans_nb_bits = cand_trans_nb_bits
+              best_score = cand_score
+              changed = true
+            } else {
+              force_raw[i] = false
+            }
+          } else {
+            force_raw[i] = false
+          }
+        } else {
+          force_raw[i] = false
+        }
+      }
+      i = i + 1
+    }
+  }
+  (
+    true, best_header, best_init_state, best_table_log, best_extras, best_extra_bits,
+    best_trans_bits, best_trans_nb_bits,
   )
 }
 
@@ -822,13 +930,9 @@ fn build_general_compressed_fse_payload(
     off_extra_bits,
     off_trans_bits,
     off_trans_nb_bits,
-  ) = if off_base_values.length() == seq_count {
-    build_compressed_offset_sequence_source_from_off_bases(off_base_values)
-  } else {
-    build_compressed_offset_sequence_source_with_repcodes(
-      off_values, ll_values, rep1, rep2, rep3,
-    )
-  }
+  ) = build_compressed_offset_sequence_source_with_repcodes(
+    off_values, ll_values, rep1, rep2, rep3,
+  )
   if !off_ok {
     return b""
   }
