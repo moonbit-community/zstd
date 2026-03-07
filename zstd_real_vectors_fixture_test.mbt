@@ -1,3 +1,17 @@
+// Copyright 2025 International Digital Economy Academy
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 ///|
 fn rv_dict_20260222() -> Bytes {
   b"\x37\xa4\x30\xec\xb9\xef\xc4\x7f\x17\x10\xd8\x41\x2a\xe9\x0c\xc3\x30\x0c\xc3\x30\x0c\x0b\x45\x08\x21\x84\xec\x34\x71\x02\xe2\x80\xb3\x09\x00\x00\x00\x4c\x4c\x93\x69\x00\x00\x04\x60\xc1\x03\x27" +

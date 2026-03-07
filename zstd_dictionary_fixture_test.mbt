@@ -1,3 +1,17 @@
+// Copyright 2025 International Digital Economy Academy
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 ///|
 fn standard_dictionary_fixture_dictionary() -> Bytes {
   b"\x37\xa4\x30\xec\xdb\xc3\xd0\x3f\x2d\x10\x90\x1d\x3a\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x00\x0c\x40\x31\xdb\x14\xb3\x4d\x31\xdb\x14\x1b\xb7\x94\x52\xca\x24\xf5\x15\xa5\x5e" +
