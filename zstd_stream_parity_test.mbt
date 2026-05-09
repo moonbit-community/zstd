@@ -26,7 +26,7 @@ test "stream parity: pull returns complete prefix frame with incomplete tail buf
   let frame1 = compress(b"first")
   let frame2 = compress(b"second")
   let dec = new_decompressor()
-  dec.push(frame1 + frame2[:frame2.length() - 2].to_bytes())
+  dec.push(frame1 + frame2[:frame2.length() - 2].to_owned())
   let out = dec.pull()
   assert_eq(out, b"first")
   assert_true(dec.pending_input() > 0)
@@ -56,7 +56,7 @@ fn decode_stream_chunks(frame : Bytes, chunk_step : Int) -> Bytes raise Error {
   while pos < frame.length() {
     let remain = frame.length() - pos
     let size = if remain < chunk_step { remain } else { chunk_step }
-    dec.push(frame[pos:pos + size].to_bytes())
+    dec.push(frame[pos:pos + size].to_owned())
     pos = pos + size
   }
   let out = dec.pull()
@@ -76,7 +76,7 @@ fn decode_stream_chunks_with_dictionary(
   while pos < frame.length() {
     let remain = frame.length() - pos
     let size = if remain < chunk_step { remain } else { chunk_step }
-    dec.push(frame[pos:pos + size].to_bytes())
+    dec.push(frame[pos:pos + size].to_owned())
     pos = pos + size
   }
   let out = dec.pull()

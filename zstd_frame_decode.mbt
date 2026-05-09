@@ -305,7 +305,7 @@ fn decode_frame_into_with_dictionary_state(
   if checksum_flag {
     ensure_range(src_len, pos, 4)
     let expected_checksum = read_u32_le(src, pos)
-    let frame_bytes = Bytes::from_array(out)[frame_out_start:].to_bytes()
+    let frame_bytes = Bytes::from_array(out)[frame_out_start:].to_owned()
     let actual_checksum = (xxh64(frame_bytes) & (0xFFFF_FFFF : UInt64)).to_uint()
     if actual_checksum != expected_checksum {
       raise CorruptionDetected

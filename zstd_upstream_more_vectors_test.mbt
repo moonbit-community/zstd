@@ -24,8 +24,8 @@ fn assert_upstream_large_vector(
   match result {
     Ok(out) => {
       assert_eq(out.length(), expected_len)
-      assert_eq(out[:64].to_bytes(), prefix64)
-      assert_eq(out[out.length() - 64:].to_bytes(), suffix64)
+      assert_eq(out[:64].to_owned(), prefix64)
+      assert_eq(out[out.length() - 64:].to_owned(), suffix64)
     }
     Err(SrcSizeTooLarge(_)) =>
       fail("upstream large vector " + name + " decode failed: SrcSizeTooLarge")

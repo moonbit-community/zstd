@@ -239,7 +239,7 @@ fn first_block_payload_brief(frame : Bytes) -> String {
   if payload_end > frame.length() || payload_start >= payload_end {
     return "type=2,size=" + block_size.to_string() + ",payload-oob"
   }
-  let payload = frame[payload_start:payload_end].to_bytes()
+  let payload = frame[payload_start:payload_end].to_owned()
   let h0 = payload[0].to_uint().reinterpret_as_int()
   let lit_type = h0 & 0x3
   let size_format = (h0 >> 2) & 0x3

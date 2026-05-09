@@ -29,9 +29,9 @@ test "upstream golden-compression huffman-compressed-larger direct frame decode"
   match result {
     Ok(out) => {
       assert_eq(out.length(), 142)
-      assert_eq(out[:64].to_bytes(), rv_up_huffman_larger_prefix_64())
+      assert_eq(out[:64].to_owned(), rv_up_huffman_larger_prefix_64())
       assert_eq(
-        out[out.length() - 64:].to_bytes(),
+        out[out.length() - 64:].to_owned(),
         rv_up_huffman_larger_suffix_64(),
       )
     }

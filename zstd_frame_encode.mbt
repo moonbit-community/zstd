@@ -236,7 +236,7 @@ fn trim_history_to_window(history : Bytes, window_max_offset : Int) -> Bytes {
   if window_max_offset <= 0 || history.length() <= window_max_offset {
     return history
   }
-  history[history.length() - window_max_offset:].to_bytes()
+  history[history.length() - window_max_offset:].to_owned()
 }
 
 ///|
@@ -342,7 +342,7 @@ fn append_frame_blocks_minimal(
     let block_len = if remaining > 128 << 10 { 128 << 10 } else { remaining }
     let last_block = pos + block_len == src_len
     let selected_payload : Ref[Bytes] = { val: b"" }
-    let frame_history = if pos > 0 { src[:pos].to_bytes() } else { b"" }
+    let frame_history = if pos > 0 { src[:pos].to_owned() } else { b"" }
     let compression_history = if dictionary_state.history.length() == 0 {
       frame_history
     } else if frame_history.length() == 0 {

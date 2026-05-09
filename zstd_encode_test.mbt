@@ -410,7 +410,7 @@ test "compress_with_options honors declared non-single-segment window for cross-
   let first_block = Bytes::makei(16 << 10, i => {
     ((i * 37 + 17) % 251).reinterpret_as_uint().to_byte()
   })
-  let second_block = first_block[:4096].to_bytes()
+  let second_block = first_block[:4096].to_owned()
   let input = first_block + second_block
   let frame = compress_with_options(
     input,
@@ -486,7 +486,7 @@ test "compress_with_dictionary can use first-block dictionary single match" {
   let dict = Bytes::makei(512, i => {
     ((i * 73 + 19) % 251).reinterpret_as_uint().to_byte()
   })
-  let input = dict[200:290].to_bytes()
+  let input = dict[200:290].to_owned()
 
   let frame_without = compress(input, level=12)
   let frame_with = compress_with_dictionary(input, dict, level=12)
@@ -621,7 +621,7 @@ test "compress_with_dictionary_and_options supports long-distance toggle" {
   let prefix = Bytes::makei(9000, i => {
     ((i * 13 + 101) % 251).reinterpret_as_uint().to_byte()
   })
-  let tail = dict[120:210].to_bytes()
+  let tail = dict[120:210].to_owned()
   let input = prefix + tail
 
   let no_ldm = compress_with_dictionary_and_options(
@@ -662,7 +662,7 @@ test "compress can use previous block history for second block" {
   let block1 = Bytes::makei(128 << 10, i => {
     ((i * 73 + 19) % 251 + 1).reinterpret_as_uint().to_byte()
   })
-  let shared = block1[block1.length() - 7000:].to_bytes()
+  let shared = block1[block1.length() - 7000:].to_owned()
   let tail = Bytes::makei(64, i => {
     ((i * 97 + 13) % 251 + 2).reinterpret_as_uint().to_byte()
   })
@@ -698,7 +698,7 @@ test "compress emits compressed block for periodic payload at higher level" {
 
 ///|
 test "compress periodic payload with larger period uses higher offset code" {
-  let unit = b"abcdefghijklmn"[:13].to_bytes()
+  let unit = b"abcdefghijklmn"[:13].to_owned()
   let input_arr : Array[Byte] = Array::new()
   let mut i = 0
   while i < 64 {
