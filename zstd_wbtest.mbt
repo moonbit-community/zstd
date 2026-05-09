@@ -2208,7 +2208,7 @@ test "dictionary single-match search limit controls long-distance visibility" {
     let x = i.reinterpret_as_uint() * (1103515245 : UInt) + (12345 : UInt)
     ((x >> 16) & 0x7F).to_byte()
   })
-  let tail = dict[120:440].to_bytes()
+  let tail = dict[120:440].to_owned()
   let src = prefix + tail
   let (ll_short, off_short, ml_short) = detect_best_single_match_with_dictionary_history(
     src,
@@ -2243,7 +2243,7 @@ test "dictionary single-match wide search reaches matches beyond fixed 32768 pre
     let x = i.reinterpret_as_uint() * (1103515245 : UInt) + (12345 : UInt)
     ((x >> 24) & 0x7F).to_byte()
   })
-  let tail = dict[200:520].to_bytes()
+  let tail = dict[200:520].to_owned()
   let src = prefix + tail
 
   let (_, _, ml_narrow) = detect_best_single_match_with_dictionary_history(
@@ -2273,7 +2273,7 @@ test "hash-chain single-match search can find offsets beyond 2048" {
     let x = i.reinterpret_as_uint() * (1664525 : UInt) + (1013904223 : UInt)
     ((x >> 24) & 0xFF).to_byte()
   })
-  let repeated = lead[900:1600].to_bytes()
+  let repeated = lead[900:1600].to_owned()
   let gap = Bytes::makei(2600, i => {
     let x = i.reinterpret_as_uint() * (22695477 : UInt) + (1 : UInt)
     ((x >> 23) & 0xFF).to_byte()

@@ -24,8 +24,8 @@ fn assert_matrix_case(
   match result {
     Ok(out) => {
       assert_eq(out.length(), expected_len)
-      assert_eq(out[:64].to_bytes(), expected_prefix_64)
-      assert_eq(out[out.length() - 64:].to_bytes(), expected_suffix_64)
+      assert_eq(out[:64].to_owned(), expected_prefix_64)
+      assert_eq(out[out.length() - 64:].to_owned(), expected_suffix_64)
     }
     Err(SrcSizeTooLarge(_)) =>
       fail("matrix case " + name + " failed: SrcSizeTooLarge")

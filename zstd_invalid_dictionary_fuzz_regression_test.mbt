@@ -41,7 +41,7 @@ test "invalid dictionary: zero rep offsets is rejected" {
 ///|
 test "invalid dictionary: truncated dict content is rejected" {
   let dict = standard_dictionary_fixture_dictionary()
-  let truncated = dict[:dict.length() - 16].to_bytes()
+  let truncated = dict[:dict.length() - 16].to_owned()
   let result = try? decompress_with_dictionary(
     standard_dictionary_fixture_frame(),
     truncated,

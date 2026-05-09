@@ -18,8 +18,8 @@ fn assert_real_vector_p03(frame : Bytes) -> Unit raise Error {
   match result {
     Ok(out) => {
       assert_eq(out.length(), rv_p03_expected_len())
-      assert_eq(out[:64].to_bytes(), rv_p03_prefix_64())
-      assert_eq(out[out.length() - 64:].to_bytes(), rv_p03_suffix_64())
+      assert_eq(out[:64].to_owned(), rv_p03_prefix_64())
+      assert_eq(out[out.length() - 64:].to_owned(), rv_p03_suffix_64())
     }
     Err(SrcSizeTooLarge(_)) =>
       fail("real vector p03 decode failed: SrcSizeTooLarge")

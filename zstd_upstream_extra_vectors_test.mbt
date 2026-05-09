@@ -108,10 +108,10 @@ fn assert_upstream_extra_dict_large_repeat_vector(
   match result {
     Ok(out) => {
       assert_eq(out.length(), unit.length() * repeat_count)
-      assert_eq(out[:64].to_bytes(), unit[:64].to_bytes())
+      assert_eq(out[:64].to_owned(), unit[:64].to_owned())
       assert_eq(
-        out[out.length() - 64:].to_bytes(),
-        unit[unit.length() - 64:].to_bytes(),
+        out[out.length() - 64:].to_owned(),
+        unit[unit.length() - 64:].to_owned(),
       )
     }
     Err(SrcSizeTooLarge(_)) =>

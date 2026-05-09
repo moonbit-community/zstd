@@ -202,7 +202,7 @@ fn parse_dictionary_state(
   {
     has_dictionary: true,
     dict_id,
-    history: dictionary[pos:].to_bytes(),
+    history: dictionary[pos:].to_owned(),
     rep1: rep1_u.to_int(),
     rep2: rep2_u.to_int(),
     rep3: rep3_u.to_int(),

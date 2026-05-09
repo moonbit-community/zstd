@@ -51,7 +51,7 @@ test "stream compressor with dictionary can roundtrip dictionary-referenced payl
   let dict = Bytes::makei(384, i => {
     ((i * 61 + 23) % 251).reinterpret_as_uint().to_byte()
   })
-  let input = dict[140:236].to_bytes()
+  let input = dict[140:236].to_owned()
   let enc = new_compressor_with_dictionary(dict, level=12)
   enc.push(input)
   let frame = enc.finish()

@@ -76,7 +76,7 @@ test "decompress_bound ignores skippable frame payload in bound" {
 /// - zstd/tests/fuzzer.c:test_decompressBound()
 test "decompress_bound raises when frame payload is truncated" {
   let frame = b"\x28\xB5\x2F\xFD\x20\x04\x21\x00\x00\x61\x62\x63\x64"
-  let truncated = frame[:frame.length() - 1].to_bytes()
+  let truncated = frame[:frame.length() - 1].to_owned()
   let result = try? decompress_bound(truncated)
   assert_true(result is Err(SrcSizeWrong))
 }
@@ -236,7 +236,7 @@ test "decompress validates frame checksum when present" {
 test "decompress rejects corrupted frame checksum" {
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\x01\x02\x00\x44\x20\x82\x3c\xfd\xe6\xf1\xc2\x6b\x30\xf9\x0e\xc7\xdd\x01\xe4\x88\x75\x34\xa2\x0f\x0b\x0d\x04\xc3\x6e\xd8\x0e\x71\xe0\xfd\x77\xb0\x76\x70\xeb\x94\x0b\xd5\x33\x5f\x97\x3d\xaa\xd8\x61\x9b\x91\xff\xc9\x11\xf5\x7c\xce\xd4\x58\xbb\xbf\x2c\xe0\x37\x53\xc9\xbd\xad\x85\xec\x3d"
   let bad_last = (frame[frame.length() - 1].to_uint() ^ 1).to_byte()
-  let bad_frame = frame[:frame.length() - 1].to_bytes() +
+  let bad_frame = frame[:frame.length() - 1].to_owned() +
     Bytes::makei(1, _ => bad_last)
   let result = try? decompress(bad_frame)
   assert_true(result is Err(CorruptionDetected))
@@ -311,8 +311,8 @@ fn assert_real_vector_p01(frame : Bytes) -> Unit raise Error {
   match result {
     Ok(out) => {
       assert_eq(out.length(), 3624)
-      assert_eq(out[:64].to_bytes(), rv_p01_prefix_64())
-      assert_eq(out[out.length() - 64:].to_bytes(), rv_p01_suffix_64())
+      assert_eq(out[:64].to_owned(), rv_p01_prefix_64())
+      assert_eq(out[out.length() - 64:].to_owned(), rv_p01_suffix_64())
     }
     Err(SrcSizeTooLarge(_)) =>
       fail("real vector p01 decode failed: SrcSizeTooLarge")
