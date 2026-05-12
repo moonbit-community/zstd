@@ -13,35 +13,30 @@
 // limitations under the License.
 
 ///|
-fn append_bytes_test(
-  out : Array[Byte],
-  src : Bytes,
-  start : Int,
-  len : Int,
-) -> Unit {
-  let mut i = 0
-  while i < len {
-    out.push(src[start + i])
-    i = i + 1
-  }
-}
-
-///|
 fn rv_cli_p02_payload() -> Bytes {
-  let base = b"Zstandard pure MoonBit migration test vector p02.\n" +
-    b"This payload intentionally mixes repeated and unique fragments.\n" +
-    b"alpha-beta-gamma-delta-epsilon-zeta-eta-theta-iota-kappa-lambda.\n" +
-    b"Zstandard pure MoonBit migration test vector p02.\n" +
-    b"This payload intentionally mixes repeated and unique fragments.\n" +
-    b"alpha-beta-gamma-delta-epsilon-zeta-eta-theta-iota-kappa-lambda.\n" +
-    b"1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
-  let out : Array[Byte] = Array::new()
+  let buf = @buffer.new(size_hint=10104)
   let mut i = 0
   while i < 24 {
-    append_bytes_test(out, base, 0, base.length())
+    buf.write_bytes(b"Zstandard pure MoonBit migration test vector p02.\n")
+    buf.write_bytes(
+      b"This payload intentionally mixes repeated and unique fragments.\n",
+    )
+    buf.write_bytes(
+      b"alpha-beta-gamma-delta-epsilon-zeta-eta-theta-iota-kappa-lambda.\n",
+    )
+    buf.write_bytes(b"Zstandard pure MoonBit migration test vector p02.\n")
+    buf.write_bytes(
+      b"This payload intentionally mixes repeated and unique fragments.\n",
+    )
+    buf.write_bytes(
+      b"alpha-beta-gamma-delta-epsilon-zeta-eta-theta-iota-kappa-lambda.\n",
+    )
+    buf.write_bytes(
+      b"1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n",
+    )
     i = i + 1
   }
-  Bytes::from_array(out)
+  buf.to_bytes()
 }
 
 ///|

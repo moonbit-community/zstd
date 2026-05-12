@@ -1,1 +1,7 @@
+import {
+  "moonbitlang/core/buffer",
+} for "test"
 
+import {
+  "moonbitlang/core/buffer",
+} for "wbtest"
