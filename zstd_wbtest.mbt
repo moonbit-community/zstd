@@ -1576,7 +1576,9 @@ test "decode FSE-compressed Huffman weights stream" {
           )
           match d {
             Ok(weights) =>
-              assert_eq(weights, [1, 2, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1])
+              @debug.assert_eq(weights, [
+                1, 2, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1,
+              ])
             Err(_) => fail("decode_fse_symbol_stream_reverse failed")
           }
         }
