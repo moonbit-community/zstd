@@ -4,18 +4,28 @@ Pure MoonBit Zstandard library (incremental implementation).
 
 ## Import
 
-```moonbit nocheck
-// moon.pkg
-import "Milky2018/zstd" @zstd
+Add the package to `moon.pkg`, then use the `@zstd` alias from MoonBit code.
+
+```mbt check
+///|
+test "zstd package alias is available" {
+  let input = b""
+  let compressed = @zstd.compress(input)
+  let restored = @zstd.decompress(compressed)
+  assert_eq(restored, input)
+}
 ```
 
 ## Quick Start
 
-```moonbit nocheck
-let input = b"hello zstd"
-let compressed = @zstd.compress(input)
-let restored = @zstd.decompress(compressed)
-assert_eq(restored, input)
+```mbt check
+///|
+test "quick start" {
+  let input = b"hello zstd"
+  let compressed = @zstd.compress(input)
+  let restored = @zstd.decompress(compressed)
+  assert_eq(restored, input)
+}
 ```
 
 ## API
