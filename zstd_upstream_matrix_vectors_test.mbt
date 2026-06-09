@@ -17,7 +17,11 @@ fn assert_upstream_matrix_plain_vector(
   name : String,
   frame : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => assert_eq(out, rv_up_extra_http_x420_payload())
     Err(SrcSizeTooLarge(_)) =>
@@ -62,7 +66,13 @@ fn assert_upstream_matrix_dict_vector(
   name : String,
   frame : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  let result = try
+    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => assert_eq(out, rv_up_extra_http_x420_payload())
     Err(SrcSizeTooLarge(_)) =>

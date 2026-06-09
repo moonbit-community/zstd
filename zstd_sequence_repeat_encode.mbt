@@ -295,7 +295,11 @@ fn maybe_rewrite_sequence_modes_to_repeat(
   if modes == 0xFC {
     return payload
   }
-  let parsed = try? parse_sequence_mode_sources(payload)
+  let parsed = try parse_sequence_mode_sources(payload) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match parsed {
     Ok(
       (

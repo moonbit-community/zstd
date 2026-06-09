@@ -14,7 +14,13 @@
 
 ///|
 fn assert_real_vector_p03(frame : Bytes) -> Unit raise Error {
-  let result = try? decompress_with_dictionary(frame, rv_dict_p03_20260222())
+  let result = try
+    decompress_with_dictionary(frame, rv_dict_p03_20260222())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => {
       assert_eq(out.length(), rv_p03_expected_len())

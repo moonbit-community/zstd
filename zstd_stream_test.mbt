@@ -58,7 +58,11 @@ test "stream decompressor finish rejects incomplete tail" {
   let frame = compress(b"abc")
   let dec = new_decompressor()
   dec.push(frame[:frame.length() - 1].to_owned())
-  let result = try? dec.finish()
+  let result = try dec.finish() catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(result is Err(SrcSizeWrong))
 }
 

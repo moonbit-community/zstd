@@ -95,16 +95,22 @@ fn decode_weight_fse_bitstream_matches(
   if bitstream.length() <= 0 {
     return false
   }
-  let decoded = try? decode_fse_symbol_stream_reverse(
-    bitstream,
-    0,
-    bitstream.length(),
-    table_log,
-    next_state,
-    nb_bits,
-    table_symbols,
-    255,
-  )
+  let decoded = try
+    decode_fse_symbol_stream_reverse(
+      bitstream,
+      0,
+      bitstream.length(),
+      table_log,
+      next_state,
+      nb_bits,
+      table_symbols,
+      255,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match decoded {
     Ok(out) => int_arrays_equal(out, expected)
     Err(_) => false
@@ -558,9 +564,15 @@ fn build_two_state_weight_fse_bitstream_even(
       // Final state1 update before terminal symbol from state2.
       op_values.push(trans_bits1[stream1_updates.length() - 1])
       op_counts.push(trans_nb1[stream1_updates.length() - 1])
-      let bitstream = try? build_weight_fse_bitstream_from_ops(
-        op_values, op_counts, table_log, next_state, nb_bits, table_symbols, values,
-      )
+      let bitstream = try
+        build_weight_fse_bitstream_from_ops(
+          op_values, op_counts, table_log, next_state, nb_bits, table_symbols, values,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match bitstream {
         Ok(candidate) =>
           if candidate.length() > 0 &&
@@ -642,9 +654,15 @@ fn build_two_state_weight_fse_bitstream_odd(
         op_counts.push(trans_nb2[j])
         j = j + 1
       }
-      let bitstream = try? build_weight_fse_bitstream_from_ops(
-        op_values, op_counts, table_log, next_state, nb_bits, table_symbols, values,
-      )
+      let bitstream = try
+        build_weight_fse_bitstream_from_ops(
+          op_values, op_counts, table_log, next_state, nb_bits, table_symbols, values,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match bitstream {
         Ok(candidate) =>
           if candidate.length() > 0 &&
@@ -723,7 +741,13 @@ fn try_update_huffman_weight_fse_best_candidate(
     return best
   }
 
-  let decoded = try? read_huffman_weights_fse(candidate, 0, candidate.length())
+  let decoded = try
+    read_huffman_weights_fse(candidate, 0, candidate.length())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match decoded {
     Ok(out) =>
       if int_arrays_equal(out, values) &&

@@ -25,7 +25,11 @@ fn rv_up_huffman_larger_suffix_64() -> Bytes {
 ///|
 test "upstream golden-compression huffman-compressed-larger direct frame decode" {
   let frame = rv_up_extra_huffman_payload()
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => {
       assert_eq(out.length(), 142)
@@ -59,7 +63,11 @@ test "upstream golden-compression huffman-compressed-larger direct frame decode"
 ///|
 test "upstream golden-compression huffman-compressed-larger bound" {
   let frame = rv_up_extra_huffman_payload()
-  let b = try? decompress_bound(frame)
+  let b = try decompress_bound(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match b {
     Ok(v) => assert_eq(v, 128 << 10)
     Err(SrcSizeTooLarge(_)) =>

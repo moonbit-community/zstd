@@ -282,9 +282,13 @@ fn rewrite_literals_section_to_treeless_if_repeat(
     return payload
   }
 
-  let tree_result = try? read_huffman_tree_description(
-    payload, payload_pos, payload_end,
-  )
+  let tree_result = try
+    read_huffman_tree_description(payload, payload_pos, payload_end)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let (tree_size, cur_max_bits, cur_left, cur_right, cur_symbol) = match
     tree_result {
     Ok(v) => v
@@ -305,27 +309,39 @@ fn rewrite_literals_section_to_treeless_if_repeat(
   }
   if !bytes_equal(prev_huf_tree_desc.val, tree_desc) {
     let literals_result = if size_format == 0 {
-      try? decode_huffman_single_stream(
-        payload,
-        payload_pos + tree_size,
-        payload_end,
-        lit_size,
-        cur_max_bits,
-        cur_left,
-        cur_right,
-        cur_symbol,
-      )
+      try
+        decode_huffman_single_stream(
+          payload,
+          payload_pos + tree_size,
+          payload_end,
+          lit_size,
+          cur_max_bits,
+          cur_left,
+          cur_right,
+          cur_symbol,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
     } else {
-      try? decode_huffman_four_streams(
-        payload,
-        payload_pos + tree_size,
-        payload_end,
-        lit_size,
-        cur_max_bits,
-        cur_left,
-        cur_right,
-        cur_symbol,
-      )
+      try
+        decode_huffman_four_streams(
+          payload,
+          payload_pos + tree_size,
+          payload_end,
+          lit_size,
+          cur_max_bits,
+          cur_left,
+          cur_right,
+          cur_symbol,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
     }
     let literals = match literals_result {
       Ok(v) => v
@@ -334,11 +350,17 @@ fn rewrite_literals_section_to_treeless_if_repeat(
         return payload
       }
     }
-    let prev_tree_result = try? read_huffman_tree_description(
-      prev_huf_tree_desc.val,
-      0,
-      prev_huf_tree_desc.val.length(),
-    )
+    let prev_tree_result = try
+      read_huffman_tree_description(
+        prev_huf_tree_desc.val,
+        0,
+        prev_huf_tree_desc.val.length(),
+      )
+    catch {
+      e => Err(e)
+    } noraise {
+      value => Ok(value)
+    }
     let (ok_codes, codes, nb_bits) = match prev_tree_result {
       Ok((_, prev_max_bits, prev_left, prev_right, prev_symbol)) =>
         build_codes_from_decode_tree(
@@ -421,16 +443,22 @@ fn rewrite_literals_section_to_treeless_if_repeat(
       cur_max_bits, cur_left, cur_right, cur_symbol,
     )
     if ok_codes {
-      let literals_result = try? decode_huffman_single_stream(
-        payload,
-        payload_pos + tree_size,
-        payload_end,
-        lit_size,
-        cur_max_bits,
-        cur_left,
-        cur_right,
-        cur_symbol,
-      )
+      let literals_result = try
+        decode_huffman_single_stream(
+          payload,
+          payload_pos + tree_size,
+          payload_end,
+          lit_size,
+          cur_max_bits,
+          cur_left,
+          cur_right,
+          cur_symbol,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match literals_result {
         Ok(literals) => {
           let four_stream_payload = encode_literals_huffman_four_stream(

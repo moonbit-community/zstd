@@ -18,7 +18,11 @@ fn assert_upstream_small_vector(
   frame : Bytes,
   expected : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => assert_eq(out, expected)
     Err(SrcSizeTooLarge(_)) =>

@@ -874,13 +874,19 @@ fn build_repeat_sequence_source_from_symbols(
     return (false, 0, 0, Array::new(), Array::new(), Array::new(), Array::new())
   }
   let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
-  let parsed = try? read_fse_ncount_header(
-    repeat_header,
-    0,
-    repeat_header.length(),
-    max_symbol,
-    table_log_max,
-  )
+  let parsed = try
+    read_fse_ncount_header(
+      repeat_header,
+      0,
+      repeat_header.length(),
+      max_symbol,
+      table_log_max,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let (header_size, table_log, highest_symbol, normalized) = match parsed {
     Ok(v) => v
     Err(_) =>

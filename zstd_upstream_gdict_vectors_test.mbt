@@ -17,7 +17,13 @@ fn assert_upstream_gdict_http_vector(
   name : String,
   frame : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  let result = try
+    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => assert_eq(out, rv_up_http_payload())
     Err(SrcSizeTooLarge(_)) =>
@@ -86,9 +92,12 @@ test "upstream golden dictionary dictID mismatch is rejected" {
       dict[i]
     }
   })
-  let result = try? decompress_with_dictionary(
-    rv_up_gdict_http_frame_l19(),
-    bad_dict,
-  )
+  let result = try
+    decompress_with_dictionary(rv_up_gdict_http_frame_l19(), bad_dict)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(result is Err(DictionaryRequired(_)))
 }

@@ -18,7 +18,11 @@ fn assert_upstream_extra_vector(
   frame : Bytes,
   expected : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => assert_eq(out, expected)
     Err(SrcSizeTooLarge(_)) =>
@@ -53,7 +57,13 @@ fn assert_upstream_extra_dict_vector(
   name : String,
   frame : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  let result = try
+    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => assert_eq(out, rv_up_extra_http_x420_payload())
     Err(SrcSizeTooLarge(_)) =>
@@ -104,7 +114,13 @@ fn assert_upstream_extra_dict_large_repeat_vector(
   repeat_count : Int,
 ) -> Unit raise Error {
   let unit = rv_up_http_payload()
-  let result = try? decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  let result = try
+    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => {
       assert_eq(out.length(), unit.length() * repeat_count)

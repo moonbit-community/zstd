@@ -20,7 +20,11 @@ fn assert_upstream_large_vector(
   prefix64 : Bytes,
   suffix64 : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => {
       assert_eq(out.length(), expected_len)

@@ -55,7 +55,11 @@ test "stream compressor with dictionary can roundtrip dictionary-referenced payl
   let enc = new_compressor_with_dictionary(dict, level=12)
   enc.push(input)
   let frame = enc.finish()
-  let no_dict = try? decompress(frame)
+  let no_dict = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(no_dict is Err(CorruptionDetected))
   assert_eq(decompress_with_dictionary(frame, dict), input)
 }

@@ -20,7 +20,11 @@ fn assert_matrix_case(
   expected_prefix_64 : Bytes,
   expected_suffix_64 : Bytes,
 ) -> Unit raise Error {
-  let result = try? decompress_with_dictionary(frame, rv_matrix_dict())
+  let result = try decompress_with_dictionary(frame, rv_matrix_dict()) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(out) => {
       assert_eq(out.length(), expected_len)

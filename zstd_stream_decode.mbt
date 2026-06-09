@@ -63,12 +63,13 @@ fn Decompressor::drain_complete_frames(
   let mut pos = 0
 
   while pos < src_len {
-    let result = try? decode_frame_into_with_dictionary(
-      src,
-      pos,
-      out,
-      self.dictionary,
-    )
+    let result = try
+      decode_frame_into_with_dictionary(src, pos, out, self.dictionary)
+    catch {
+      e => Err(e)
+    } noraise {
+      value => Ok(value)
+    }
     match result {
       Ok(next) => {
         if next <= pos {

@@ -48,7 +48,11 @@ test "golden-decompression zeroSeq_2B.zst" {
 /// - tests/golden-decompression-errors/zeroSeq_extraneous.zst
 test "golden-decompression-errors zeroSeq_extraneous.zst" {
   let frame = b"\x28\xb5\x2f\xfd\x00\x00\x95\x00\x00\x68\x48\x65\x6c\x6c\x6f\x20\x57\x6f\x72\x6c\x64\x21\x0a\x80\x00\x00\x00"
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(result is Err(CorruptionDetected))
 }
 
@@ -57,14 +61,22 @@ test "golden-decompression-errors zeroSeq_extraneous.zst" {
 /// - tests/golden-decompression-errors/off0.bin.zst
 test "golden-decompression-errors off0.bin.zst" {
   let frame = b"\x28\xb5\x2f\xfd\x00\x00\x45\x00\x00\x08\x00\x02\x00\x2f\x43\x0b\xae"
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(result is Err(_))
 }
 
 ///|
 test "golden-decompression-errors off0.bin.zst does not fail on unsupported sequence mode" {
   let frame = b"\x28\xb5\x2f\xfd\x00\x00\x45\x00\x00\x08\x00\x02\x00\x2f\x43\x0b\xae"
-  let result = try? decompress(frame)
+  let result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(result is Err(CorruptionDetected) || result is Err(SrcSizeWrong))
 }
 
@@ -73,7 +85,11 @@ test "golden-decompression-errors off0.bin.zst does not fail on unsupported sequ
 /// - tests/golden-decompression-errors/truncated_huff_state.zst
 test "golden-decompression-errors truncated_huff_state.zst" {
   let frame = b"\x28\xb5\x2f\xfd\x00\x00\x55\x00\x00\x72\x80\x01\x04\x20\x7e\x1f\x02\xaa\x00"
-  let decomp_result = try? decompress(frame)
+  let decomp_result = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(decomp_result is Err(_))
 }
 

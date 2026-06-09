@@ -467,7 +467,11 @@ test "compress_with_dictionary emits dictID for standard dictionary" {
   let frame = compress_with_dictionary(input, dict, level=12)
   assert_eq(frame[4].to_uint() & 0x3, 3)
   assert_eq(read_u32_le_test(frame, 5), read_u32_le_test(dict, 4))
-  let without_dict = try? decompress(frame)
+  let without_dict = try decompress(frame) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(without_dict is Err(DictionaryRequired(_)))
   assert_eq(decompress_with_dictionary(frame, dict), input)
 }
@@ -493,7 +497,11 @@ test "compress_with_dictionary can use first-block dictionary single match" {
   assert_eq(first_block_type_encode_test(frame_without), 0)
   assert_eq(first_block_type_encode_test(frame_with), 2)
   assert_true(frame_with.length() < frame_without.length())
-  let decode_without = try? decompress(frame_with)
+  let decode_without = try decompress(frame_with) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(decode_without is Err(CorruptionDetected))
   assert_eq(decompress_with_dictionary(frame_with, dict), input)
 }

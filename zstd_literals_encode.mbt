@@ -92,7 +92,11 @@ fn append_best_literals_section(
       best = rle
     }
   }
-  let compressed = try? try_build_compressed_literals_section(literals)
+  let compressed = try try_build_compressed_literals_section(literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match compressed {
     Ok(candidate) =>
       if candidate.length() > 0 && candidate.length() < best.length() {

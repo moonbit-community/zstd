@@ -75,46 +75,52 @@ test "internal decode of predefined sequence compressed payload" {
   let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: Array::new() }
   let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
   let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array::new() }
-  let result = try? decode_compressed_block_minimal(
-    src,
-    0,
-    src.length(),
-    out,
-    0,
-    b"",
-    1,
-    4,
-    8,
-    prev_huf_valid,
-    prev_huf_max_bits,
-    prev_huf_left,
-    prev_huf_right,
-    prev_huf_symbol,
-    prev_ll_valid,
-    prev_ll_kind,
-    prev_ll_code,
-    prev_ll_table_log,
-    prev_ll_table_next_state,
-    prev_ll_table_nb_add_bits,
-    prev_ll_table_nb_bits,
-    prev_ll_table_base_values,
-    prev_off_valid,
-    prev_off_kind,
-    prev_off_code,
-    prev_off_table_log,
-    prev_off_table_next_state,
-    prev_off_table_nb_add_bits,
-    prev_off_table_nb_bits,
-    prev_off_table_base_values,
-    prev_ml_valid,
-    prev_ml_kind,
-    prev_ml_code,
-    prev_ml_table_log,
-    prev_ml_table_next_state,
-    prev_ml_table_nb_add_bits,
-    prev_ml_table_nb_bits,
-    prev_ml_table_base_values,
-  )
+  let result = try
+    decode_compressed_block_minimal(
+      src,
+      0,
+      src.length(),
+      out,
+      0,
+      b"",
+      1,
+      4,
+      8,
+      prev_huf_valid,
+      prev_huf_max_bits,
+      prev_huf_left,
+      prev_huf_right,
+      prev_huf_symbol,
+      prev_ll_valid,
+      prev_ll_kind,
+      prev_ll_code,
+      prev_ll_table_log,
+      prev_ll_table_next_state,
+      prev_ll_table_nb_add_bits,
+      prev_ll_table_nb_bits,
+      prev_ll_table_base_values,
+      prev_off_valid,
+      prev_off_kind,
+      prev_off_code,
+      prev_off_table_log,
+      prev_off_table_next_state,
+      prev_off_table_nb_add_bits,
+      prev_off_table_nb_bits,
+      prev_off_table_base_values,
+      prev_ml_valid,
+      prev_ml_kind,
+      prev_ml_code,
+      prev_ml_table_log,
+      prev_ml_table_next_state,
+      prev_ml_table_nb_add_bits,
+      prev_ml_table_nb_bits,
+      prev_ml_table_base_values,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((next_pos, produced, _, _, _)) => {
       assert_eq(next_pos, src.length())
@@ -156,7 +162,13 @@ test "predefined state init with non-zero bitstream start" {
 ///|
 test "rewrite RLE sequence modes to repeat after prior-state warmup" {
   let src = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
-  let payload = try? build_best_periodic_payload(src, 0, src.length(), 18)
+  let payload = try
+    build_best_periodic_payload(src, 0, src.length(), 18)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -204,7 +216,13 @@ test "rewrite predefined sequence modes to repeat after prior-state warmup" {
     ((i * 17 + 101) % 239).reinterpret_as_uint().to_byte()
   })
   let src = prefix + chunk + b"#" + chunk + mid + chunk + b"@" + chunk
-  let payload = try? build_general_predefined_payload(src, 0, src.length(), 14)
+  let payload = try
+    build_general_predefined_payload(src, 0, src.length(), 14)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -255,12 +273,13 @@ test "rewrite compressed mode2 sequence modes to repeat after prior-state warmup
     ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
   })
   let src = prefix + a + b + b + a + b + a + b + b + tail
-  let payload = try? build_general_compressed_fse_payload(
-    src,
-    0,
-    src.length(),
-    14,
-  )
+  let payload = try
+    build_general_compressed_fse_payload(src, 0, src.length(), 14)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -311,16 +330,21 @@ test "rewrite compressed mode2 supports partial repeat per sequence source" {
     ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
   })
   let src = prefix + a + b + b + a + b + a + b + b + tail
-  let payload = try? build_general_compressed_fse_payload(
-    src,
-    0,
-    src.length(),
-    14,
-  )
+  let payload = try
+    build_general_compressed_fse_payload(src, 0, src.length(), 14)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
-      let parsed = try? parse_sequence_mode_sources(v)
+      let parsed = try parse_sequence_mode_sources(v) catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match parsed {
         Ok((_, ll_mode, off_mode, ml_mode, _, off_header, ml_header, _)) => {
           assert_eq(ll_mode, 2)
@@ -381,18 +405,23 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
     ((i * 19 + 61) % 233).reinterpret_as_uint().to_byte()
   })
   let src = prefix + a + b + b + a + b + a + b + b + tail
-  let payload = try? build_general_compressed_fse_payload(
-    src,
-    0,
-    src.length(),
-    14,
-  )
+  let payload = try
+    build_general_compressed_fse_payload(src, 0, src.length(), 14)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       if v.length() == 0 {
         fail("rep2 payload unexpectedly empty")
       }
-      let parsed = try? parse_sequence_mode_sources(v)
+      let parsed = try parse_sequence_mode_sources(v) catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match parsed {
         Ok(
           (
@@ -478,9 +507,13 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
 ///|
 test "single-match payload uses RLE literals section when literals are single-value" {
   let src = Bytes::makei(12, _ => b"x"[0])
-  let payload = try? build_single_match_payload_rle(
-    src, 0, 12, 4, 4, 4, 4, 1, 4, 8,
-  )
+  let payload = try
+    build_single_match_payload_rle(src, 0, 12, 4, 4, 4, 4, 1, 4, 8)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -493,9 +526,13 @@ test "single-match payload uses RLE literals section when literals are single-va
 ///|
 test "single-match payload keeps raw literals section for mixed literals" {
   let src = b"abcabczzz"
-  let payload = try? build_single_match_payload_rle(
-    src, 0, 9, 3, 3, 3, 3, 1, 4, 8,
-  )
+  let payload = try
+    build_single_match_payload_rle(src, 0, 9, 3, 3, 3, 3, 1, 4, 8)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -508,9 +545,13 @@ test "single-match payload keeps raw literals section for mixed literals" {
 ///|
 test "single-match payload can encode dictionary rep2 with ll=0 as off_code0" {
   let src = b"abcdZ"
-  let payload = try? build_single_match_payload_rle(
-    src, 0, 5, 0, 4, 4, 8, 1, 4, 8,
-  )
+  let payload = try
+    build_single_match_payload_rle(src, 0, 5, 0, 4, 4, 8, 1, 4, 8)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() >= 4)
@@ -533,7 +574,11 @@ test "best literals section can emit compressed Huffman literals and roundtrip d
     }
   })
   let section_out : Array[Byte] = Array::new()
-  let encoded = try? append_best_literals_section(section_out, literals)
+  let encoded = try append_best_literals_section(section_out, literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match encoded {
     Ok(_) => {
       let section = Bytes::from_array(section_out)
@@ -545,16 +590,22 @@ test "best literals section can emit compressed Huffman literals and roundtrip d
       let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
-      let decoded = try? decode_literals_section_minimal(
-        section,
-        0,
-        section.length(),
-        prev_huf_valid,
-        prev_huf_max_bits,
-        prev_huf_left,
-        prev_huf_right,
-        prev_huf_symbol,
-      )
+      let decoded = try
+        decode_literals_section_minimal(
+          section,
+          0,
+          section.length(),
+          prev_huf_valid,
+          prev_huf_max_bits,
+          prev_huf_left,
+          prev_huf_right,
+          prev_huf_symbol,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match decoded {
         Ok((next_pos, restored)) => {
           assert_eq(next_pos, section.length())
@@ -577,7 +628,11 @@ test "best literals section falls back to raw when direct-weight range is unsupp
     }
   })
   let out : Array[Byte] = Array::new()
-  let encoded = try? append_best_literals_section(out, literals)
+  let encoded = try append_best_literals_section(out, literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match encoded {
     Ok(_) => {
       assert_true(out.length() > 0)
@@ -598,8 +653,16 @@ test "treeless literals rewrite emits type3 on repeated Huffman tree" {
       b"A"[0]
     }
   })
-  let encoded1 = try? try_build_compressed_literals_section(literals)
-  let encoded2 = try? try_build_compressed_literals_section(literals)
+  let encoded1 = try try_build_compressed_literals_section(literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let encoded2 = try try_build_compressed_literals_section(literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match encoded1 {
     Ok(section1) =>
       match encoded2 {
@@ -628,26 +691,38 @@ test "treeless literals rewrite emits type3 on repeated Huffman tree" {
           let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
           let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
           let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
-          let decoded1 = try? decode_literals_section_minimal(
-            first_payload,
-            0,
-            first_payload.length(),
-            prev_huf_valid,
-            prev_huf_max_bits,
-            prev_huf_left,
-            prev_huf_right,
-            prev_huf_symbol,
-          )
-          let decoded2 = try? decode_literals_section_minimal(
-            second_payload,
-            0,
-            second_payload.length(),
-            prev_huf_valid,
-            prev_huf_max_bits,
-            prev_huf_left,
-            prev_huf_right,
-            prev_huf_symbol,
-          )
+          let decoded1 = try
+            decode_literals_section_minimal(
+              first_payload,
+              0,
+              first_payload.length(),
+              prev_huf_valid,
+              prev_huf_max_bits,
+              prev_huf_left,
+              prev_huf_right,
+              prev_huf_symbol,
+            )
+          catch {
+            e => Err(e)
+          } noraise {
+            value => Ok(value)
+          }
+          let decoded2 = try
+            decode_literals_section_minimal(
+              second_payload,
+              0,
+              second_payload.length(),
+              prev_huf_valid,
+              prev_huf_max_bits,
+              prev_huf_left,
+              prev_huf_right,
+              prev_huf_symbol,
+            )
+          catch {
+            e => Err(e)
+          } noraise {
+            value => Ok(value)
+          }
           match decoded1 {
             Ok((next1, out1)) => {
               assert_eq(next1, first_payload.length())
@@ -680,14 +755,22 @@ test "rewrite predefined sequence modes works with compressed literals payload" 
       b"A"[0]
     }
   })
-  let section = try? try_build_compressed_literals_section(literals)
+  let section = try try_build_compressed_literals_section(literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match section {
     Ok(lit_section) => {
       assert_true(lit_section.length() > 0)
       assert_true((lit_section[0].to_uint() & 0x3) == 2)
       let payload_arr : Array[Byte] = Array::new()
       append_bytes(payload_arr, lit_section, 0, lit_section.length())
-      let encoded_count = try? append_sequence_count(payload_arr, 1)
+      let encoded_count = try append_sequence_count(payload_arr, 1) catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match encoded_count {
         Ok(_) => {
           payload_arr.push((0 : UInt).to_byte()) // all predefined sequence modes
@@ -740,7 +823,13 @@ test "literals-only payload encodes sequence_count zero with compressed literals
       b"A"[0]
     }
   })
-  let payload = try? build_literals_only_payload(src, 0, src.length(), 12)
+  let payload = try
+    build_literals_only_payload(src, 0, src.length(), 12)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(data) => {
       assert_true(data.length() > 0)
@@ -753,16 +842,22 @@ test "literals-only payload encodes sequence_count zero with compressed literals
       let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
-      let lit = try? decode_literals_section_minimal(
-        data,
-        0,
-        data.length(),
-        prev_huf_valid,
-        prev_huf_max_bits,
-        prev_huf_left,
-        prev_huf_right,
-        prev_huf_symbol,
-      )
+      let lit = try
+        decode_literals_section_minimal(
+          data,
+          0,
+          data.length(),
+          prev_huf_valid,
+          prev_huf_max_bits,
+          prev_huf_left,
+          prev_huf_right,
+          prev_huf_symbol,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match lit {
         Ok((next_pos, literals)) => {
           assert_eq(next_pos, seq_count_pos)
@@ -787,7 +882,11 @@ test "compressed literals support four-stream size_format=2 roundtrip" {
       b"A"[0]
     }
   })
-  let encoded = try? try_build_compressed_literals_section(literals)
+  let encoded = try try_build_compressed_literals_section(literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match encoded {
     Ok(section) => {
       assert_true(section.length() > 0)
@@ -798,16 +897,22 @@ test "compressed literals support four-stream size_format=2 roundtrip" {
       let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
-      let decoded = try? decode_literals_section_minimal(
-        section,
-        0,
-        section.length(),
-        prev_huf_valid,
-        prev_huf_max_bits,
-        prev_huf_left,
-        prev_huf_right,
-        prev_huf_symbol,
-      )
+      let decoded = try
+        decode_literals_section_minimal(
+          section,
+          0,
+          section.length(),
+          prev_huf_valid,
+          prev_huf_max_bits,
+          prev_huf_left,
+          prev_huf_right,
+          prev_huf_symbol,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match decoded {
         Ok((next_pos, restored)) => {
           assert_eq(next_pos, section.length())
@@ -831,7 +936,11 @@ test "compressed literals support four-stream size_format=3 roundtrip" {
       b"A"[0]
     }
   })
-  let encoded = try? try_build_compressed_literals_section(literals)
+  let encoded = try try_build_compressed_literals_section(literals) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match encoded {
     Ok(section) => {
       assert_true(section.length() > 0)
@@ -842,16 +951,22 @@ test "compressed literals support four-stream size_format=3 roundtrip" {
       let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
       let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
-      let decoded = try? decode_literals_section_minimal(
-        section,
-        0,
-        section.length(),
-        prev_huf_valid,
-        prev_huf_max_bits,
-        prev_huf_left,
-        prev_huf_right,
-        prev_huf_symbol,
-      )
+      let decoded = try
+        decode_literals_section_minimal(
+          section,
+          0,
+          section.length(),
+          prev_huf_valid,
+          prev_huf_max_bits,
+          prev_huf_left,
+          prev_huf_right,
+          prev_huf_symbol,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match decoded {
         Ok((next_pos, restored)) => {
           assert_eq(next_pos, section.length())
@@ -867,11 +982,19 @@ test "compressed literals support four-stream size_format=3 roundtrip" {
 ///|
 test "huffman weights FSE payload can roundtrip and beat direct length on sparse prefix" {
   let values = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  let payload = try? build_huffman_weights_fse_payload(values)
+  let payload = try build_huffman_weights_fse_payload(values) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(data) => {
       assert_true(data.length() > 0)
-      let decoded = try? read_huffman_weights_fse(data, 0, data.length())
+      let decoded = try read_huffman_weights_fse(data, 0, data.length()) catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match decoded {
         Ok(weights) => {
           assert_eq(weights.length(), values.length())
@@ -893,14 +1016,22 @@ test "huffman weights FSE payload can roundtrip and beat direct length on sparse
 ///|
 test "huffman weights FSE description prefixes payload size and roundtrips payload decode" {
   let weights = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-  let desc = try? try_build_huffman_fse_weights_description(weights, 11)
+  let desc = try try_build_huffman_fse_weights_description(weights, 11) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match desc {
     Ok(data) => {
       assert_true(data.length() > 1)
       let payload_size = data[0].to_uint().reinterpret_as_int()
       assert_true(payload_size > 0)
       assert_eq(payload_size + 1, data.length())
-      let decoded = try? read_huffman_weights_fse(data, 1, data.length())
+      let decoded = try read_huffman_weights_fse(data, 1, data.length()) catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match decoded {
         Ok(values) => {
           assert_eq(values.length(), weights.length())
@@ -931,10 +1062,18 @@ test "sequence_count encoding supports 1-byte 2-byte and 3-byte forms" {
   let mut i = 0
   while i < cases.length() {
     let expected = cases[i]
-    let enc = try? encode_sequence_count_for_test(expected)
+    let enc = try encode_sequence_count_for_test(expected) catch {
+      e => Err(e)
+    } noraise {
+      value => Ok(value)
+    }
     match enc {
       Ok(data) => {
-        let parsed = try? parse_sequence_count(data, 0, data.length())
+        let parsed = try parse_sequence_count(data, 0, data.length()) catch {
+          e => Err(e)
+        } noraise {
+          value => Ok(value)
+        }
         match parsed {
           Ok((value, pos)) => {
             assert_eq(value.reinterpret_as_int(), expected)
@@ -951,7 +1090,11 @@ test "sequence_count encoding supports 1-byte 2-byte and 3-byte forms" {
 
 ///|
 test "sequence_count encoding rejects values above max supported range" {
-  let result = try? encode_sequence_count_for_test(0x17EFF + 1)
+  let result = try encode_sequence_count_for_test(0x17EFF + 1) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(_) => fail("expected append_sequence_count to reject out-of-range value")
     Err(CorruptionDetected) => ()
@@ -968,10 +1111,20 @@ test "sequence_count encoding rejects values above max supported range" {
 ///|
 test "write_fse_ncount_header roundtrips sparse counters with zero runs" {
   let normalized = [20, 0, 0, 8, 0, 0, 0, 36]
-  let header = try? write_fse_ncount_header(normalized, 7, 6)
+  let header = try write_fse_ncount_header(normalized, 7, 6) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match header {
     Ok(bytes) => {
-      let parsed = try? read_fse_ncount_header(bytes, 0, bytes.length(), 7, 6)
+      let parsed = try
+        read_fse_ncount_header(bytes, 0, bytes.length(), 7, 6)
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match parsed {
         Ok((_, parsed_table_log, parsed_max_symbol, decoded_counter)) => {
           assert_eq(parsed_table_log, 6)
@@ -992,10 +1145,20 @@ test "write_fse_ncount_header roundtrips sparse counters with zero runs" {
 ///|
 test "write_fse_ncount_header roundtrips counters with low-probability symbol" {
   let normalized = [20, -1, 0, 0, 0, 43]
-  let header = try? write_fse_ncount_header(normalized, 5, 6)
+  let header = try write_fse_ncount_header(normalized, 5, 6) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match header {
     Ok(bytes) => {
-      let parsed = try? read_fse_ncount_header(bytes, 0, bytes.length(), 5, 6)
+      let parsed = try
+        read_fse_ncount_header(bytes, 0, bytes.length(), 5, 6)
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match parsed {
         Ok((_, parsed_table_log, parsed_max_symbol, decoded_counter)) => {
           assert_eq(parsed_table_log, 6)
@@ -1016,7 +1179,11 @@ test "write_fse_ncount_header roundtrips counters with low-probability symbol" {
 ///|
 test "write_fse_ncount_header rejects invalid normalized sum" {
   let normalized = [10, 10, 10]
-  let result = try? write_fse_ncount_header(normalized, 2, 6)
+  let result = try write_fse_ncount_header(normalized, 2, 6) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(_) => fail("expected write_fse_ncount_header to reject invalid sum")
     Err(CorruptionDetected) => ()
@@ -1033,19 +1200,26 @@ test "write_fse_ncount_header rejects invalid normalized sum" {
 ///|
 test "predefined state path selection keeps valid transitions" {
   let ll_values = [64, 4096, 96]
-  let ll = try? select_predefined_state_path(
-    ll_values, sequence_symbol_literal_length,
-  )
+  let ll = try
+    select_predefined_state_path(ll_values, sequence_symbol_literal_length)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match ll {
     Ok((ok, states, _, _, _, _)) => {
       assert_true(ok)
       assert_eq(states.length(), ll_values.length())
       let mut i = 0
       while i + 1 < states.length() {
-        let entry = try? predefined_sequence_entry(
-          sequence_symbol_literal_length,
-          states[i],
-        )
+        let entry = try
+          predefined_sequence_entry(sequence_symbol_literal_length, states[i])
+        catch {
+          e => Err(e)
+        } noraise {
+          value => Ok(value)
+        }
         match entry {
           Ok((next_state, _, state_bits, _)) => {
             let range = if state_bits == 0 { 1 } else { 1 << state_bits }
@@ -1061,9 +1235,13 @@ test "predefined state path selection keeps valid transitions" {
   }
 
   let off_values = [128, 8192, 256]
-  let off = try? select_predefined_state_path(
-    off_values, sequence_symbol_offset,
-  )
+  let off = try
+    select_predefined_state_path(off_values, sequence_symbol_offset)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match off {
     Ok((ok, states, _, off_extra_bits, _, _)) => {
       assert_true(ok)
@@ -1075,10 +1253,13 @@ test "predefined state path selection keeps valid transitions" {
       }
       i = 0
       while i + 1 < states.length() {
-        let entry = try? predefined_sequence_entry(
-          sequence_symbol_offset,
-          states[i],
-        )
+        let entry = try
+          predefined_sequence_entry(sequence_symbol_offset, states[i])
+        catch {
+          e => Err(e)
+        } noraise {
+          value => Ok(value)
+        }
         match entry {
           Ok((next_state, _, state_bits, _)) => {
             let range = if state_bits == 0 { 1 } else { 1 << state_bits }
@@ -1098,9 +1279,13 @@ test "predefined state path selection keeps valid transitions" {
 test "predefined offset path can encode rep3 and ll0 repcode combos" {
   let off_values = [300, 302]
   let ll_values = [1, 0]
-  let result = try? select_predefined_offset_state_path(
-    off_values, ll_values, 301, 302, 300,
-  )
+  let result = try
+    select_predefined_offset_state_path(off_values, ll_values, 301, 302, 300)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((ok, states, extras, off_extra_bits, _, _)) => {
       assert_true(ok)
@@ -1116,7 +1301,11 @@ test "predefined offset path can encode rep3 and ll0 repcode combos" {
       let mut i = 0
       while i < states.length() {
         let ll0 = ll_values[i] == 0
-        let entry = try? of_predefined_entry(states[i])
+        let entry = try of_predefined_entry(states[i]) catch {
+          e => Err(e)
+        } noraise {
+          value => Ok(value)
+        }
         let (_, add_bits, _, base) = match entry {
           Ok(v) => v
           Err(_) => fail("failed to read OF predefined entry")
@@ -1174,7 +1363,13 @@ test "general predefined payload builder emits parseable multi-sequence payload"
   })
   let src = prefix + chunk + b"#" + chunk + mid + chunk + b"@" + chunk
 
-  let payload = try? build_general_predefined_payload(src, 0, src.length(), 14)
+  let payload = try
+    build_general_predefined_payload(src, 0, src.length(), 14)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -1184,7 +1379,13 @@ test "general predefined payload builder emits parseable multi-sequence payload"
 
       let seq_count_pos = payload_sequence_count_offset(v)
       assert_true(seq_count_pos >= 0)
-      let parsed = try? parse_sequence_count(v, seq_count_pos, v.length())
+      let parsed = try
+        parse_sequence_count(v, seq_count_pos, v.length())
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match parsed {
         Ok((count, _)) => assert_true(count.reinterpret_as_int() >= 2)
         Err(_) => fail("failed to parse sequence_count from predefined payload")
@@ -1210,12 +1411,13 @@ test "general compressed FSE payload builder emits mode2 and decodes" {
   })
   let src = prefix + a + b + b + a + b + a + b + b + tail
 
-  let payload = try? build_general_compressed_fse_payload(
-    src,
-    0,
-    src.length(),
-    14,
-  )
+  let payload = try
+    build_general_compressed_fse_payload(src, 0, src.length(), 14)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -1254,46 +1456,52 @@ test "general compressed FSE payload builder emits mode2 and decodes" {
       let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
       let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array::new() }
 
-      let decoded = try? decode_compressed_block_minimal(
-        v,
-        0,
-        v.length(),
-        out,
-        0,
-        b"",
-        1,
-        4,
-        8,
-        prev_huf_valid,
-        prev_huf_max_bits,
-        prev_huf_left,
-        prev_huf_right,
-        prev_huf_symbol,
-        prev_ll_valid,
-        prev_ll_kind,
-        prev_ll_code,
-        prev_ll_table_log,
-        prev_ll_table_next_state,
-        prev_ll_table_nb_add_bits,
-        prev_ll_table_nb_bits,
-        prev_ll_table_base_values,
-        prev_off_valid,
-        prev_off_kind,
-        prev_off_code,
-        prev_off_table_log,
-        prev_off_table_next_state,
-        prev_off_table_nb_add_bits,
-        prev_off_table_nb_bits,
-        prev_off_table_base_values,
-        prev_ml_valid,
-        prev_ml_kind,
-        prev_ml_code,
-        prev_ml_table_log,
-        prev_ml_table_next_state,
-        prev_ml_table_nb_add_bits,
-        prev_ml_table_nb_bits,
-        prev_ml_table_base_values,
-      )
+      let decoded = try
+        decode_compressed_block_minimal(
+          v,
+          0,
+          v.length(),
+          out,
+          0,
+          b"",
+          1,
+          4,
+          8,
+          prev_huf_valid,
+          prev_huf_max_bits,
+          prev_huf_left,
+          prev_huf_right,
+          prev_huf_symbol,
+          prev_ll_valid,
+          prev_ll_kind,
+          prev_ll_code,
+          prev_ll_table_log,
+          prev_ll_table_next_state,
+          prev_ll_table_nb_add_bits,
+          prev_ll_table_nb_bits,
+          prev_ll_table_base_values,
+          prev_off_valid,
+          prev_off_kind,
+          prev_off_code,
+          prev_off_table_log,
+          prev_off_table_next_state,
+          prev_off_table_nb_add_bits,
+          prev_off_table_nb_bits,
+          prev_off_table_base_values,
+          prev_ml_valid,
+          prev_ml_kind,
+          prev_ml_code,
+          prev_ml_table_log,
+          prev_ml_table_next_state,
+          prev_ml_table_nb_add_bits,
+          prev_ml_table_nb_bits,
+          prev_ml_table_base_values,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match decoded {
         Ok((next_pos, produced, _, _, _)) => {
           assert_eq(next_pos, v.length())
@@ -1325,20 +1533,24 @@ test "compressed sequence source can use adaptive table_log above 5" {
     values.push(v)
     i = i + 1
   }
-  let result = try? build_compressed_sequence_source(
-    values, sequence_symbol_literal_length,
-  )
+  let result = try
+    build_compressed_sequence_source(values, sequence_symbol_literal_length)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((ok, header, _, table_log, _, _, _, _)) => {
       assert_true(ok)
       assert_true(table_log > 5)
-      let parsed = try? read_fse_ncount_header(
-        header,
-        0,
-        header.length(),
-        35,
-        9,
-      )
+      let parsed = try
+        read_fse_ncount_header(header, 0, header.length(), 35, 9)
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match parsed {
         Ok((_, parsed_table_log, _, _)) =>
           assert_eq(parsed_table_log, table_log)
@@ -1355,15 +1567,27 @@ test "mixed source chooser can select different modes per sequence source" {
   let off_values = [64, 64, 64, 64]
   let ml_values = [9, 9, 9, 9]
 
-  let ll_choice = try? choose_sequence_source_mode(
-    ll_values, sequence_symbol_literal_length, 20,
-  )
-  let off_choice = try? choose_sequence_source_mode(
-    off_values, sequence_symbol_offset, 20,
-  )
-  let ml_choice = try? choose_sequence_source_mode(
-    ml_values, sequence_symbol_match_length, 20,
-  )
+  let ll_choice = try
+    choose_sequence_source_mode(ll_values, sequence_symbol_literal_length, 20)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let off_choice = try
+    choose_sequence_source_mode(off_values, sequence_symbol_offset, 20)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let ml_choice = try
+    choose_sequence_source_mode(ml_values, sequence_symbol_match_length, 20)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
 
   match ll_choice {
     Ok((ll_ok, ll_mode, _, _, _, _, _, _, _)) => {
@@ -1390,9 +1614,13 @@ test "mixed offset source chooser can use repcode-aware low-bit path" {
   let off_values = [17, 9]
   let ll_values = [0, 4]
 
-  let repaware = try? choose_offset_source_mode_with_repcodes(
-    off_values, ll_values, 20, 5, 9, 17,
-  )
+  let repaware = try
+    choose_offset_source_mode_with_repcodes(off_values, ll_values, 20, 5, 9, 17)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match repaware {
     Ok((ok, mode, source, _, _, extras, extra_bits, _, _)) => {
       assert_true(ok)
@@ -1408,9 +1636,13 @@ test "mixed offset source chooser can use repcode-aware low-bit path" {
     Err(_) => fail("failed to choose repcode-aware OF source mode")
   }
 
-  let legacy = try? choose_sequence_source_mode(
-    off_values, sequence_symbol_offset, 20,
-  )
+  let legacy = try
+    choose_sequence_source_mode(off_values, sequence_symbol_offset, 20)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match legacy {
     Ok((ok, _, _, _, _, _, legacy_extra_bits, _, _)) => {
       assert_true(ok)
@@ -1437,12 +1669,13 @@ test "general mixed payload builder emits parseable payload and decodes" {
   })
   let src = prefix + a + b + a + c + b + a + c + b + a
 
-  let payload = try? build_general_mixed_sequence_payload(
-    src,
-    0,
-    src.length(),
-    20,
-  )
+  let payload = try
+    build_general_mixed_sequence_payload(src, 0, src.length(), 20)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(v) => {
       assert_true(v.length() > 0)
@@ -1481,46 +1714,52 @@ test "general mixed payload builder emits parseable payload and decodes" {
       let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array::new() }
       let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array::new() }
 
-      let decoded = try? decode_compressed_block_minimal(
-        v,
-        0,
-        v.length(),
-        out,
-        0,
-        b"",
-        1,
-        4,
-        8,
-        prev_huf_valid,
-        prev_huf_max_bits,
-        prev_huf_left,
-        prev_huf_right,
-        prev_huf_symbol,
-        prev_ll_valid,
-        prev_ll_kind,
-        prev_ll_code,
-        prev_ll_table_log,
-        prev_ll_table_next_state,
-        prev_ll_table_nb_add_bits,
-        prev_ll_table_nb_bits,
-        prev_ll_table_base_values,
-        prev_off_valid,
-        prev_off_kind,
-        prev_off_code,
-        prev_off_table_log,
-        prev_off_table_next_state,
-        prev_off_table_nb_add_bits,
-        prev_off_table_nb_bits,
-        prev_off_table_base_values,
-        prev_ml_valid,
-        prev_ml_kind,
-        prev_ml_code,
-        prev_ml_table_log,
-        prev_ml_table_next_state,
-        prev_ml_table_nb_add_bits,
-        prev_ml_table_nb_bits,
-        prev_ml_table_base_values,
-      )
+      let decoded = try
+        decode_compressed_block_minimal(
+          v,
+          0,
+          v.length(),
+          out,
+          0,
+          b"",
+          1,
+          4,
+          8,
+          prev_huf_valid,
+          prev_huf_max_bits,
+          prev_huf_left,
+          prev_huf_right,
+          prev_huf_symbol,
+          prev_ll_valid,
+          prev_ll_kind,
+          prev_ll_code,
+          prev_ll_table_log,
+          prev_ll_table_next_state,
+          prev_ll_table_nb_add_bits,
+          prev_ll_table_nb_bits,
+          prev_ll_table_base_values,
+          prev_off_valid,
+          prev_off_kind,
+          prev_off_code,
+          prev_off_table_log,
+          prev_off_table_next_state,
+          prev_off_table_nb_add_bits,
+          prev_off_table_nb_bits,
+          prev_off_table_base_values,
+          prev_ml_valid,
+          prev_ml_kind,
+          prev_ml_code,
+          prev_ml_table_log,
+          prev_ml_table_next_state,
+          prev_ml_table_nb_add_bits,
+          prev_ml_table_nb_bits,
+          prev_ml_table_base_values,
+        )
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match decoded {
         Ok((next_pos, produced, _, _, _)) => {
           assert_eq(next_pos, v.length())
@@ -1543,10 +1782,16 @@ test "decode literals section with 4 Huffman streams" {
   let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
   let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
   let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
-  let result = try? decode_literals_section_minimal(
-    frame, 10, 106, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
-    prev_huf_symbol,
-  )
+  let result = try
+    decode_literals_section_minimal(
+      frame, 10, 106, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
+      prev_huf_symbol,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((next_pos, literals)) => {
       assert_eq(next_pos, 90)
@@ -1560,20 +1805,37 @@ test "decode literals section with 4 Huffman streams" {
 ///|
 test "decode FSE-compressed Huffman weights stream" {
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\x55\x01\x00\x02\x84\x09\x05\x30\xfa\x36\x64\x0b\x57\x73\x78\x62\x90\x58\x55\xcd\x78\x86\xdc\xa9\xfd\xe8\x84\x40\x94\xe7\xdd\x3a\xc3\x8c\x64\x99\xf9\xbb\xfa\xb9\x4e\xb9\xcc\x01\x00\x6b\x71\xa5\xdd"
-  let h = try? read_fse_ncount_header(
-    frame, 13, 18, huf_max_nb_bits, huf_weight_fse_table_log_max,
-  )
+  let h = try
+    read_fse_ncount_header(
+      frame, 13, 18, huf_max_nb_bits, huf_weight_fse_table_log_max,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match h {
     Ok((header_size, table_log, max_symbol, normalized_counter)) => {
-      let t = try? build_fse_symbol_decode_table(
-        normalized_counter, max_symbol, table_log,
-      )
+      let t = try
+        build_fse_symbol_decode_table(normalized_counter, max_symbol, table_log)
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match t {
         Ok((next_state, nb_bits, symbols)) => {
           let payload_start = 13 + header_size
-          let d = try? decode_fse_symbol_stream_reverse(
-            frame, payload_start, 18, table_log, next_state, nb_bits, symbols, 255,
-          )
+          let d = try
+            decode_fse_symbol_stream_reverse(
+              frame, payload_start, 18, table_log, next_state, nb_bits, symbols,
+              255,
+            )
+          catch {
+            e => Err(e)
+          } noraise {
+            value => Ok(value)
+          }
           match d {
             Ok(weights) =>
               @debug.assert_eq(weights, [
@@ -1597,10 +1859,16 @@ test "decode literals section with FSE-compressed Huffman tree description" {
   let prev_huf_left : Ref[Array[Int]] = { val: Array::new() }
   let prev_huf_right : Ref[Array[Int]] = { val: Array::new() }
   let prev_huf_symbol : Ref[Array[Int]] = { val: Array::new() }
-  let result = try? decode_literals_section_minimal(
-    frame, 9, 51, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
-    prev_huf_symbol,
-  )
+  let result = try
+    decode_literals_section_minimal(
+      frame, 9, 51, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
+      prev_huf_symbol,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((next_pos, literals)) => {
       assert_eq(next_pos, 50)
@@ -1613,7 +1881,11 @@ test "decode literals section with FSE-compressed Huffman tree description" {
 ///|
 test "read Huffman tree description with FSE-compressed weights" {
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\x55\x01\x00\x02\x84\x09\x05\x30\xfa\x36\x64\x0b\x57\x73\x78\x62\x90\x58\x55\xcd\x78\x86\xdc\xa9\xfd\xe8\x84\x40\x94\xe7\xdd\x3a\xc3\x8c\x64\x99\xf9\xbb\xfa\xb9\x4e\xb9\xcc\x01\x00\x6b\x71\xa5\xdd"
-  let result = try? read_huffman_tree_description(frame, 12, 50)
+  let result = try read_huffman_tree_description(frame, 12, 50) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((tree_size, _, _, _, _)) => assert_eq(tree_size, 6)
     Err(_) => fail("expected tree description decode success")
@@ -1623,15 +1895,27 @@ test "read Huffman tree description with FSE-compressed weights" {
 ///|
 test "offset code 31 is supported in base calculation" {
   assert_eq(offset_base_from_code(31), 2147483645)
-  let result = try? offset_base_from_code(32)
+  let result = try offset_base_from_code(32) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(result is Err(CorruptionDetected))
 }
 
 ///|
 test "invalid LL and ML code ranges are treated as corruption" {
-  let ll_result = try? literal_length_base_bits(36)
+  let ll_result = try literal_length_base_bits(36) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(ll_result is Err(CorruptionDetected))
-  let ml_result = try? match_length_base_bits(53)
+  let ml_result = try match_length_base_bits(53) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(ml_result is Err(CorruptionDetected))
 }
 
@@ -1664,7 +1948,11 @@ fn wb_seeded_mode2_payload_from_state(state : DictionaryState) -> Bytes {
 ///|
 test "parse standard dictionary fixture state" {
   let dict = wb_standard_dictionary_fixture_dictionary()
-  let result = try? parse_dictionary_state(dict)
+  let result = try parse_dictionary_state(dict) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok(state) => {
       assert_true(state.has_dictionary)
@@ -1688,9 +1976,13 @@ test "parse standard dictionary fixture state" {
 
 ///|
 test "seeded payload chooser prefers candidate with smaller rewritten size" {
-  let parsed = try? parse_dictionary_state(
-    wb_standard_dictionary_fixture_dictionary(),
-  )
+  let parsed = try
+    parse_dictionary_state(wb_standard_dictionary_fixture_dictionary())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let state = match parsed {
     Ok(v) => v
     Err(_) => fail("parse_dictionary_state failed")
@@ -1723,9 +2015,13 @@ test "seeded payload chooser prefers candidate with smaller rewritten size" {
 
 ///|
 test "dictionary sequence headers can seed repeat-mode rewrite for first payload" {
-  let parsed = try? parse_dictionary_state(
-    wb_standard_dictionary_fixture_dictionary(),
-  )
+  let parsed = try
+    parse_dictionary_state(wb_standard_dictionary_fixture_dictionary())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let state = match parsed {
     Ok(v) => v
     Err(_) => fail("parse_dictionary_state failed")
@@ -1767,9 +2063,13 @@ test "dictionary sequence headers can seed repeat-mode rewrite for first payload
 
 ///|
 test "dictionary Huffman tree can seed treeless literals rewrite for first payload" {
-  let parsed = try? parse_dictionary_state(
-    wb_standard_dictionary_fixture_dictionary(),
-  )
+  let parsed = try
+    parse_dictionary_state(wb_standard_dictionary_fixture_dictionary())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let state = match parsed {
     Ok(v) => v
     Err(_) => fail("parse_dictionary_state failed")
@@ -1802,9 +2102,13 @@ test "dictionary Huffman tree can seed treeless literals rewrite for first paylo
 
 ///|
 test "treeless literals rewrite preserves size_format=1 for four-stream payload" {
-  let parsed = try? parse_dictionary_state(
-    wb_standard_dictionary_fixture_dictionary(),
-  )
+  let parsed = try
+    parse_dictionary_state(wb_standard_dictionary_fixture_dictionary())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let state = match parsed {
     Ok(v) => v
     Err(_) => fail("parse_dictionary_state failed")
@@ -1851,23 +2155,32 @@ test "treeless literals rewrite preserves size_format=1 for four-stream payload"
 test "standard dictionary internal paths comparison" {
   let dict = wb_standard_dictionary_fixture_dictionary()
   let frame = wb_standard_dictionary_fixture_frame()
-  let parsed_state = try? parse_dictionary_state(dict)
+  let parsed_state = try parse_dictionary_state(dict) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let state = match parsed_state {
     Ok(v) => v
     Err(_) => fail("parse_dictionary_state failed")
   }
 
   let out_history : Array[Byte] = Array::new()
-  let history_result = try? decode_frame_into_with_history(
-    frame,
-    0,
-    out_history,
-    state.history,
-  )
+  let history_result = try
+    decode_frame_into_with_history(frame, 0, out_history, state.history)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let out_dict : Array[Byte] = Array::new()
-  let dict_result = try? decode_frame_into_with_dictionary(
-    frame, 0, out_dict, dict,
-  )
+  let dict_result = try
+    decode_frame_into_with_dictionary(frame, 0, out_dict, dict)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(dict_result is Ok(_))
   assert_true(history_result is Ok(_))
 }
@@ -1881,7 +2194,11 @@ test "real dictionary-compressed frame parses sequence header states" {
     b"\x78\x6b\x65\x6e\x2d\x33\x39\x20\x72\x65\x70\x65\x61\x74\x65\x64\x20\x61\x6c\x70\x68\x61\x20\x62\x65\x74\x61\x20\x67\x61\x6d\x6d\x61\x20\x73\x65\x63\x74\x69\x6f\x6e\x2d\x30\x33\x20\x61\x6e\x64" +
     b"\x20\x65\x78\x74\x69\x6f\x6e\x61\x72\x79\x20\x73\x74\x61\x62\x69"
   let block = b"\xf4\x02\x63\x6f\x6d\x70\x72\x65\x73\x73\x20\x77\x69\x74\x68\x20\x64\x69\x63\x61\x6d\x70\x6c\x65\x20\x70\x61\x79\x6c\x6f\x61\x74\x6f\x6b\x65\x6e\x2d\x30\x35\x35\x72\x61\x20\x77\x6f\x72\x64\x73\x0a\x04\xfc\x62\x8f\x80\xca\x2a\x9b\x8c\x5e\x67\x87\xf3\xc1\xcb\x02"
-  let parsed_state = try? parse_dictionary_state(dict)
+  let parsed_state = try parse_dictionary_state(dict) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let state = match parsed_state {
     Ok(v) => v
     Err(_) => fail("parse_dictionary_state failed")
@@ -1892,21 +2209,33 @@ test "real dictionary-compressed frame parses sequence header states" {
   let prev_huf_left : Ref[Array[Int]] = { val: state.huf_left }
   let prev_huf_right : Ref[Array[Int]] = { val: state.huf_right }
   let prev_huf_symbol : Ref[Array[Int]] = { val: state.huf_symbol }
-  let lit = try? decode_literals_section_minimal(
-    block,
-    0,
-    block.length(),
-    prev_huf_valid,
-    prev_huf_max_bits,
-    prev_huf_left,
-    prev_huf_right,
-    prev_huf_symbol,
-  )
+  let lit = try
+    decode_literals_section_minimal(
+      block,
+      0,
+      block.length(),
+      prev_huf_valid,
+      prev_huf_max_bits,
+      prev_huf_left,
+      prev_huf_right,
+      prev_huf_symbol,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let (seq_pos0, literals) = match lit {
     Ok(v) => v
     Err(_) => fail("decode_literals_section_minimal failed")
   }
-  let seq_cnt = try? parse_sequence_count(block, seq_pos0, block.length())
+  let seq_cnt = try
+    parse_sequence_count(block, seq_pos0, block.length())
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   let (number_of_sequences, seq_pos0_end) = match seq_cnt {
     Ok(v) => v
     Err(_) => fail("parse_sequence_count failed")
@@ -1965,51 +2294,69 @@ test "real dictionary-compressed frame parses sequence header states" {
   }
 
   let seq_pos_ref : Ref[Int] = { val: seq_pos0_end + 1 }
-  let ll_src = try? decode_sequence_source(
-    block,
-    block.length(),
-    seq_pos_ref,
-    ll_mode,
-    prev_ll_valid,
-    prev_ll_kind,
-    prev_ll_code,
-    prev_ll_table_log,
-    prev_ll_table_next_state,
-    prev_ll_table_nb_add_bits,
-    prev_ll_table_nb_bits,
-    prev_ll_table_base_values,
-    sequence_symbol_literal_length,
-  )
-  let off_src = try? decode_sequence_source(
-    block,
-    block.length(),
-    seq_pos_ref,
-    off_mode,
-    prev_off_valid,
-    prev_off_kind,
-    prev_off_code,
-    prev_off_table_log,
-    prev_off_table_next_state,
-    prev_off_table_nb_add_bits,
-    prev_off_table_nb_bits,
-    prev_off_table_base_values,
-    sequence_symbol_offset,
-  )
-  let ml_src = try? decode_sequence_source(
-    block,
-    block.length(),
-    seq_pos_ref,
-    ml_mode,
-    prev_ml_valid,
-    prev_ml_kind,
-    prev_ml_code,
-    prev_ml_table_log,
-    prev_ml_table_next_state,
-    prev_ml_table_nb_add_bits,
-    prev_ml_table_nb_bits,
-    prev_ml_table_base_values,
-    sequence_symbol_match_length,
-  )
+  let ll_src = try
+    decode_sequence_source(
+      block,
+      block.length(),
+      seq_pos_ref,
+      ll_mode,
+      prev_ll_valid,
+      prev_ll_kind,
+      prev_ll_code,
+      prev_ll_table_log,
+      prev_ll_table_next_state,
+      prev_ll_table_nb_add_bits,
+      prev_ll_table_nb_bits,
+      prev_ll_table_base_values,
+      sequence_symbol_literal_length,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let off_src = try
+    decode_sequence_source(
+      block,
+      block.length(),
+      seq_pos_ref,
+      off_mode,
+      prev_off_valid,
+      prev_off_kind,
+      prev_off_code,
+      prev_off_table_log,
+      prev_off_table_next_state,
+      prev_off_table_nb_add_bits,
+      prev_off_table_nb_bits,
+      prev_off_table_base_values,
+      sequence_symbol_offset,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let ml_src = try
+    decode_sequence_source(
+      block,
+      block.length(),
+      seq_pos_ref,
+      ml_mode,
+      prev_ml_valid,
+      prev_ml_kind,
+      prev_ml_code,
+      prev_ml_table_log,
+      prev_ml_table_next_state,
+      prev_ml_table_nb_add_bits,
+      prev_ml_table_nb_bits,
+      prev_ml_table_base_values,
+      sequence_symbol_match_length,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(ll_src is Ok(_))
   assert_true(off_src is Ok(_))
   assert_true(ml_src is Ok(_))
@@ -2019,27 +2366,45 @@ test "real dictionary-compressed frame parses sequence header states" {
   let br_bit : Ref[Int] = { val: -1 }
   init_reverse_bit_reader(block, br_start, br_byte, br_bit)
 
-  let ll_state = try? init_fse_state_reverse(
-    block,
-    br_start,
-    br_byte,
-    br_bit,
-    prev_ll_table_log.val,
-  )
-  let off_state = try? init_fse_state_reverse(
-    block,
-    br_start,
-    br_byte,
-    br_bit,
-    prev_off_table_log.val,
-  )
-  let ml_state = try? init_fse_state_reverse(
-    block,
-    br_start,
-    br_byte,
-    br_bit,
-    prev_ml_table_log.val,
-  )
+  let ll_state = try
+    init_fse_state_reverse(
+      block,
+      br_start,
+      br_byte,
+      br_bit,
+      prev_ll_table_log.val,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let off_state = try
+    init_fse_state_reverse(
+      block,
+      br_start,
+      br_byte,
+      br_bit,
+      prev_off_table_log.val,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let ml_state = try
+    init_fse_state_reverse(
+      block,
+      br_start,
+      br_byte,
+      br_bit,
+      prev_ml_table_log.val,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(ll_state is Ok(_))
   assert_true(off_state is Ok(_))
   assert_true(ml_state is Ok(_))
@@ -2067,36 +2432,54 @@ test "real dictionary-compressed frame parses sequence header states" {
     Ok(v) => v
     Err(_) => fail("ml_state failed")
   }
-  let ll_entry_result = try? sequence_symbol_entry(
-    ll_kind,
-    ll_code,
-    ll_state_v,
-    prev_ll_table_next_state.val,
-    prev_ll_table_nb_add_bits.val,
-    prev_ll_table_nb_bits.val,
-    prev_ll_table_base_values.val,
-    sequence_symbol_literal_length,
-  )
-  let ml_entry_result = try? sequence_symbol_entry(
-    ml_kind,
-    ml_code,
-    ml_state_v,
-    prev_ml_table_next_state.val,
-    prev_ml_table_nb_add_bits.val,
-    prev_ml_table_nb_bits.val,
-    prev_ml_table_base_values.val,
-    sequence_symbol_match_length,
-  )
-  let off_entry_result = try? sequence_symbol_entry(
-    off_kind,
-    off_code,
-    off_state_v,
-    prev_off_table_next_state.val,
-    prev_off_table_nb_add_bits.val,
-    prev_off_table_nb_bits.val,
-    prev_off_table_base_values.val,
-    sequence_symbol_offset,
-  )
+  let ll_entry_result = try
+    sequence_symbol_entry(
+      ll_kind,
+      ll_code,
+      ll_state_v,
+      prev_ll_table_next_state.val,
+      prev_ll_table_nb_add_bits.val,
+      prev_ll_table_nb_bits.val,
+      prev_ll_table_base_values.val,
+      sequence_symbol_literal_length,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let ml_entry_result = try
+    sequence_symbol_entry(
+      ml_kind,
+      ml_code,
+      ml_state_v,
+      prev_ml_table_next_state.val,
+      prev_ml_table_nb_add_bits.val,
+      prev_ml_table_nb_bits.val,
+      prev_ml_table_base_values.val,
+      sequence_symbol_match_length,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
+  let off_entry_result = try
+    sequence_symbol_entry(
+      off_kind,
+      off_code,
+      off_state_v,
+      prev_off_table_next_state.val,
+      prev_off_table_nb_add_bits.val,
+      prev_off_table_nb_bits.val,
+      prev_off_table_base_values.val,
+      sequence_symbol_offset,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(ll_entry_result is Ok(_))
   assert_true(ml_entry_result is Ok(_))
   assert_true(off_entry_result is Ok(_))
@@ -2114,9 +2497,13 @@ test "real dictionary-compressed frame parses sequence header states" {
   }
   let ll0 = ll_base == 0
   let first_offset = if off_nb_add_bits > 1 {
-    let off_extra_result = try? read_reverse_bits(
-      block, br_start, br_byte, br_bit, off_nb_add_bits,
-    )
+    let off_extra_result = try
+      read_reverse_bits(block, br_start, br_byte, br_bit, off_nb_add_bits)
+    catch {
+      e => Err(e)
+    } noraise {
+      value => Ok(value)
+    }
     let off_extra = match off_extra_result {
       Ok(v) => v
       Err(_) => fail("off extra failed")
@@ -2129,7 +2516,13 @@ test "real dictionary-compressed frame parses sequence header states" {
       state.rep1
     }
   } else {
-    let low_result = try? read_reverse_bits(block, br_start, br_byte, br_bit, 1)
+    let low_result = try
+      read_reverse_bits(block, br_start, br_byte, br_bit, 1)
+    catch {
+      e => Err(e)
+    } noraise {
+      value => Ok(value)
+    }
     let low = match low_result {
       Ok(v) => v.reinterpret_as_int()
       Err(_) => fail("off short extra failed")
@@ -2148,9 +2541,13 @@ test "real dictionary-compressed frame parses sequence header states" {
   let ml_extra = if ml_nb_add_bits == 0 {
     (0 : UInt)
   } else {
-    let ml_extra_result = try? read_reverse_bits(
-      block, br_start, br_byte, br_bit, ml_nb_add_bits,
-    )
+    let ml_extra_result = try
+      read_reverse_bits(block, br_start, br_byte, br_bit, ml_nb_add_bits)
+    catch {
+      e => Err(e)
+    } noraise {
+      value => Ok(value)
+    }
     match ml_extra_result {
       Ok(v) => v
       Err(_) => fail("ml extra failed")
@@ -2159,9 +2556,13 @@ test "real dictionary-compressed frame parses sequence header states" {
   let ll_extra = if ll_nb_add_bits == 0 {
     (0 : UInt)
   } else {
-    let ll_extra_result = try? read_reverse_bits(
-      block, br_start, br_byte, br_bit, ll_nb_add_bits,
-    )
+    let ll_extra_result = try
+      read_reverse_bits(block, br_start, br_byte, br_bit, ll_nb_add_bits)
+    catch {
+      e => Err(e)
+    } noraise {
+      value => Ok(value)
+    }
     match ll_extra_result {
       Ok(v) => v
       Err(_) => fail("ll extra failed")
@@ -2448,9 +2849,13 @@ test "compressed FSE offset off-base builder can follow repcode state transition
   let off_values = [17, 5, 4]
   let ll_values = [4, 0, 0]
   let force_raw = Array::make(off_values.length(), false)
-  let result = try? build_offset_off_base_sequence(
-    off_values, ll_values, 5, 9, 17, force_raw,
-  )
+  let result = try
+    build_offset_off_base_sequence(off_values, ll_values, 5, 9, 17, force_raw)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((ok, off_bases)) => {
       assert_true(ok)
@@ -2479,9 +2884,15 @@ test "compressed FSE offset off-base builder can follow repcode state transition
 test "compressed FSE offset source builder can encode repcode-special symbols" {
   let off_values = [17, 5, 4]
   let ll_values = [4, 0, 0]
-  let result = try? build_compressed_offset_sequence_source_with_repcodes(
-    off_values, ll_values, 5, 9, 17,
-  )
+  let result = try
+    build_compressed_offset_sequence_source_with_repcodes(
+      off_values, ll_values, 5, 9, 17,
+    )
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match result {
     Ok((ok, header, _, table_log, extras, extra_bits, _, _)) => {
       assert_true(ok)
@@ -2493,13 +2904,13 @@ test "compressed FSE offset source builder can encode repcode-special symbols" {
       assert_eq(extra_bits[1], 0)
       assert_eq(extra_bits[2], 1)
 
-      let parsed = try? read_fse_ncount_header(
-        header,
-        0,
-        header.length(),
-        31,
-        8,
-      )
+      let parsed = try
+        read_fse_ncount_header(header, 0, header.length(), 31, 8)
+      catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match parsed {
         Ok((_, _, max_symbol, _)) => assert_true(max_symbol <= 1)
         Err(_) => fail("failed to parse compressed OF ncount header")
@@ -2520,7 +2931,11 @@ test "single-match predefined offset chooser is repcode-aware" {
   )
   assert_true(ok1)
   assert_eq(bits1, 1)
-  let entry1 = try? of_predefined_entry(state1)
+  let entry1 = try of_predefined_entry(state1) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match entry1 {
     Ok((_, add_bits, _, base)) => {
       assert_eq(add_bits, bits1)
@@ -2535,7 +2950,11 @@ test "single-match predefined offset chooser is repcode-aware" {
   )
   assert_true(ok2)
   assert_eq(bits2, 0)
-  let entry2 = try? of_predefined_entry(state2)
+  let entry2 = try of_predefined_entry(state2) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match entry2 {
     Ok((_, add_bits, _, _)) => assert_eq(add_bits, 0)
     Err(_) => fail("failed to decode predefined offset entry for ll0 rep2")
@@ -2547,7 +2966,11 @@ test "single-match predefined offset chooser is repcode-aware" {
   )
   assert_true(ok3)
   assert_eq(bits3, 1)
-  let entry3 = try? of_predefined_entry(state3)
+  let entry3 = try of_predefined_entry(state3) catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match entry3 {
     Ok((_, add_bits, _, base)) => {
       assert_eq(add_bits, bits3)
@@ -2754,9 +3177,13 @@ fn build_non_single_segment_frame_from_payload(
 
 ///|
 test "non-single-segment decode rejects offsets above declared window size" {
-  let payload = try? build_single_match_payload_rle(
-    b"abc", 0, 3, 0, 1500, 3, 1500, 1, 4, 8,
-  )
+  let payload = try
+    build_single_match_payload_rle(b"abc", 0, 3, 0, 1500, 3, 1500, 1, 4, 8)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(p) => {
       assert_true(p.length() > 0)
@@ -2767,7 +3194,11 @@ test "non-single-segment decode rejects offsets above declared window size" {
       let dict = Bytes::makei(2048, i => {
         ((i * 29 + 7) % 251 + 1).reinterpret_as_uint().to_byte()
       })
-      let result = try? decompress_with_dictionary(frame, dict)
+      let result = try decompress_with_dictionary(frame, dict) catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       assert_true(result is Err(CorruptionDetected))
     }
     Err(_) => fail("failed to build single-match payload for window-limit test")
@@ -2776,9 +3207,13 @@ test "non-single-segment decode rejects offsets above declared window size" {
 
 ///|
 test "non-single-segment decode accepts offsets within declared window size" {
-  let payload = try? build_single_match_payload_rle(
-    b"abc", 0, 3, 0, 512, 3, 512, 1, 4, 8,
-  )
+  let payload = try
+    build_single_match_payload_rle(b"abc", 0, 3, 0, 512, 3, 512, 1, 4, 8)
+  catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   match payload {
     Ok(p) => {
       assert_true(p.length() > 0)
@@ -2789,7 +3224,11 @@ test "non-single-segment decode accepts offsets within declared window size" {
       let dict = Bytes::makei(2048, i => {
         ((i * 29 + 7) % 251 + 1).reinterpret_as_uint().to_byte()
       })
-      let result = try? decompress_with_dictionary(frame, dict)
+      let result = try decompress_with_dictionary(frame, dict) catch {
+        e => Err(e)
+      } noraise {
+        value => Ok(value)
+      }
       match result {
         Ok(out) => assert_eq(out.length(), 3)
         Err(_) => fail("decode failed for in-window offset")

@@ -16,7 +16,11 @@
 test "stream parity: dictionary-required error is surfaced from pull" {
   let dec = new_decompressor()
   dec.push(standard_dictionary_fixture_frame())
-  let result = try? dec.pull()
+  let result = try dec.pull() catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(result is Err(DictionaryRequired(_)))
   assert_true(dec.pending_input() > 0)
 }
@@ -30,7 +34,11 @@ test "stream parity: pull returns complete prefix frame with incomplete tail buf
   let out = dec.pull()
   assert_eq(out, b"first")
   assert_true(dec.pending_input() > 0)
-  let finish_result = try? dec.finish()
+  let finish_result = try dec.finish() catch {
+    e => Err(e)
+  } noraise {
+    value => Ok(value)
+  }
   assert_true(finish_result is Err(SrcSizeWrong))
 }
 
