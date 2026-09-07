@@ -45,36 +45,36 @@ test "reverse bitstream init for predefined sequence states" {
 ///|
 test "internal decode of predefined sequence compressed payload" {
   let src = b"\x08\x61\x01\x00\x00\x10\x02"
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   let prev_huf_valid : Ref[Bool] = { val: false, }
   let prev_huf_max_bits : Ref[Int] = { val: 0, }
-  let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-  let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-  let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+  let prev_huf_left : Ref[Array[Int]] = { val: [], }
+  let prev_huf_right : Ref[Array[Int]] = { val: [], }
+  let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
   let prev_ll_valid : Ref[Bool] = { val: false, }
   let prev_ll_kind : Ref[Int] = { val: 0, }
   let prev_ll_code : Ref[UInt] = { val: 0, }
   let prev_ll_table_log : Ref[Int] = { val: 0, }
-  let prev_ll_table_next_state : Ref[Array[Int]] = { val: Array(), }
-  let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-  let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-  let prev_ll_table_base_values : Ref[Array[Int]] = { val: Array(), }
+  let prev_ll_table_next_state : Ref[Array[Int]] = { val: [], }
+  let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+  let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: [], }
+  let prev_ll_table_base_values : Ref[Array[Int]] = { val: [], }
   let prev_off_valid : Ref[Bool] = { val: false, }
   let prev_off_kind : Ref[Int] = { val: 0, }
   let prev_off_code : Ref[UInt] = { val: 0, }
   let prev_off_table_log : Ref[Int] = { val: 0, }
-  let prev_off_table_next_state : Ref[Array[Int]] = { val: Array(), }
-  let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-  let prev_off_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-  let prev_off_table_base_values : Ref[Array[Int]] = { val: Array(), }
+  let prev_off_table_next_state : Ref[Array[Int]] = { val: [], }
+  let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+  let prev_off_table_nb_bits : Ref[Array[Int]] = { val: [], }
+  let prev_off_table_base_values : Ref[Array[Int]] = { val: [], }
   let prev_ml_valid : Ref[Bool] = { val: false, }
   let prev_ml_kind : Ref[Int] = { val: 0, }
   let prev_ml_code : Ref[UInt] = { val: 0, }
   let prev_ml_table_log : Ref[Int] = { val: 0, }
-  let prev_ml_table_next_state : Ref[Array[Int]] = { val: Array(), }
-  let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-  let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-  let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array(), }
+  let prev_ml_table_next_state : Ref[Array[Int]] = { val: [], }
+  let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+  let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: [], }
+  let prev_ml_table_base_values : Ref[Array[Int]] = { val: [], }
   let result = try
     decode_compressed_block_minimal(
       src,
@@ -456,7 +456,7 @@ test "rewrite mixed sequence payload rewrites compressed sources independently" 
           assert_true(warmup_modes >= 0)
           assert_eq(warmup[warmup_modes].to_uint(), 0xA8)
 
-          let mixed_arr : Array[Byte] = Array()
+          let mixed_arr : Array[Byte] = []
           append_bytes(mixed_arr, v, 0, mode_pos)
           mixed_arr.push((0x28 : UInt).to_byte())
           append_bytes(mixed_arr, off_header, 0, off_header.length())
@@ -573,7 +573,7 @@ test "best literals section can emit compressed Huffman literals and roundtrip d
       b"A"[0]
     }
   })
-  let section_out : Array[Byte] = Array()
+  let section_out : Array[Byte] = []
   let encoded = try append_best_literals_section(section_out, literals) catch {
     e => Err(e)
   } noraise {
@@ -587,9 +587,9 @@ test "best literals section can emit compressed Huffman literals and roundtrip d
 
       let prev_huf_valid : Ref[Bool] = { val: false, }
       let prev_huf_max_bits : Ref[Int] = { val: 0, }
-      let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+      let prev_huf_left : Ref[Array[Int]] = { val: [], }
+      let prev_huf_right : Ref[Array[Int]] = { val: [], }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
       let decoded = try
         decode_literals_section_minimal(
           section,
@@ -627,7 +627,7 @@ test "best literals section falls back to raw when direct-weight range is unsupp
       b"A"[0]
     }
   })
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   let encoded = try append_best_literals_section(out, literals) catch {
     e => Err(e)
   } noraise {
@@ -688,9 +688,9 @@ test "treeless literals rewrite emits type3 on repeated Huffman tree" {
 
           let prev_huf_valid : Ref[Bool] = { val: false, }
           let prev_huf_max_bits : Ref[Int] = { val: 0, }
-          let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-          let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-          let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+          let prev_huf_left : Ref[Array[Int]] = { val: [], }
+          let prev_huf_right : Ref[Array[Int]] = { val: [], }
+          let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
           let decoded1 = try
             decode_literals_section_minimal(
               first_payload,
@@ -764,7 +764,7 @@ test "rewrite predefined sequence modes works with compressed literals payload" 
     Ok(lit_section) => {
       assert_true(lit_section.length() > 0)
       assert_true((lit_section[0].to_uint() & 0x3) == 2)
-      let payload_arr : Array[Byte] = Array()
+      let payload_arr : Array[Byte] = []
       append_bytes(payload_arr, lit_section, 0, lit_section.length())
       let encoded_count = try append_sequence_count(payload_arr, 1) catch {
         e => Err(e)
@@ -839,9 +839,9 @@ test "literals-only payload encodes sequence_count zero with compressed literals
 
       let prev_huf_valid : Ref[Bool] = { val: false, }
       let prev_huf_max_bits : Ref[Int] = { val: 0, }
-      let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+      let prev_huf_left : Ref[Array[Int]] = { val: [], }
+      let prev_huf_right : Ref[Array[Int]] = { val: [], }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
       let lit = try
         decode_literals_section_minimal(
           data,
@@ -894,9 +894,9 @@ test "compressed literals support four-stream size_format=2 roundtrip" {
       assert_eq((section[0].to_uint() >> 2) & 0x3, 2)
       let prev_huf_valid : Ref[Bool] = { val: false, }
       let prev_huf_max_bits : Ref[Int] = { val: 0, }
-      let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+      let prev_huf_left : Ref[Array[Int]] = { val: [], }
+      let prev_huf_right : Ref[Array[Int]] = { val: [], }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
       let decoded = try
         decode_literals_section_minimal(
           section,
@@ -948,9 +948,9 @@ test "compressed literals support four-stream size_format=3 roundtrip" {
       assert_eq((section[0].to_uint() >> 2) & 0x3, 3)
       let prev_huf_valid : Ref[Bool] = { val: false, }
       let prev_huf_max_bits : Ref[Int] = { val: 0, }
-      let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+      let prev_huf_left : Ref[Array[Int]] = { val: [], }
+      let prev_huf_right : Ref[Array[Int]] = { val: [], }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
       let decoded = try
         decode_literals_section_minimal(
           section,
@@ -1051,7 +1051,7 @@ test "huffman weights FSE description prefixes payload size and roundtrips paylo
 
 ///|
 fn encode_sequence_count_for_test(seq_count : Int) -> Bytes raise ZstdError {
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_sequence_count(payload, seq_count)
   Bytes::from_array(payload)
 }
@@ -1425,36 +1425,36 @@ test "general compressed FSE payload builder emits mode2 and decodes" {
       assert_true(modes_pos >= 0)
       assert_eq(v[modes_pos].to_uint(), 0xA8)
 
-      let out : Array[Byte] = Array()
+      let out : Array[Byte] = []
       let prev_huf_valid : Ref[Bool] = { val: false, }
       let prev_huf_max_bits : Ref[Int] = { val: 0, }
-      let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+      let prev_huf_left : Ref[Array[Int]] = { val: [], }
+      let prev_huf_right : Ref[Array[Int]] = { val: [], }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
       let prev_ll_valid : Ref[Bool] = { val: false, }
       let prev_ll_kind : Ref[Int] = { val: 0, }
       let prev_ll_code : Ref[UInt] = { val: 0, }
       let prev_ll_table_log : Ref[Int] = { val: 0, }
-      let prev_ll_table_next_state : Ref[Array[Int]] = { val: Array(), }
-      let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ll_table_base_values : Ref[Array[Int]] = { val: Array(), }
+      let prev_ll_table_next_state : Ref[Array[Int]] = { val: [], }
+      let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ll_table_base_values : Ref[Array[Int]] = { val: [], }
       let prev_off_valid : Ref[Bool] = { val: false, }
       let prev_off_kind : Ref[Int] = { val: 0, }
       let prev_off_code : Ref[UInt] = { val: 0, }
       let prev_off_table_log : Ref[Int] = { val: 0, }
-      let prev_off_table_next_state : Ref[Array[Int]] = { val: Array(), }
-      let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_off_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_off_table_base_values : Ref[Array[Int]] = { val: Array(), }
+      let prev_off_table_next_state : Ref[Array[Int]] = { val: [], }
+      let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+      let prev_off_table_nb_bits : Ref[Array[Int]] = { val: [], }
+      let prev_off_table_base_values : Ref[Array[Int]] = { val: [], }
       let prev_ml_valid : Ref[Bool] = { val: false, }
       let prev_ml_kind : Ref[Int] = { val: 0, }
       let prev_ml_code : Ref[UInt] = { val: 0, }
       let prev_ml_table_log : Ref[Int] = { val: 0, }
-      let prev_ml_table_next_state : Ref[Array[Int]] = { val: Array(), }
-      let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array(), }
+      let prev_ml_table_next_state : Ref[Array[Int]] = { val: [], }
+      let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ml_table_base_values : Ref[Array[Int]] = { val: [], }
 
       let decoded = try
         decode_compressed_block_minimal(
@@ -1518,7 +1518,7 @@ test "general compressed FSE payload builder emits mode2 and decodes" {
 
 ///|
 test "compressed sequence source can use adaptive table_log above 5" {
-  let values : Array[Int] = Array()
+  let values : Array[Int] = []
   let mut i = 0
   while i < 72 {
     let v = if i % 4 == 0 {
@@ -1683,36 +1683,36 @@ test "general mixed payload builder emits parseable payload and decodes" {
       assert_true(modes_pos >= 0)
       assert_eq(v[modes_pos].to_uint() & 0x3, 0)
 
-      let out : Array[Byte] = Array()
+      let out : Array[Byte] = []
       let prev_huf_valid : Ref[Bool] = { val: false, }
       let prev_huf_max_bits : Ref[Int] = { val: 0, }
-      let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-      let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+      let prev_huf_left : Ref[Array[Int]] = { val: [], }
+      let prev_huf_right : Ref[Array[Int]] = { val: [], }
+      let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
       let prev_ll_valid : Ref[Bool] = { val: false, }
       let prev_ll_kind : Ref[Int] = { val: 0, }
       let prev_ll_code : Ref[UInt] = { val: 0, }
       let prev_ll_table_log : Ref[Int] = { val: 0, }
-      let prev_ll_table_next_state : Ref[Array[Int]] = { val: Array(), }
-      let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ll_table_base_values : Ref[Array[Int]] = { val: Array(), }
+      let prev_ll_table_next_state : Ref[Array[Int]] = { val: [], }
+      let prev_ll_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ll_table_nb_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ll_table_base_values : Ref[Array[Int]] = { val: [], }
       let prev_off_valid : Ref[Bool] = { val: false, }
       let prev_off_kind : Ref[Int] = { val: 0, }
       let prev_off_code : Ref[UInt] = { val: 0, }
       let prev_off_table_log : Ref[Int] = { val: 0, }
-      let prev_off_table_next_state : Ref[Array[Int]] = { val: Array(), }
-      let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_off_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_off_table_base_values : Ref[Array[Int]] = { val: Array(), }
+      let prev_off_table_next_state : Ref[Array[Int]] = { val: [], }
+      let prev_off_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+      let prev_off_table_nb_bits : Ref[Array[Int]] = { val: [], }
+      let prev_off_table_base_values : Ref[Array[Int]] = { val: [], }
       let prev_ml_valid : Ref[Bool] = { val: false, }
       let prev_ml_kind : Ref[Int] = { val: 0, }
       let prev_ml_code : Ref[UInt] = { val: 0, }
       let prev_ml_table_log : Ref[Int] = { val: 0, }
-      let prev_ml_table_next_state : Ref[Array[Int]] = { val: Array(), }
-      let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: Array(), }
-      let prev_ml_table_base_values : Ref[Array[Int]] = { val: Array(), }
+      let prev_ml_table_next_state : Ref[Array[Int]] = { val: [], }
+      let prev_ml_table_nb_add_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ml_table_nb_bits : Ref[Array[Int]] = { val: [], }
+      let prev_ml_table_base_values : Ref[Array[Int]] = { val: [], }
 
       let decoded = try
         decode_compressed_block_minimal(
@@ -1779,9 +1779,9 @@ test "decode literals section with 4 Huffman streams" {
   let frame = b"\x28\xb5\x2f\xfd\x64\x08\x06\x05\x03\x00\x96\x50\x13\x82\x11\x10\x11\x00\x11\x00\x11\x00\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\xb1\x41\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x6c\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x5b\x01\x00\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x1b\x01\x81\x00\x98\x10\xf0\x07\x00\x10\x12\x3f\xd5\xaa\x55\xeb\x14\xa4\xfd\xf8\x0e\xdf"
   let prev_huf_valid : Ref[Bool] = { val: false, }
   let prev_huf_max_bits : Ref[Int] = { val: 0, }
-  let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-  let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-  let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+  let prev_huf_left : Ref[Array[Int]] = { val: [], }
+  let prev_huf_right : Ref[Array[Int]] = { val: [], }
+  let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
   let result = try
     decode_literals_section_minimal(
       frame, 10, 106, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
@@ -1856,9 +1856,9 @@ test "decode literals section with FSE-compressed Huffman tree description" {
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\x55\x01\x00\x02\x84\x09\x05\x30\xfa\x36\x64\x0b\x57\x73\x78\x62\x90\x58\x55\xcd\x78\x86\xdc\xa9\xfd\xe8\x84\x40\x94\xe7\xdd\x3a\xc3\x8c\x64\x99\xf9\xbb\xfa\xb9\x4e\xb9\xcc\x01\x00\x6b\x71\xa5\xdd"
   let prev_huf_valid : Ref[Bool] = { val: false, }
   let prev_huf_max_bits : Ref[Int] = { val: 0, }
-  let prev_huf_left : Ref[Array[Int]] = { val: Array(), }
-  let prev_huf_right : Ref[Array[Int]] = { val: Array(), }
-  let prev_huf_symbol : Ref[Array[Int]] = { val: Array(), }
+  let prev_huf_left : Ref[Array[Int]] = { val: [], }
+  let prev_huf_right : Ref[Array[Int]] = { val: [], }
+  let prev_huf_symbol : Ref[Array[Int]] = { val: [], }
   let result = try
     decode_literals_section_minimal(
       frame, 9, 51, prev_huf_valid, prev_huf_max_bits, prev_huf_left, prev_huf_right,
@@ -1934,7 +1934,7 @@ fn wb_standard_dictionary_fixture_frame() -> Bytes {
 
 ///|
 fn wb_seeded_mode2_payload_from_state(state : DictionaryState) -> Bytes {
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   out.push((0 : UInt).to_byte()) // raw literals, empty
   out.push((1 : UInt).to_byte()) // sequence count
   out.push((0xA8 : UInt).to_byte()) // all mode2 sequence sources
@@ -2026,7 +2026,7 @@ test "dictionary sequence headers can seed repeat-mode rewrite for first payload
     Ok(v) => v
     Err(_) => fail("parse_dictionary_state failed")
   }
-  let payload_arr : Array[Byte] = Array()
+  let payload_arr : Array[Byte] = []
   payload_arr.push((0 : UInt).to_byte()) // raw literals, empty
   payload_arr.push((1 : UInt).to_byte()) // sequence count = 1
   payload_arr.push((0xA8 : UInt).to_byte()) // all mode2 sequence sources
@@ -2079,7 +2079,7 @@ test "dictionary Huffman tree can seed treeless literals rewrite for first paylo
   let header : UInt = ((lit_size.reinterpret_as_uint() & 0x3FF) << 4) +
     ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
     2
-  let payload_arr : Array[Byte] = Array()
+  let payload_arr : Array[Byte] = []
   append_u24_le(payload_arr, header)
   append_bytes(
     payload_arr,
@@ -2120,7 +2120,7 @@ test "treeless literals rewrite preserves size_format=1 for four-stream payload"
     ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
     (1 << 2) +
     2
-  let payload_arr : Array[Byte] = Array()
+  let payload_arr : Array[Byte] = []
   append_u24_le(payload_arr, header)
   append_bytes(
     payload_arr,
@@ -2165,7 +2165,7 @@ test "standard dictionary internal paths comparison" {
     Err(_) => fail("parse_dictionary_state failed")
   }
 
-  let out_history : Array[Byte] = Array()
+  let out_history : Array[Byte] = []
   let history_result = try
     decode_frame_into_with_history(frame, 0, out_history, state.history)
   catch {
@@ -2173,7 +2173,7 @@ test "standard dictionary internal paths comparison" {
   } noraise {
     value => Ok(value)
   }
-  let out_dict : Array[Byte] = Array()
+  let out_dict : Array[Byte] = []
   let dict_result = try
     decode_frame_into_with_dictionary(frame, 0, out_dict, dict)
   catch {
@@ -2787,9 +2787,9 @@ test "greedy collector can capture multiple dictionary-backed matches" {
   let tail = Bytes::makei(64, _ => b"\xD2"[0])
   let dict = prefix + part_a + mid + part_b + tail
   let src = part_a + b"@" + part_b + b"#"
-  let ll_values : Array[Int] = Array()
-  let off_values : Array[Int] = Array()
-  let ml_values : Array[Int] = Array()
+  let ll_values : Array[Int] = []
+  let off_values : Array[Int] = []
+  let ml_values : Array[Int] = []
   collect_greedy_sequences(
     src,
     0,
@@ -2998,9 +2998,9 @@ test "greedy collector hash-chain depth can recover older longer candidate" {
   let history = older + gap + newer
   let src = older + b"!"
 
-  let ll_shallow : Array[Int] = Array()
-  let off_shallow : Array[Int] = Array()
-  let ml_shallow : Array[Int] = Array()
+  let ll_shallow : Array[Int] = []
+  let off_shallow : Array[Int] = []
+  let ml_shallow : Array[Int] = []
   collect_greedy_sequences(
     src,
     0,
@@ -3013,9 +3013,9 @@ test "greedy collector hash-chain depth can recover older longer candidate" {
     search_depth=1,
   )
 
-  let ll_deep : Array[Int] = Array()
-  let off_deep : Array[Int] = Array()
-  let ml_deep : Array[Int] = Array()
+  let ll_deep : Array[Int] = []
+  let off_deep : Array[Int] = []
+  let ml_deep : Array[Int] = []
   collect_greedy_sequences(
     src,
     0,
@@ -3040,9 +3040,9 @@ test "greedy collector max-match-offset can bound dictionary matches" {
   let dict = b"ABCDabcdefghijklmnop"
   let src = dict + b"!"
 
-  let ll_limited : Array[Int] = Array()
-  let off_limited : Array[Int] = Array()
-  let ml_limited : Array[Int] = Array()
+  let ll_limited : Array[Int] = []
+  let off_limited : Array[Int] = []
+  let ml_limited : Array[Int] = []
   collect_greedy_sequences(
     src,
     0,
@@ -3056,9 +3056,9 @@ test "greedy collector max-match-offset can bound dictionary matches" {
     max_match_offset=8,
   )
 
-  let ll_unlimited : Array[Int] = Array()
-  let off_unlimited : Array[Int] = Array()
-  let ml_unlimited : Array[Int] = Array()
+  let ll_unlimited : Array[Int] = []
+  let off_unlimited : Array[Int] = []
+  let ml_unlimited : Array[Int] = []
   collect_greedy_sequences(
     src,
     0,
@@ -3091,8 +3091,8 @@ test "greedy sequence depth policy increases under long-distance mode" {
 
 ///|
 test "general RLE offset symbol selection can choose repcode off_code0" {
-  let values : Array[Int] = Array()
-  let ll_values : Array[Int] = Array()
+  let values : Array[Int] = []
+  let ll_values : Array[Int] = []
   values.push(5)
   ll_values.push(3)
   values.push(9)
@@ -3108,8 +3108,8 @@ test "general RLE offset symbol selection can choose repcode off_code0" {
 
 ///|
 test "general RLE offset symbol selection can choose repcode off_code1" {
-  let values : Array[Int] = Array()
-  let ll_values : Array[Int] = Array()
+  let values : Array[Int] = []
+  let ll_values : Array[Int] = []
   values.push(17)
   ll_values.push(0)
   values.push(9)
@@ -3127,8 +3127,8 @@ test "general RLE offset symbol selection can choose repcode off_code1" {
 
 ///|
 test "general RLE repcode selection tracks dynamic rep state across sequences" {
-  let values_code0 : Array[Int] = Array()
-  let ll_code0 : Array[Int] = Array()
+  let values_code0 : Array[Int] = []
+  let ll_code0 : Array[Int] = []
   values_code0.push(9)
   ll_code0.push(0)
   values_code0.push(9)
@@ -3141,8 +3141,8 @@ test "general RLE repcode selection tracks dynamic rep state across sequences" {
   assert_eq(bits0, 0)
   assert_eq(extras0.length(), 2)
 
-  let values_code1 : Array[Int] = Array()
-  let ll_code1 : Array[Int] = Array()
+  let values_code1 : Array[Int] = []
+  let ll_code1 : Array[Int] = []
   values_code1.push(9)
   ll_code1.push(4)
   values_code1.push(5)
@@ -3163,7 +3163,7 @@ fn build_non_single_segment_frame_from_payload(
   payload : Bytes,
   window_descriptor : UInt,
 ) -> Bytes {
-  let frame : Array[Byte] = Array()
+  let frame : Array[Byte] = []
   append_u32_le(frame, zstd_magic_number)
   frame.push((0 : UInt).to_byte()) // no fcs/checksum/dict_id, non-single-segment
   frame.push(window_descriptor.to_byte())

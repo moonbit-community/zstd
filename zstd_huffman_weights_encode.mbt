@@ -33,10 +33,10 @@ fn unique_symbols_from_table(
   max_symbol : Int,
 ) -> Array[Int] {
   if max_symbol < 0 {
-    return Array()
+    return []
   }
   let seen = Array::make(max_symbol + 1, false)
-  let out : Array[Int] = Array()
+  let out : Array[Int] = []
   let mut i = 0
   while i < table_symbols.length() {
     let s = table_symbols[i]
@@ -51,7 +51,7 @@ fn unique_symbols_from_table(
 
 ///|
 fn even_index_symbols(values : Array[Int]) -> Array[Int] {
-  let out : Array[Int] = Array()
+  let out : Array[Int] = []
   let mut i = 0
   while i < values.length() {
     out.push(values[i])
@@ -62,7 +62,7 @@ fn even_index_symbols(values : Array[Int]) -> Array[Int] {
 
 ///|
 fn odd_index_symbols(values : Array[Int]) -> Array[Int] {
-  let out : Array[Int] = Array()
+  let out : Array[Int] = []
   let mut i = 1
   while i < values.length() {
     out.push(values[i])
@@ -73,7 +73,7 @@ fn odd_index_symbols(values : Array[Int]) -> Array[Int] {
 
 ///|
 fn append_with_extra_symbol(values : Array[Int], symbol : Int) -> Array[Int] {
-  let out : Array[Int] = Array()
+  let out : Array[Int] = []
   let mut i = 0
   while i < values.length() {
     out.push(values[i])
@@ -172,7 +172,7 @@ fn build_weight_fse_bitstream_using_ctable(
   }
   let bit_container : Ref[UInt64] = { val: (0 : UInt64), }
   let bit_pos : Ref[Int] = { val: 0, }
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   let state1 : Ref[Int] = { val: 0, }
   let state2 : Ref[Int] = { val: 0, }
   let mut ip = src_size
@@ -370,7 +370,7 @@ fn try_update_weight_fse_bitstream_best_with_ops(
     let reverse_order = mode == 2 || mode == 3 || mode == 5
     let use_lsb = mode == 1 || mode == 3 || mode == 4 || mode == 5
     let use_forward_pack = mode >= 4
-    let bits : Array[Int] = Array()
+    let bits : Array[Int] = []
     let mut i = 0
     while i < op_values.length() {
       let idx = if reverse_order { op_values.length() - 1 - i } else { i }
@@ -423,8 +423,8 @@ fn build_weight_fse_bitstream_from_ops(
   )
 
   if op_values.length() >= 2 {
-    let swapped_init_values : Array[Int] = Array()
-    let swapped_init_counts : Array[Int] = Array()
+    let swapped_init_values : Array[Int] = []
+    let swapped_init_counts : Array[Int] = []
     swapped_init_values.push(op_values[1])
     swapped_init_counts.push(op_counts[1])
     swapped_init_values.push(op_values[0])
@@ -440,8 +440,8 @@ fn build_weight_fse_bitstream_from_ops(
       table_symbols, expected,
     )
 
-    let pair_swapped_values : Array[Int] = Array()
-    let pair_swapped_counts : Array[Int] = Array()
+    let pair_swapped_values : Array[Int] = []
+    let pair_swapped_counts : Array[Int] = []
     pair_swapped_values.push(op_values[0])
     pair_swapped_counts.push(op_counts[0])
     pair_swapped_values.push(op_values[1])
@@ -465,8 +465,8 @@ fn build_weight_fse_bitstream_from_ops(
       table_symbols, expected,
     )
 
-    let pair_and_init_swapped_values : Array[Int] = Array()
-    let pair_and_init_swapped_counts : Array[Int] = Array()
+    let pair_and_init_swapped_values : Array[Int] = []
+    let pair_and_init_swapped_counts : Array[Int] = []
     pair_and_init_swapped_values.push(op_values[1])
     pair_and_init_swapped_counts.push(op_counts[1])
     pair_and_init_swapped_values.push(op_values[0])
@@ -546,8 +546,8 @@ fn build_two_state_weight_fse_bitstream_even(
       states1.length() == stream1_path_symbols.length() &&
       trans_bits1.length() == stream1_updates.length() &&
       trans_nb1.length() == stream1_updates.length() {
-      let op_values : Array[Int] = Array()
-      let op_counts : Array[Int] = Array()
+      let op_values : Array[Int] = []
+      let op_counts : Array[Int] = []
       op_values.push(init1)
       op_counts.push(table_log)
       op_values.push(init2)
@@ -640,8 +640,8 @@ fn build_two_state_weight_fse_bitstream_odd(
       states2.length() == stream2_path_symbols.length() &&
       trans_bits2.length() == stream2_updates.length() &&
       trans_nb2.length() == stream2_updates.length() {
-      let op_values : Array[Int] = Array()
-      let op_counts : Array[Int] = Array()
+      let op_values : Array[Int] = []
+      let op_counts : Array[Int] = []
       op_values.push(init1)
       op_counts.push(table_log)
       op_values.push(init2)
@@ -733,7 +733,7 @@ fn try_update_huffman_weight_fse_best_candidate(
     return best
   }
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_bytes(payload, header, 0, header.length())
   append_bytes(payload, bitstream, 0, bitstream.length())
   let candidate = Bytes::from_array(payload)
@@ -822,7 +822,7 @@ fn try_build_huffman_fse_weights_description(
   if last_symbol <= 1 || last_symbol > 128 || last_symbol > weights.length() {
     return b""
   }
-  let values : Array[Int] = Array()
+  let values : Array[Int] = []
   let mut i = 0
   while i < last_symbol {
     let v = weights[i]
@@ -849,7 +849,7 @@ fn try_build_huffman_fse_weights_description(
       return b""
     }
   }
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   out.push(payload.length().reinterpret_as_uint().to_byte())
   append_bytes(out, payload, 0, payload.length())
   Bytes::from_array(out)

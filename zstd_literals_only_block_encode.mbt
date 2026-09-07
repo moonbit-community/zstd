@@ -25,10 +25,10 @@ fn build_literals_only_payload(
   if start < 0 || block_len <= 0 || start + block_len > src.length() {
     return b""
   }
-  let literals : Array[Byte] = Array()
+  let literals : Array[Byte] = []
   append_bytes(literals, src, start, block_len)
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, Bytes::from_array(literals))
   append_sequence_count(payload, 0)
   let encoded = Bytes::from_array(payload)

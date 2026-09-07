@@ -32,7 +32,7 @@ fn try_encode_common_offset_symbol(
     let base_u = base.to_uint64()
     let span = ((1 : UInt64) << code) - (1 : UInt64)
     let limit = base_u + span
-    let extras : Array[UInt] = Array()
+    let extras : Array[UInt] = []
     let mut ok = true
     let mut i = 0
     while i < values.length() {
@@ -56,7 +56,7 @@ fn try_encode_common_offset_symbol(
     }
     code = code + 1
   }
-  (false, 0, Array(), 0)
+  (false, 0, [], 0)
 }
 
 ///|
@@ -68,7 +68,7 @@ fn try_encode_common_offset_symbol_with_repcodes(
   rep3 : Int,
 ) -> (Bool, UInt, Array[UInt], Int) raise ZstdError {
   if values.length() != literal_lengths.length() {
-    return (false, 0, Array(), 0)
+    return (false, 0, [], 0)
   }
 
   let (ok_code0, extras_code0) = simulate_common_repcode_code0(
@@ -96,7 +96,7 @@ fn simulate_common_repcode_code0(
   rep2 : Int,
   rep3 : Int,
 ) -> (Bool, Array[UInt]) {
-  let extras : Array[UInt] = Array()
+  let extras : Array[UInt] = []
   let mut r1 = rep1
   let mut r2 = rep2
   ignore(rep3)
@@ -106,7 +106,7 @@ fn simulate_common_repcode_code0(
     let expected = if ll0 { r2 } else { r1 }
     let off = values[i]
     if off <= 0 || off != expected {
-      return (false, Array())
+      return (false, [])
     }
     extras.push((0 : UInt))
     if ll0 {
@@ -130,7 +130,7 @@ fn simulate_common_repcode_code1(
   rep2 : Int,
   rep3 : Int,
 ) -> (Bool, Array[UInt]) {
-  let extras : Array[UInt] = Array()
+  let extras : Array[UInt] = []
   let mut r1 = rep1
   let mut r2 = rep2
   let mut r3 = rep3
@@ -163,7 +163,7 @@ fn simulate_common_repcode_code1(
       }
     }
     if !matched {
-      return (false, Array())
+      return (false, [])
     }
     i = i + 1
   }
@@ -424,7 +424,7 @@ fn collect_greedy_sequences(
   rep3? : Int = 8,
   min_match? : Int = 3,
   prefer_offset_stability? : Bool = false,
-  off_base_values? : Array[Int] = Array(),
+  off_base_values? : Array[Int] = [],
 ) -> Unit {
   let history_len = history.length()
   let virtual_len = history_len + block_len
@@ -681,9 +681,9 @@ fn build_general_rle_payload(
   if (level < 9 && dictionary_history.length() == 0) || block_len < 32 {
     return b""
   }
-  let ll_values : Array[Int] = Array()
-  let off_values : Array[Int] = Array()
-  let ml_values : Array[Int] = Array()
+  let ll_values : Array[Int] = []
+  let off_values : Array[Int] = []
+  let ml_values : Array[Int] = []
   let max_sequences_base = general_rle_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 &&
     level < 10 &&
@@ -752,7 +752,7 @@ fn build_general_rle_payload(
     return b""
   }
 
-  let literals : Array[Byte] = Array()
+  let literals : Array[Byte] = []
   let mut consumed = 0
   let mut i = 0
   while i < seq_count {
@@ -769,7 +769,7 @@ fn build_general_rle_payload(
     append_bytes(literals, src, start + consumed, tail_len)
   }
 
-  let extra_bits : Array[Int] = Array()
+  let extra_bits : Array[Int] = []
   i = 0
   while i < seq_count {
     append_bits_be(extra_bits, off_extras[i], off_bits)
@@ -779,7 +779,7 @@ fn build_general_rle_payload(
   }
   let bitstream = build_reverse_bitstream(extra_bits)
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, Bytes::from_array(literals))
   append_sequence_count(payload, seq_count)
   payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes

@@ -79,7 +79,7 @@ fn bytes_slice_encode_test(src : Bytes, start : Int, len : Int) -> Bytes {
   if start < 0 || len < 0 || start + len > src.length() {
     return b""
   }
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   append_bytes_encode_test(out, src, start, len)
   Bytes::from_array(out)
 }
@@ -707,7 +707,7 @@ test "compress emits compressed block for periodic payload at higher level" {
 ///|
 test "compress periodic payload with larger period uses higher offset code" {
   let unit = b"abcdefghijklmn"[:13].to_owned()
-  let input_arr : Array[Byte] = Array()
+  let input_arr : Array[Byte] = []
   let mut i = 0
   while i < 64 {
     let mut j = 0
@@ -771,7 +771,7 @@ test "compress can use periodic window after literal prefix" {
 test "compress prefix periodic window can use multi-sequence when LL range fits" {
   let prefix = b"X"
   let period = b"abcdefghijklmnop" // 16 bytes
-  let body_arr : Array[Byte] = Array()
+  let body_arr : Array[Byte] = []
   let mut i = 0
   while i < 20 {
     append_bytes_encode_test(body_arr, period, 0, period.length())

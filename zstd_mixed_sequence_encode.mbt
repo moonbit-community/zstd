@@ -25,7 +25,7 @@ fn sum_int_array(values : Array[Int]) -> Int {
 
 ///|
 fn make_constant_int_array(len : Int, value : Int) -> Array[Int] {
-  let out : Array[Int] = Array()
+  let out : Array[Int] = []
   let mut i = 0
   while i < len {
     out.push(value)
@@ -64,17 +64,17 @@ fn choose_sequence_source_mode(
   Array[Int],
 ) raise ZstdError {
   if values.length() <= 0 {
-    return (false, 0, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, 0, b"", 0, 0, [], [], [], [])
   }
   let mut have = false
   let mut best_mode : UInt = 0
   let mut best_source = b""
   let mut best_init_state = 0
   let mut best_init_bits = 0
-  let mut best_extras : Array[UInt] = Array()
-  let mut best_extra_bits : Array[Int] = Array()
-  let mut best_trans_bits : Array[Int] = Array()
-  let mut best_trans_nb_bits : Array[Int] = Array()
+  let mut best_extras : Array[UInt] = []
+  let mut best_extra_bits : Array[Int] = []
+  let mut best_trans_bits : Array[Int] = []
+  let mut best_trans_nb_bits : Array[Int] = []
   let mut best_score = 0
 
   // RLE mode (01)
@@ -92,11 +92,11 @@ fn choose_sequence_source_mode(
   }
   match rle {
     (true, code, extras, bits) => {
-      let source_arr : Array[Byte] = Array()
+      let source_arr : Array[Byte] = []
       source_arr.push(code.to_byte())
       let source = Bytes::from_array(source_arr)
       let extra_bits = make_constant_int_array(values.length(), bits)
-      let score = source_option_score_bits(source, 0, extra_bits, Array())
+      let score = source_option_score_bits(source, 0, extra_bits, [])
       have = true
       best_mode = 1
       best_source = source
@@ -104,8 +104,8 @@ fn choose_sequence_source_mode(
       best_init_bits = 0
       best_extras = extras
       best_extra_bits = extra_bits
-      best_trans_bits = Array()
-      best_trans_nb_bits = Array()
+      best_trans_bits = []
+      best_trans_nb_bits = []
       best_score = score
     }
     _ => ()
@@ -191,7 +191,7 @@ fn choose_sequence_source_mode(
       best_extra_bits, best_trans_bits, best_trans_nb_bits,
     )
   } else {
-    (false, 0, b"", 0, 0, Array(), Array(), Array(), Array())
+    (false, 0, b"", 0, 0, [], [], [], [])
   }
 }
 
@@ -203,7 +203,7 @@ fn choose_offset_source_mode_with_repcodes(
   rep1 : Int,
   rep2 : Int,
   rep3 : Int,
-  off_base_values? : Array[Int] = Array(),
+  off_base_values? : Array[Int] = [],
 ) -> (
   Bool,
   UInt,
@@ -216,21 +216,21 @@ fn choose_offset_source_mode_with_repcodes(
   Array[Int],
 ) raise ZstdError {
   if off_values.length() <= 0 || ll_values.length() != off_values.length() {
-    return (false, 0, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, 0, b"", 0, 0, [], [], [], [])
   }
   let mut have = false
   let mut best_mode : UInt = 0
   let mut best_source = b""
   let mut best_init_state = 0
   let mut best_init_bits = 0
-  let mut best_extras : Array[UInt] = Array()
-  let mut best_extra_bits : Array[Int] = Array()
-  let mut best_trans_bits : Array[Int] = Array()
-  let mut best_trans_nb_bits : Array[Int] = Array()
+  let mut best_extras : Array[UInt] = []
+  let mut best_extra_bits : Array[Int] = []
+  let mut best_trans_bits : Array[Int] = []
+  let mut best_trans_nb_bits : Array[Int] = []
   let mut best_score = 0
 
   fn copy_int_array(values : Array[Int]) -> Array[Int] {
-    let out : Array[Int] = Array()
+    let out : Array[Int] = []
     let mut i = 0
     while i < values.length() {
       out.push(values[i])
@@ -339,11 +339,11 @@ fn choose_offset_source_mode_with_repcodes(
   )
   match rle {
     (true, code, extras, bits) => {
-      let source_arr : Array[Byte] = Array()
+      let source_arr : Array[Byte] = []
       source_arr.push(code.to_byte())
       let source = Bytes::from_array(source_arr)
       let extra_bits = make_constant_int_array(off_values.length(), bits)
-      let score = source_option_score_bits(source, 0, extra_bits, Array())
+      let score = source_option_score_bits(source, 0, extra_bits, [])
       have = true
       best_mode = 1
       best_source = source
@@ -351,8 +351,8 @@ fn choose_offset_source_mode_with_repcodes(
       best_init_bits = 0
       best_extras = extras
       best_extra_bits = extra_bits
-      best_trans_bits = Array()
-      best_trans_nb_bits = Array()
+      best_trans_bits = []
+      best_trans_nb_bits = []
       best_score = score
     }
     _ => ()
@@ -434,7 +434,7 @@ fn choose_offset_source_mode_with_repcodes(
       best_extra_bits, best_trans_bits, best_trans_nb_bits,
     )
   } else {
-    (false, 0, b"", 0, 0, Array(), Array(), Array(), Array())
+    (false, 0, b"", 0, 0, [], [], [], [])
   }
 }
 
@@ -454,10 +454,10 @@ fn build_general_mixed_sequence_payload(
   if (level < 9 && dictionary_history.length() == 0) || block_len < 96 {
     return b""
   }
-  let ll_values : Array[Int] = Array()
-  let off_values : Array[Int] = Array()
-  let off_base_values : Array[Int] = Array()
-  let ml_values : Array[Int] = Array()
+  let ll_values : Array[Int] = []
+  let off_values : Array[Int] = []
+  let off_base_values : Array[Int] = []
+  let ml_values : Array[Int] = []
   let max_sequences_base = mixed_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 &&
     level < 10 &&
@@ -570,7 +570,7 @@ fn build_general_mixed_sequence_payload(
   let literals = build_literals_from_sequences(
     src, start, block_len, ll_values, ml_values,
   )
-  let bits : Array[Int] = Array()
+  let bits : Array[Int] = []
 
   if ll_mode != 1 {
     append_bits_be(bits, ll_init_state.reinterpret_as_uint(), ll_init_bits)
@@ -614,7 +614,7 @@ fn build_general_mixed_sequence_payload(
   }
   let bitstream = build_reverse_bitstream(bits)
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
   let modes = (ll_mode << 6) + (off_mode << 4) + (ml_mode << 2)

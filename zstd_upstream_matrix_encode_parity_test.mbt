@@ -124,7 +124,7 @@ fn frame_block_summary(frame : Bytes) -> String {
   if pos + 3 > frame.length() {
     return "no-block"
   }
-  let parts : Array[String] = Array()
+  let parts : Array[String] = []
   let mut i = 0
   let mut cursor = pos
   while i < 4 && cursor + 3 <= frame.length() {

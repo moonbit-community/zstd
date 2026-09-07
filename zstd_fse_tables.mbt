@@ -87,8 +87,8 @@ fn build_sequence_fse_decode_table(
   let table_mask = table_size - 1
   let step = (table_size >> 1) + (table_size >> 3) + 3
 
-  let table_symbol : Array[Int] = Array()
-  let symbol_next : Array[Int] = Array()
+  let table_symbol : Array[Int] = []
+  let symbol_next : Array[Int] = []
   let mut i = 0
   while i < table_size {
     table_symbol.push(0)
@@ -140,10 +140,10 @@ fn build_sequence_fse_decode_table(
     raise CorruptionDetected
   }
 
-  let next_state : Array[Int] = Array()
-  let nb_add_bits : Array[Int] = Array()
-  let nb_bits : Array[Int] = Array()
-  let base_values : Array[Int] = Array()
+  let next_state : Array[Int] = []
+  let nb_add_bits : Array[Int] = []
+  let nb_bits : Array[Int] = []
+  let base_values : Array[Int] = []
   i = 0
   while i < table_size {
     next_state.push(0)
@@ -202,8 +202,8 @@ fn build_fse_symbol_decode_table(
   let table_mask = table_size - 1
   let step = (table_size >> 1) + (table_size >> 3) + 3
 
-  let table_symbol : Array[Int] = Array()
-  let symbol_next : Array[Int] = Array()
+  let table_symbol : Array[Int] = []
+  let symbol_next : Array[Int] = []
   let mut i = 0
   while i < table_size {
     table_symbol.push(0)
@@ -255,9 +255,9 @@ fn build_fse_symbol_decode_table(
     raise CorruptionDetected
   }
 
-  let next_state : Array[Int] = Array()
-  let nb_bits : Array[Int] = Array()
-  let symbols : Array[Int] = Array()
+  let next_state : Array[Int] = []
+  let nb_bits : Array[Int] = []
+  let symbols : Array[Int] = []
   i = 0
   while i < table_size {
     next_state.push(0)
@@ -307,7 +307,7 @@ fn read_fse_ncount_header(
   let hb_size = end_pos - start
   let total_bits = hb_size * 8
 
-  let normalized_counter : Array[Int] = Array()
+  let normalized_counter : Array[Int] = []
   let mut i = 0
   while i <= max_symbol_limit {
     normalized_counter.push(0)

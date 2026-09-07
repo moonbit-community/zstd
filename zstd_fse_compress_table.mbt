@@ -19,10 +19,10 @@ fn build_fse_compression_table_from_normalized(
   table_log : Int,
 ) -> (Bool, Array[Int], Array[Int], Array[Int]) {
   if table_log < fse_min_table_log || table_log > fse_table_log_absolute_max {
-    return (false, Array(), Array(), Array())
+    return (false, [], [], [])
   }
   if max_symbol < 0 || max_symbol >= normalized_counter.length() {
-    return (false, Array(), Array(), Array())
+    return (false, [], [], [])
   }
   let table_size = (1 : Int) << table_log
   let table_mask = table_size - 1
@@ -37,19 +37,19 @@ fn build_fse_compression_table_from_normalized(
     if count == -1 {
       cumul[u] = prev + 1
       if high_threshold < 0 {
-        return (false, Array(), Array(), Array())
+        return (false, [], [], [])
       }
       table_symbol[high_threshold] = u - 1
       high_threshold = high_threshold - 1
     } else if count >= 0 {
       cumul[u] = prev + count
     } else {
-      return (false, Array(), Array(), Array())
+      return (false, [], [], [])
     }
     u = u + 1
   }
   if cumul[max_symbol + 1] != table_size {
-    return (false, Array(), Array(), Array())
+    return (false, [], [], [])
   }
   cumul[max_symbol + 1] = table_size + 1
 
@@ -58,7 +58,7 @@ fn build_fse_compression_table_from_normalized(
   while symbol <= max_symbol {
     let freq = normalized_counter[symbol]
     if freq < -1 {
-      return (false, Array(), Array(), Array())
+      return (false, [], [], [])
     }
     if freq > 0 {
       let mut n = 0
@@ -74,7 +74,7 @@ fn build_fse_compression_table_from_normalized(
     symbol = symbol + 1
   }
   if position != 0 {
-    return (false, Array(), Array(), Array())
+    return (false, [], [], [])
   }
 
   let state_table = Array::make(table_size, 0)
@@ -82,11 +82,11 @@ fn build_fse_compression_table_from_normalized(
   while u < table_size {
     let s = table_symbol[u]
     if s < 0 || s > max_symbol {
-      return (false, Array(), Array(), Array())
+      return (false, [], [], [])
     }
     let idx = cumul[s]
     if idx < 0 || idx >= table_size {
-      return (false, Array(), Array(), Array())
+      return (false, [], [], [])
     }
     state_table[idx] = table_size + u
     cumul[s] = idx + 1
@@ -113,12 +113,12 @@ fn build_fse_compression_table_from_normalized(
       delta_find_state[symbol] = total - count
       total = total + count
     } else {
-      return (false, Array(), Array(), Array())
+      return (false, [], [], [])
     }
     symbol = symbol + 1
   }
   if total != table_size {
-    return (false, Array(), Array(), Array())
+    return (false, [], [], [])
   }
   (true, state_table, delta_nb_bits, delta_find_state)
 }
@@ -205,17 +205,17 @@ fn build_reference_fse_state_path(
     next_state.length() != table_size ||
     nb_bits.length() != table_size ||
     state_table.length() != table_size {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
   let last_symbol = symbols[n - 1]
   let (init_ok, init_state_c) = fse_init_cstate2_with_table(
     state_table, delta_nb_bits, delta_find_state, last_symbol,
   )
   if !init_ok {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
-  let trans_bits = if n > 1 { Array::make(n - 1, 0) } else { Array() }
-  let trans_nb_bits = if n > 1 { Array::make(n - 1, 0) } else { Array() }
+  let trans_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }
+  let trans_nb_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }
   let mut cstate = init_state_c
   let mut i = n - 2
   while i >= 0 {
@@ -224,7 +224,7 @@ fn build_reference_fse_state_path(
       cstate, symbol, state_table, delta_nb_bits, delta_find_state,
     )
     if !ok {
-      return (false, 0, Array(), Array(), Array())
+      return (false, 0, [], [], [])
     }
     trans_bits[i] = bits
     trans_nb_bits[i] = nb
@@ -234,7 +234,7 @@ fn build_reference_fse_state_path(
 
   let init_state = cstate - table_size
   if init_state < 0 || init_state >= table_size {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
 
   let states = Array::make(n, 0)
@@ -243,21 +243,21 @@ fn build_reference_fse_state_path(
   while i < n {
     let st = states[i]
     if st < 0 || st >= table_size || symbols[i] != table_symbol[st] {
-      return (false, 0, Array(), Array(), Array())
+      return (false, 0, [], [], [])
     }
     if i + 1 < n {
       let bits = trans_bits[i]
       let nb = trans_nb_bits[i]
       if nb != nb_bits[st] {
-        return (false, 0, Array(), Array(), Array())
+        return (false, 0, [], [], [])
       }
       let range = if nb == 0 { 1 } else { 1 << nb }
       if bits < 0 || bits >= range {
-        return (false, 0, Array(), Array(), Array())
+        return (false, 0, [], [], [])
       }
       let next = next_state[st] + bits
       if next < 0 || next >= table_size {
-        return (false, 0, Array(), Array(), Array())
+        return (false, 0, [], [], [])
       }
       states[i + 1] = next
     }

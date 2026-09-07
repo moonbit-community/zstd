@@ -89,7 +89,7 @@ fn predefined_default_norm_data(
       5,
     )
   } else {
-    (false, Array(), 0, 0)
+    (false, [], 0, 0)
   }
 }
 
@@ -100,11 +100,11 @@ fn select_predefined_state_path_reference(
 ) -> (Bool, Array[Int], Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
   let n = values.length()
   if n <= 0 {
-    return (false, Array(), Array(), Array(), Array(), Array())
+    return (false, [], [], [], [], [])
   }
-  let symbols : Array[Int] = Array()
-  let extras : Array[UInt] = Array()
-  let extra_bits : Array[Int] = Array()
+  let symbols : Array[Int] = []
+  let extras : Array[UInt] = []
+  let extra_bits : Array[Int] = []
   let mut i = 0
   while i < n {
     let (ok, symbol, extra, add_bits) = encode_symbol_for_value(
@@ -112,7 +112,7 @@ fn select_predefined_state_path_reference(
       values[i],
     )
     if !ok {
-      return (false, Array(), Array(), Array(), Array(), Array())
+      return (false, [], [], [], [], [])
     }
     symbols.push(symbol)
     extras.push(extra)
@@ -124,7 +124,7 @@ fn select_predefined_state_path_reference(
     symbol_type,
   )
   if !norm_ok {
-    return (false, Array(), Array(), Array(), Array(), Array())
+    return (false, [], [], [], [], [])
   }
   let (table_symbol, next_state, nb_add_bits, nb_bits, _) = build_sequence_fse_decode_table_with_symbols(
     norm, max_symbol, table_log, symbol_type,
@@ -133,18 +133,18 @@ fn select_predefined_state_path_reference(
     norm, max_symbol, table_log,
   )
   if !ct_ok {
-    return (false, Array(), Array(), Array(), Array(), Array())
+    return (false, [], [], [], [], [])
   }
   let (path_ok, _, trans_bits, trans_nb_bits, states) = build_reference_fse_state_path(
     symbols, table_symbol, next_state, nb_bits, state_table, delta_nb_bits, delta_find_state,
   )
   if !path_ok || states.length() != n {
-    return (false, Array(), Array(), Array(), Array(), Array())
+    return (false, [], [], [], [], [])
   }
   i = 0
   while i < n {
     if nb_add_bits[states[i]] != extra_bits[i] {
-      return (false, Array(), Array(), Array(), Array(), Array())
+      return (false, [], [], [], [], [])
     }
     i = i + 1
   }
@@ -158,25 +158,25 @@ fn select_predefined_state_path(
 ) -> (Bool, Array[Int], Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
   let n = values.length()
   if n <= 0 {
-    return (false, Array(), Array(), Array(), Array(), Array())
+    return (false, [], [], [], [], [])
   }
   if symbol_type != sequence_symbol_offset {
     return select_predefined_state_path_reference(values, symbol_type)
   }
 
-  let states_per_pos : Array[Array[Int]] = Array()
-  let extras_per_pos : Array[Array[UInt]] = Array()
-  let add_bits_per_pos : Array[Array[Int]] = Array()
-  let next_states_per_pos : Array[Array[Int]] = Array()
-  let state_bits_per_pos : Array[Array[Int]] = Array()
+  let states_per_pos : Array[Array[Int]] = []
+  let extras_per_pos : Array[Array[UInt]] = []
+  let add_bits_per_pos : Array[Array[Int]] = []
+  let next_states_per_pos : Array[Array[Int]] = []
+  let state_bits_per_pos : Array[Array[Int]] = []
 
   let mut i = 0
   while i < n {
-    let cand_states : Array[Int] = Array()
-    let cand_extras : Array[UInt] = Array()
-    let cand_add_bits : Array[Int] = Array()
-    let cand_next_states : Array[Int] = Array()
-    let cand_state_bits : Array[Int] = Array()
+    let cand_states : Array[Int] = []
+    let cand_extras : Array[UInt] = []
+    let cand_add_bits : Array[Int] = []
+    let cand_next_states : Array[Int] = []
+    let cand_state_bits : Array[Int] = []
     collect_predefined_candidates_for_value(
       symbol_type,
       values[i],
@@ -187,7 +187,7 @@ fn select_predefined_state_path(
       cand_state_bits,
     )
     if cand_states.length() == 0 {
-      return (false, Array(), Array(), Array(), Array(), Array())
+      return (false, [], [], [], [], [])
     }
     states_per_pos.push(cand_states)
     extras_per_pos.push(cand_extras)
@@ -198,9 +198,9 @@ fn select_predefined_state_path(
   }
 
   let inf = 1 << 30
-  let parent_idx_per_pos : Array[Array[Int]] = Array()
-  let parent_bits_per_pos : Array[Array[Int]] = Array()
-  let mut cost_prev : Array[Int] = Array()
+  let parent_idx_per_pos : Array[Array[Int]] = []
+  let parent_bits_per_pos : Array[Array[Int]] = []
+  let mut cost_prev : Array[Int] = []
 
   let cand0_len = states_per_pos[0].length()
   parent_idx_per_pos.push(Array::make(cand0_len, -1))
@@ -264,14 +264,14 @@ fn select_predefined_state_path(
     i = i + 1
   }
   if best_idx < 0 || best_cost >= inf {
-    return (false, Array(), Array(), Array(), Array(), Array())
+    return (false, [], [], [], [], [])
   }
 
   let states = Array::make(n, 0)
   let extras = Array::make(n, (0 : UInt))
   let extra_bits = Array::make(n, 0)
-  let trans_bits = if n > 1 { Array::make(n - 1, 0) } else { Array() }
-  let trans_nb_bits = if n > 1 { Array::make(n - 1, 0) } else { Array() }
+  let trans_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }
+  let trans_nb_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }
 
   let mut idx = best_idx
   pos = n - 1
@@ -282,7 +282,7 @@ fn select_predefined_state_path(
     if pos > 0 {
       let parent = parent_idx_per_pos[pos][idx]
       if parent < 0 {
-        return (false, Array(), Array(), Array(), Array(), Array())
+        return (false, [], [], [], [], [])
       }
       trans_bits[pos - 1] = parent_bits_per_pos[pos][idx]
       trans_nb_bits[pos - 1] = state_bits_per_pos[pos - 1][parent]
@@ -305,7 +305,7 @@ fn build_literals_from_sequences(
   if ll_values.length() != ml_values.length() {
     raise CorruptionDetected
   }
-  let literals : Array[Byte] = Array()
+  let literals : Array[Byte] = []
   let mut consumed = 0
   let mut i = 0
   while i < ll_values.length() {
@@ -344,9 +344,9 @@ fn build_general_predefined_payload(
     return b""
   }
 
-  let ll_values : Array[Int] = Array()
-  let off_values : Array[Int] = Array()
-  let ml_values : Array[Int] = Array()
+  let ll_values : Array[Int] = []
+  let off_values : Array[Int] = []
+  let ml_values : Array[Int] = []
   let max_sequences_base = predefined_multi_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 &&
     level < 10 &&
@@ -435,7 +435,7 @@ fn build_general_predefined_payload(
   let literals = build_literals_from_sequences(
     src, start, block_len, ll_values, ml_values,
   )
-  let extra_bits : Array[Int] = Array()
+  let extra_bits : Array[Int] = []
   append_bits_be(
     extra_bits,
     ll_states[0].reinterpret_as_uint(),
@@ -478,7 +478,7 @@ fn build_general_predefined_payload(
   }
 
   let bitstream = build_reverse_bitstream(extra_bits)
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
   payload.push((0 : UInt).to_byte()) // all predefined sequence modes

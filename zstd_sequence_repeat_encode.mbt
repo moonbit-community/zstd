@@ -128,7 +128,7 @@ fn copy_bytes_range(
   len : Int,
 ) -> Bytes raise ZstdError {
   ensure_range(src.length(), start, len)
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   append_bytes(out, src, start, len)
   Bytes::from_array(out)
 }
@@ -240,7 +240,7 @@ fn maybe_rewrite_sequence_modes_to_repeat(
   let modes = payload[modes_pos].to_uint()
   if modes == 0 {
     if prev_predefined_valid.val {
-      let out : Array[Byte] = Array()
+      let out : Array[Byte] = []
       append_bytes(out, payload, 0, modes_pos)
       out.push((0xFC : UInt).to_byte()) // all repeat sequence modes
       append_bytes(
@@ -270,7 +270,7 @@ fn maybe_rewrite_sequence_modes_to_repeat(
       ll_code == prev_ll_code.val &&
       off_code == prev_off_code.val &&
       ml_code == prev_ml_code.val {
-      let out : Array[Byte] = Array()
+      let out : Array[Byte] = []
       append_bytes(out, payload, 0, modes_pos)
       out.push((0xFC : UInt).to_byte()) // all repeat sequence modes
       append_bytes(
@@ -336,7 +336,7 @@ fn maybe_rewrite_sequence_modes_to_repeat(
       }
       let new_modes = (ll_mode << 6) + (off_mode << 4) + (ml_mode << 2)
       let rewritten = if new_modes != modes {
-        let out : Array[Byte] = Array()
+        let out : Array[Byte] = []
         append_bytes(out, payload, 0, mode_pos)
         out.push(new_modes.to_byte())
         if ll_mode == 1 || ll_mode == 2 {

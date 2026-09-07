@@ -120,7 +120,7 @@ pub fn compress_with_dictionary_and_options(
   if src_len.to_uint64() >= max_input_size {
     raise SrcSizeTooLarge(src_len.to_uint64())
   }
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   let dictionary_state = parse_dictionary_state(dictionary)
   let use_compact_frame_header = normalized_options.compact_frame_header ||
     (
@@ -178,7 +178,7 @@ pub fn compress_with_dictionary_and_options(
 /// Pure MoonBit one-shot decompressor.
 /// Supports concatenated frames and skippable frames.
 pub fn decompress(src : Bytes) -> Bytes raise ZstdError {
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   let mut pos = 0
   let src_len = src.length()
   while pos < src_len {
@@ -197,7 +197,7 @@ pub fn decompress_with_dictionary(
   src : Bytes,
   dictionary : Bytes,
 ) -> Bytes raise ZstdError {
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   let mut pos = 0
   let src_len = src.length()
   while pos < src_len {

@@ -275,7 +275,7 @@ fn append_frame_blocks_minimal(
   let prev_lit_huf_tree_desc : Ref[Bytes] = {
     val: dictionary_state.huf_tree_desc,
   }
-  let sim_out : Array[Byte] = Array()
+  let sim_out : Array[Byte] = []
   let mut sim_rep1 = dictionary_state.rep1
   let mut sim_rep2 = dictionary_state.rep2
   let mut sim_rep3 = dictionary_state.rep3

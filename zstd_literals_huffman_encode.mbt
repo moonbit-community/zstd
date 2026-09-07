@@ -186,9 +186,9 @@ fn build_literal_huffman_lengths_from_frequencies(
   max_symbol : Int,
 ) -> (Bool, Array[Int], Int) {
   if max_symbol < 0 || max_symbol >= freq.length() {
-    return (false, Array(), 0)
+    return (false, [], 0)
   }
-  let leaves : Array[Int] = Array()
+  let leaves : Array[Int] = []
   let mut s = 0
   while s <= max_symbol {
     if freq[s] > 0 {
@@ -198,7 +198,7 @@ fn build_literal_huffman_lengths_from_frequencies(
   }
   let leaf_count = leaves.length()
   if leaf_count < 2 {
-    return (false, Array(), 0)
+    return (false, [], 0)
   }
 
   let mut i = 1
@@ -234,7 +234,7 @@ fn build_literal_huffman_lengths_from_frequencies(
   let node_root = 2 * leaf_count - 2
 
   if leaf_count < 2 || node_root >= total_nodes {
-    return (false, Array(), 0)
+    return (false, [], 0)
   }
 
   node_weight[node_nb] = node_weight[low_s] + node_weight[low_s - 1]
@@ -265,7 +265,7 @@ fn build_literal_huffman_lengths_from_frequencies(
       idx
     }
     if n1 < 0 || n2 < 0 || n1 >= total_nodes || n2 >= total_nodes {
-      return (false, Array(), 0)
+      return (false, [], 0)
     }
     node_weight[node_nb] = node_weight[n1] + node_weight[n2]
     node_parent[n1] = node_nb
@@ -278,7 +278,7 @@ fn build_literal_huffman_lengths_from_frequencies(
   while n >= leaf_count {
     let p = node_parent[n]
     if p < 0 || p >= total_nodes {
-      return (false, Array(), 0)
+      return (false, [], 0)
     }
     node_depth[n] = node_depth[p] + 1
     n = n - 1
@@ -289,7 +289,7 @@ fn build_literal_huffman_lengths_from_frequencies(
   while i < leaf_count {
     let p = node_parent[i]
     if p < 0 || p >= total_nodes {
-      return (false, Array(), 0)
+      return (false, [], 0)
     }
     node_depth[i] = node_depth[p] + 1
     total = total + node_weight[i]
@@ -313,11 +313,11 @@ fn build_literal_huffman_lengths_from_frequencies(
   while i < leaf_count {
     let symbol = node_symbol[i]
     if symbol < 0 || symbol > max_symbol {
-      return (false, Array(), 0)
+      return (false, [], 0)
     }
     let depth = leaf_nb_bits[i]
     if depth <= 0 {
-      return (false, Array(), 0)
+      return (false, [], 0)
     }
     lengths[symbol] = depth
     if depth > max_len {
@@ -377,29 +377,29 @@ fn build_huffman_canonical_codes_from_weights(
   max_bits : Int,
 ) -> (Bool, Array[UInt], Array[Int]) {
   if max_symbol < 0 || max_symbol >= weights.length() {
-    return (false, Array(), Array())
+    return (false, [], [])
   }
   if max_bits <= 0 || max_bits > huf_max_nb_bits {
-    return (false, Array(), Array())
+    return (false, [], [])
   }
   let nb_bits = Array::make(max_symbol + 1, 0)
   let mut s = 0
   while s <= max_symbol {
     let w = weights[s]
     if w < 0 || w > max_bits {
-      return (false, Array(), Array())
+      return (false, [], [])
     }
     if w > 0 {
       let n = max_bits + 1 - w
       if n <= 0 || n > max_bits {
-        return (false, Array(), Array())
+        return (false, [], [])
       }
       nb_bits[s] = n
     }
     s = s + 1
   }
 
-  let symbols_by_weight : Array[Int] = Array()
+  let symbols_by_weight : Array[Int] = []
   let mut weight = 1
   while weight <= max_bits {
     s = 0
@@ -412,14 +412,14 @@ fn build_huffman_canonical_codes_from_weights(
     weight = weight + 1
   }
   if symbols_by_weight.length() < 2 {
-    return (false, Array(), Array())
+    return (false, [], [])
   }
 
   let codes = Array::make(max_symbol + 1, (0 : UInt))
   let first_symbol = symbols_by_weight[0]
   let current_bits_ref : Ref[Int] = { val: nb_bits[first_symbol], }
   if current_bits_ref.val <= 0 {
-    return (false, Array(), Array())
+    return (false, [], [])
   }
   let code_ref : Ref[Int] = { val: 0, }
   let mut i = 0
@@ -427,14 +427,14 @@ fn build_huffman_canonical_codes_from_weights(
     let symbol = symbols_by_weight[i]
     let n = nb_bits[symbol]
     if n <= 0 || n > current_bits_ref.val {
-      return (false, Array(), Array())
+      return (false, [], [])
     }
     if n < current_bits_ref.val {
       code_ref.val = code_ref.val >> (current_bits_ref.val - n)
       current_bits_ref.val = n
     }
     if code_ref.val < 0 || code_ref.val >= (1 : Int) << n {
-      return (false, Array(), Array())
+      return (false, [], [])
     }
     codes[symbol] = code_ref.val.reinterpret_as_uint()
     code_ref.val = code_ref.val + 1
@@ -451,7 +451,7 @@ fn build_huffman_direct_weights_description(
   if last_symbol <= 0 || last_symbol >= weights.length() || last_symbol > 128 {
     return b""
   }
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   out.push((127 + last_symbol).reinterpret_as_uint().to_byte())
   let mut i = 0
   while i < last_symbol {
@@ -490,7 +490,7 @@ fn encode_literals_huffman_single_stream_range(
   if codes.length() != nb_bits.length() {
     return b""
   }
-  let bits : Array[Int] = Array()
+  let bits : Array[Int] = []
   let mut i = start
   while i < start + len {
     let symbol = literals[i].to_uint().reinterpret_as_int()
@@ -566,7 +566,7 @@ fn encode_literals_huffman_four_stream(
     stream4.length() == 0 {
     return b""
   }
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   if !append_u16_le_checked(payload, stream1.length()) ||
     !append_u16_le_checked(payload, stream2.length()) ||
     !append_u16_le_checked(payload, stream3.length()) {
@@ -584,7 +584,7 @@ fn build_literal_huffman_model(
   literals : Bytes,
 ) -> (Bool, Int, Array[Int], Array[UInt], Array[Int]) raise ZstdError {
   if literals.length() < 2 || literals.length() > 128 << 10 {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
   let freq = Array::make(256, 0)
   let mut max_symbol = -1
@@ -598,14 +598,14 @@ fn build_literal_huffman_model(
     i = i + 1
   }
   if max_symbol <= 0 || max_symbol > 128 {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
 
   let (len_ok, lengths, max_len) = build_literal_huffman_lengths_from_frequencies(
     freq, max_symbol,
   )
   if !len_ok || max_len <= 0 || max_len > huf_max_nb_bits {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
 
   let weights = Array::make(max_symbol + 1, 0)
@@ -615,7 +615,7 @@ fn build_literal_huffman_model(
     if len > 0 {
       let w = max_len + 1 - len
       if w <= 0 || w > huf_max_nb_bits {
-        return (false, 0, Array(), Array(), Array())
+        return (false, 0, [], [], [])
       }
       weights[s] = w
     }
@@ -627,7 +627,7 @@ fn build_literal_huffman_model(
     last_symbol = last_symbol - 1
   }
   if last_symbol <= 0 || last_symbol > 128 || weights[last_symbol] <= 0 {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
 
   let (infer_ok, inferred_max_bits, inferred_last_weight) = infer_last_huffman_weight_from_prefix(
@@ -636,14 +636,14 @@ fn build_literal_huffman_model(
   if !infer_ok ||
     inferred_max_bits != max_len ||
     inferred_last_weight != weights[last_symbol] {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
 
   let (codes_ok, codes, nb_bits) = build_huffman_canonical_codes_from_weights(
     weights, max_symbol, max_len,
   )
   if !codes_ok {
-    return (false, 0, Array(), Array(), Array())
+    return (false, 0, [], [], [])
   }
   (true, last_symbol, weights, codes, nb_bits)
 }
@@ -660,7 +660,7 @@ fn build_compressed_literals_section_with_stream_payload(
   }
   let lit_c_size = tree_desc.length() + stream_payload.length()
   let literals_block_type : UInt = 2
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   if single_stream {
     if lit_len > 1023 || lit_c_size > 1023 {
       return b""

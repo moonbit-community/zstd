@@ -104,14 +104,14 @@ fn try_choose_predefined_offset_state_with_repcodes(
   if value <= 0 {
     return (false, 0, 0, 0)
   }
-  let states : Array[Int] = Array()
-  let extras : Array[UInt] = Array()
-  let nb_add_bits : Array[Int] = Array()
-  let next_states : Array[Int] = Array()
-  let nb_state_bits : Array[Int] = Array()
-  let out_r1 : Array[Int] = Array()
-  let out_r2 : Array[Int] = Array()
-  let out_r3 : Array[Int] = Array()
+  let states : Array[Int] = []
+  let extras : Array[UInt] = []
+  let nb_add_bits : Array[Int] = []
+  let next_states : Array[Int] = []
+  let nb_state_bits : Array[Int] = []
+  let out_r1 : Array[Int] = []
+  let out_r2 : Array[Int] = []
+  let out_r3 : Array[Int] = []
   collect_predefined_offset_candidates_for_context(
     value,
     ll == 0,
@@ -182,7 +182,7 @@ fn build_single_match_payload_predefined(
   }
   let literals = build_single_match_literals(src, start, block_len, ll, ml)
 
-  let extra_bits : Array[Int] = Array()
+  let extra_bits : Array[Int] = []
   append_bits_be(
     extra_bits,
     ll_state.reinterpret_as_uint(),
@@ -203,7 +203,7 @@ fn build_single_match_payload_predefined(
   append_bits_be(extra_bits, ll_extra, ll_bits)
   let bitstream = build_reverse_bitstream(extra_bits)
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, 1)
   payload.push((0 : UInt).to_byte()) // all predefined sequence modes

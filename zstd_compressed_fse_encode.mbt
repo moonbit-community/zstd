@@ -76,9 +76,9 @@ fn build_offset_off_base_sequence(
   force_raw : Array[Bool],
 ) -> (Bool, Array[Int]) raise ZstdError {
   if off_values.length() <= 0 || ll_values.length() != off_values.length() {
-    return (false, Array())
+    return (false, [])
   }
-  let off_bases : Array[Int] = Array()
+  let off_bases : Array[Int] = []
   let mut r1 = rep1
   let mut r2 = rep2
   let mut r3 = rep3
@@ -112,7 +112,7 @@ fn normalize_symbol_frequencies(
   use_low_prob_count : Bool,
 ) -> (Bool, Array[Int]) raise ZstdError {
   if max_symbol < 0 || max_symbol >= freq.length() {
-    return (false, Array())
+    return (false, [])
   }
   let table_size = 1 << table_log
   let mut total = 0
@@ -121,7 +121,7 @@ fn normalize_symbol_frequencies(
   while s <= max_symbol {
     let c = freq[s]
     if c < 0 {
-      return (false, Array())
+      return (false, [])
     }
     if c > 0 {
       active = active + 1
@@ -130,7 +130,7 @@ fn normalize_symbol_frequencies(
     s = s + 1
   }
   if active < 2 || active > table_size || total <= 1 {
-    return (false, Array())
+    return (false, [])
   }
 
   let normalized = Array::make(max_symbol + 1, 0)
@@ -208,7 +208,7 @@ fn normalize_symbol_frequencies(
       if sum == table_size {
         return (true, normalized)
       }
-      return (false, Array())
+      return (false, [])
     }
 
     if total_m2 > 0 && total_m2 / to_distribute > low_one {
@@ -265,7 +265,7 @@ fn normalize_symbol_frequencies(
           let s_end = (end >> v_step_log).to_int()
           let weight = s_end - s_start
           if weight < 1 {
-            return (false, Array())
+            return (false, [])
           }
           normalized[s] = weight
           tmp_total = end
@@ -279,7 +279,7 @@ fn normalize_symbol_frequencies(
 
   let sum = normalized_counter_abs_sum(normalized, max_symbol)
   if sum != table_size {
-    return (false, Array())
+    return (false, [])
   }
   (true, normalized)
 }
@@ -378,8 +378,8 @@ fn build_sequence_fse_decode_table_with_symbols(
   let table_mask = table_size - 1
   let step = (table_size >> 1) + (table_size >> 3) + 3
 
-  let table_symbol : Array[Int] = Array()
-  let symbol_next : Array[Int] = Array()
+  let table_symbol : Array[Int] = []
+  let symbol_next : Array[Int] = []
   let mut i = 0
   while i < table_size {
     table_symbol.push(0)
@@ -431,10 +431,10 @@ fn build_sequence_fse_decode_table_with_symbols(
     raise CorruptionDetected
   }
 
-  let next_state : Array[Int] = Array()
-  let nb_add_bits : Array[Int] = Array()
-  let nb_bits : Array[Int] = Array()
-  let base_values : Array[Int] = Array()
+  let next_state : Array[Int] = []
+  let nb_add_bits : Array[Int] = []
+  let nb_bits : Array[Int] = []
+  let base_values : Array[Int] = []
   i = 0
   while i < table_size {
     next_state.push(0)
@@ -479,9 +479,9 @@ fn build_compressed_sequence_source(
   values : Array[Int],
   symbol_type : Int,
 ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
-  let symbols : Array[Int] = Array()
-  let extras : Array[UInt] = Array()
-  let extra_bits : Array[Int] = Array()
+  let symbols : Array[Int] = []
+  let extras : Array[UInt] = []
+  let extra_bits : Array[Int] = []
   let mut i = 0
   while i < values.length() {
     let (ok, sym, extra, add_bits) = encode_symbol_for_value(
@@ -489,7 +489,7 @@ fn build_compressed_sequence_source(
       values[i],
     )
     if !ok {
-      return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+      return (false, b"", 0, 0, [], [], [], [])
     }
     symbols.push(sym)
     extras.push(extra)
@@ -510,14 +510,14 @@ fn build_compressed_offset_sequence_source_with_repcodes(
   rep3 : Int,
 ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
   if off_values.length() <= 0 || ll_values.length() != off_values.length() {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
   let force_raw = Array::make(off_values.length(), false)
   let (bases_ok0, best_off_bases0) = build_offset_off_base_sequence(
     off_values, ll_values, rep1, rep2, rep3, force_raw,
   )
   if !bases_ok0 {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
   let best0 = build_compressed_offset_sequence_source_from_off_bases(
     best_off_bases0,
@@ -533,7 +533,7 @@ fn build_compressed_offset_sequence_source_with_repcodes(
     best_trans_nb_bits0,
   ) = best0
   if !best_ok0 {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
   let mut best_header = best_header0
   let mut best_init_state = best_init_state0
@@ -614,11 +614,11 @@ fn build_compressed_offset_sequence_source_from_off_bases(
   off_base_values : Array[Int],
 ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
   if off_base_values.length() <= 0 {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
-  let symbols : Array[Int] = Array()
-  let extras : Array[UInt] = Array()
-  let extra_bits : Array[Int] = Array()
+  let symbols : Array[Int] = []
+  let extras : Array[UInt] = []
+  let extra_bits : Array[Int] = []
   let mut i = 0
   while i < off_base_values.length() {
     let (symbol, extra, add_bits) = offset_symbol_from_off_base(
@@ -643,7 +643,7 @@ fn build_compressed_sequence_source_from_symbols(
 ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
   let n = symbols.length()
   if n <= 0 || extras.length() != n || extra_bits.length() != n {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
 
   let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
@@ -653,7 +653,7 @@ fn build_compressed_sequence_source_from_symbols(
   while i < n {
     let sym = symbols[i]
     if sym < 0 || sym > max_symbol {
-      return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+      return (false, b"", 0, 0, [], [], [], [])
     }
     freq[sym] = freq[sym] + 1
     i = i + 1
@@ -667,14 +667,14 @@ fn build_compressed_sequence_source_from_symbols(
   let mut norm_seq_count = n
   let init_symbol = symbols[n - 1]
   if init_symbol < 0 || init_symbol > max_symbol {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
   if norm_freq[init_symbol] > 1 {
     norm_freq[init_symbol] = norm_freq[init_symbol] - 1
     norm_seq_count = norm_seq_count - 1
   }
   if norm_seq_count <= 1 {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
 
   let mut highest_symbol = 0
@@ -689,7 +689,7 @@ fn build_compressed_sequence_source_from_symbols(
   }
   let active_symbols = count_active_symbols(norm_freq, highest_symbol)
   if active_symbols < 2 {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
   let table_log = choose_compressed_table_log(n, highest_symbol, table_log_max)
   let (norm_ok, normalized) = normalize_symbol_frequencies(
@@ -699,7 +699,7 @@ fn build_compressed_sequence_source_from_symbols(
     should_use_low_prob_count(norm_seq_count),
   )
   if !norm_ok {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
   let (table_symbol, next_state, nb_add_bits, nb_bits, _) = build_sequence_fse_decode_table_with_symbols(
     normalized, highest_symbol, table_log, symbol_type,
@@ -708,20 +708,20 @@ fn build_compressed_sequence_source_from_symbols(
     normalized, highest_symbol, table_log,
   )
   if !ct_ok {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
   let (path_ok, init_state, trans_bits, trans_nb_bits, states) = build_reference_fse_state_path(
     symbols, table_symbol, next_state, nb_bits, state_table, delta_nb_bits, delta_find_state,
   )
   if !path_ok || states.length() != n {
-    return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+    return (false, b"", 0, 0, [], [], [], [])
   }
 
   // Ensure chosen states are compatible with selected extra-bit widths.
   i = 0
   while i < n {
     if nb_add_bits[states[i]] != extra_bits[i] {
-      return (false, b"", 0, 0, Array(), Array(), Array(), Array())
+      return (false, b"", 0, 0, [], [], [], [])
     }
     i = i + 1
   }
@@ -745,7 +745,7 @@ fn build_repeat_sequence_source_from_symbols(
     extras.length() != n ||
     extra_bits.length() != n ||
     repeat_header.length() <= 0 {
-    return (false, 0, 0, Array(), Array(), Array(), Array())
+    return (false, 0, 0, [], [], [], [])
   }
   let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
   let parsed = try
@@ -763,10 +763,10 @@ fn build_repeat_sequence_source_from_symbols(
   }
   let (header_size, table_log, highest_symbol, normalized) = match parsed {
     Ok(v) => v
-    Err(_) => return (false, 0, 0, Array(), Array(), Array(), Array())
+    Err(_) => return (false, 0, 0, [], [], [], [])
   }
   if header_size != repeat_header.length() {
-    return (false, 0, 0, Array(), Array(), Array(), Array())
+    return (false, 0, 0, [], [], [], [])
   }
   let (table_symbol, next_state, nb_add_bits, nb_bits, _) = build_sequence_fse_decode_table_with_symbols(
     normalized, highest_symbol, table_log, symbol_type,
@@ -775,18 +775,18 @@ fn build_repeat_sequence_source_from_symbols(
     normalized, highest_symbol, table_log,
   )
   if !ct_ok {
-    return (false, 0, 0, Array(), Array(), Array(), Array())
+    return (false, 0, 0, [], [], [], [])
   }
   let (path_ok, init_state, trans_bits, trans_nb_bits, states) = build_reference_fse_state_path(
     symbols, table_symbol, next_state, nb_bits, state_table, delta_nb_bits, delta_find_state,
   )
   if !path_ok || states.length() != n {
-    return (false, 0, 0, Array(), Array(), Array(), Array())
+    return (false, 0, 0, [], [], [], [])
   }
   let mut i = 0
   while i < n {
     if nb_add_bits[states[i]] != extra_bits[i] {
-      return (false, 0, 0, Array(), Array(), Array(), Array())
+      return (false, 0, 0, [], [], [], [])
     }
     i = i + 1
   }
@@ -799,9 +799,9 @@ fn build_repeat_sequence_source(
   symbol_type : Int,
   repeat_header : Bytes,
 ) -> (Bool, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
-  let symbols : Array[Int] = Array()
-  let extras : Array[UInt] = Array()
-  let extra_bits : Array[Int] = Array()
+  let symbols : Array[Int] = []
+  let extras : Array[UInt] = []
+  let extra_bits : Array[Int] = []
   let mut i = 0
   while i < values.length() {
     let (ok, sym, extra, add_bits) = encode_symbol_for_value(
@@ -809,7 +809,7 @@ fn build_repeat_sequence_source(
       values[i],
     )
     if !ok {
-      return (false, 0, 0, Array(), Array(), Array(), Array())
+      return (false, 0, 0, [], [], [], [])
     }
     symbols.push(sym)
     extras.push(extra)
@@ -827,11 +827,11 @@ fn build_repeat_offset_sequence_source_from_off_bases(
   repeat_header : Bytes,
 ) -> (Bool, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
   if off_base_values.length() <= 0 {
-    return (false, 0, 0, Array(), Array(), Array(), Array())
+    return (false, 0, 0, [], [], [], [])
   }
-  let symbols : Array[Int] = Array()
-  let extras : Array[UInt] = Array()
-  let extra_bits : Array[Int] = Array()
+  let symbols : Array[Int] = []
+  let extras : Array[UInt] = []
+  let extra_bits : Array[Int] = []
   let mut i = 0
   while i < off_base_values.length() {
     let (symbol, extra, add_bits) = offset_symbol_from_off_base(
@@ -868,10 +868,10 @@ fn build_general_seeded_repeat_payload(
     block_len < 96 {
     return b""
   }
-  let ll_values : Array[Int] = Array()
-  let off_values : Array[Int] = Array()
-  let off_base_values : Array[Int] = Array()
-  let ml_values : Array[Int] = Array()
+  let ll_values : Array[Int] = []
+  let off_values : Array[Int] = []
+  let off_base_values : Array[Int] = []
+  let ml_values : Array[Int] = []
   let max_sequences_base = compressed_fse_sequence_cap(level, block_len)
   let max_sequences = if level < 10 &&
     !should_use_level9_dict_lazy2(
@@ -963,7 +963,7 @@ fn build_general_seeded_repeat_payload(
   let literals = build_literals_from_sequences(
     src, start, block_len, ll_values, ml_values,
   )
-  let extra_bits : Array[Int] = Array()
+  let extra_bits : Array[Int] = []
   append_bits_be(extra_bits, ll_init_state.reinterpret_as_uint(), ll_table_log)
   append_bits_be(
     extra_bits,
@@ -1002,7 +1002,7 @@ fn build_general_seeded_repeat_payload(
   }
 
   let bitstream = build_reverse_bitstream(extra_bits)
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
   payload.push((0xF0 : UInt).to_byte())
@@ -1026,10 +1026,10 @@ fn build_general_compressed_fse_payload(
   if (level < 9 && dictionary_history.length() == 0) || block_len < 96 {
     return b""
   }
-  let ll_values : Array[Int] = Array()
-  let off_values : Array[Int] = Array()
-  let off_base_values : Array[Int] = Array()
-  let ml_values : Array[Int] = Array()
+  let ll_values : Array[Int] = []
+  let off_values : Array[Int] = []
+  let off_base_values : Array[Int] = []
+  let ml_values : Array[Int] = []
   let max_sequences_base = compressed_fse_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 &&
     level < 10 &&
@@ -1128,7 +1128,7 @@ fn build_general_compressed_fse_payload(
     src, start, block_len, ll_values, ml_values,
   )
 
-  let bits : Array[Int] = Array()
+  let bits : Array[Int] = []
   append_bits_be(bits, ll_init_state.reinterpret_as_uint(), ll_table_log)
   append_bits_be(bits, off_init_state.reinterpret_as_uint(), off_table_log)
   append_bits_be(bits, ml_init_state.reinterpret_as_uint(), ml_table_log)
@@ -1159,7 +1159,7 @@ fn build_general_compressed_fse_payload(
   }
   let bitstream = build_reverse_bitstream(bits)
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
   payload.push((0xA8 : UInt).to_byte()) // all compressed sequence modes

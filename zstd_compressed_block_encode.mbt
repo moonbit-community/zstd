@@ -123,7 +123,7 @@ fn try_encode_common_symbol(
     )
     let width = if nb_bits == 0 { 1 } else { 1 << nb_bits }
     let limit = base + width - 1
-    let extras : Array[UInt] = Array()
+    let extras : Array[UInt] = []
     let mut ok = true
     let mut i = 0
     while i < values.length() {
@@ -141,12 +141,12 @@ fn try_encode_common_symbol(
     }
     code = code + 1
   }
-  (false, 0, Array(), 0)
+  (false, 0, [], 0)
 }
 
 ///|
 fn split_match_lengths(total_match : Int, seq_count : Int) -> Array[Int] {
-  let out : Array[Int] = Array()
+  let out : Array[Int] = []
   if seq_count <= 0 || total_match < seq_count * 3 {
     return out
   }
@@ -156,7 +156,7 @@ fn split_match_lengths(total_match : Int, seq_count : Int) -> Array[Int] {
   while i < seq_count {
     let value = base + (if i < rem { 1 } else { 0 })
     if value < 3 {
-      return Array()
+      return []
     }
     out.push(value)
     i = i + 1
@@ -170,7 +170,7 @@ fn single_symbol_encoding(
   max_code : Int,
   value : Int,
 ) -> (Bool, UInt, UInt, Int) raise ZstdError {
-  let values : Array[Int] = Array()
+  let values : Array[Int] = []
   values.push(value)
   let (ok, code, extras, bits) = try_encode_common_symbol(
     symbol_type, max_code, values,
@@ -297,7 +297,7 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
   let full_bytes = bit_count / 8
   let rem_bits = bit_count % 8
   let mut pos = 0
-  let packed_full : Array[UInt] = Array()
+  let packed_full : Array[UInt] = []
   if rem_bits > 0 {
     pos = rem_bits
   }
@@ -308,7 +308,7 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
     i = i + 1
   }
 
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   i = packed_full.length() - 1
   while i >= 0 {
     out.push(packed_full[i].to_byte())
@@ -356,7 +356,7 @@ fn build_periodic_literals(
   period : Int,
   match_lengths : Array[Int],
 ) -> Bytes raise ZstdError {
-  let literals : Array[Byte] = Array()
+  let literals : Array[Byte] = []
   if prefix_len > 0 {
     append_bytes(literals, src, start, prefix_len)
   }
@@ -405,7 +405,7 @@ fn build_repeat_payload(
     return b""
   }
 
-  let ll_values : Array[Int] = Array()
+  let ll_values : Array[Int] = []
   let mut i = 0
   while i < seq_count {
     if i == 0 {
@@ -429,7 +429,7 @@ fn build_repeat_payload(
   }
   let (off_code, off_extra, off_bits) = encode_offset_symbol(period)
 
-  let extra_bits : Array[Int] = Array()
+  let extra_bits : Array[Int] = []
   i = 0
   while i < seq_count {
     append_bits_be(extra_bits, off_extra, off_bits)
@@ -442,7 +442,7 @@ fn build_repeat_payload(
     src, start, block_len, prefix_len, run_len, period, match_lengths,
   )
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
   payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
@@ -464,7 +464,7 @@ fn build_single_match_literals(
   if ll < 0 || ml < 3 || ll + ml > block_len {
     raise CorruptionDetected
   }
-  let literals : Array[Byte] = Array()
+  let literals : Array[Byte] = []
   if ll > 0 {
     append_bytes(literals, src, start, ll)
   }
@@ -512,13 +512,13 @@ fn build_single_match_payload_rle(
   )
   let literals = build_single_match_literals(src, start, block_len, ll, ml)
 
-  let extra_bits : Array[Int] = Array()
+  let extra_bits : Array[Int] = []
   append_bits_be(extra_bits, off_extra, off_bits)
   append_bits_be(extra_bits, ml_extra, ml_bits)
   append_bits_be(extra_bits, ll_extra, ll_bits)
   let bitstream = build_reverse_bitstream(extra_bits)
 
-  let payload : Array[Byte] = Array()
+  let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, 1)
   payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes

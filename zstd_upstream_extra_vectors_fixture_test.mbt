@@ -58,7 +58,7 @@ fn rv_up_extra_huffman_frame_l19_nocheck() -> Bytes {
 ///|
 fn rv_up_extra_http_x420_payload() -> Bytes {
   let unit = rv_up_http_payload()
-  let out : Array[Byte] = Array()
+  let out : Array[Byte] = []
   let mut i = 0
   while i < 420 {
     append_test_bytes(out, unit, 0, unit.length())

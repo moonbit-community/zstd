@@ -53,7 +53,7 @@ fn decode_literals_section_minimal(
     }
     let data_pos = start + header_size
     let regen_len = regenerated_size.reinterpret_as_int()
-    let literals : Array[Byte] = Array()
+    let literals : Array[Byte] = []
 
     if literals_block_type == 0 {
       if data_pos + regen_len > end_pos {

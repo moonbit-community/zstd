@@ -96,7 +96,7 @@ fn decode_fse_symbol_stream_reverse(
     raise CorruptionDetected
   }
 
-  let out : Array[Int] = Array()
+  let out : Array[Int] = []
 
   while true {
     let (symbol1, next1) = decode_fse_symbol_update(
