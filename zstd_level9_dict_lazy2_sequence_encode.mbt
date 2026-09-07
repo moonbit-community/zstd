@@ -776,7 +776,7 @@ fn collect_level9_dict_lazy2_sequences(
   let (hash_table, bt_table) = build_level9_dict_lazy2_bt_state(
     history, hash_log, chain_log, search_log,
   )
-  let next_to_update : Ref[Int] = { val: dict_limit }
+  let next_to_update : Ref[Int] = { val: dict_limit, }
   let mut ip = 1
   let mut anchor = 0
   let mut offset_1 = rep1

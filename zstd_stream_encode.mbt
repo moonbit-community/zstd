@@ -38,7 +38,7 @@ pub fn new_compressor_with_dictionary(
 ///|
 pub fn new_compressor_with_options(options : CompressOptions) -> Compressor {
   {
-    input_buffer: Array::new(),
+    input_buffer: Array(),
     options: normalize_compress_options(options),
     dictionary: b"",
   }
@@ -50,7 +50,7 @@ pub fn new_compressor_with_dictionary_and_options(
   options : CompressOptions,
 ) -> Compressor {
   {
-    input_buffer: Array::new(),
+    input_buffer: Array(),
     options: normalize_compress_options(options),
     dictionary,
   }
@@ -72,7 +72,7 @@ pub fn Compressor::pull(self : Compressor) -> Bytes raise ZstdError {
     return b""
   }
   let src = Bytes::from_array(self.input_buffer)
-  self.input_buffer = Array::new()
+  self.input_buffer = Array()
   compress_with_dictionary_and_options(src, self.dictionary, self.options)
 }
 

@@ -40,7 +40,7 @@ fn read_huffman_tree_description(
       raise CorruptionDetected
     }
 
-    let parsed_weights : Array[Int] = Array::new()
+    let parsed_weights : Array[Int] = Array()
     let mut i = 0
     while i < number_of_weights {
       parsed_weights.push(0)
@@ -113,7 +113,7 @@ fn build_huffman_tree_from_weights(
   weights : Array[Int],
   max_bits : Int,
 ) -> (Array[Int], Array[Int], Array[Int]) raise ZstdError {
-  let nb_bits : Array[Int] = Array::new()
+  let nb_bits : Array[Int] = Array()
   let mut i = 0
   while i < weights.length() {
     let w = weights[i]
@@ -125,7 +125,7 @@ fn build_huffman_tree_from_weights(
     i = i + 1
   }
 
-  let symbols_by_weight : Array[Int] = Array::new()
+  let symbols_by_weight : Array[Int] = Array()
   let mut weight = 1
   while weight <= max_bits {
     i = 0
@@ -141,7 +141,7 @@ fn build_huffman_tree_from_weights(
     raise CorruptionDetected
   }
 
-  let codes : Array[Int] = Array::new()
+  let codes : Array[Int] = Array()
   i = 0
   while i < nb_bits.length() {
     codes.push(0)
@@ -154,8 +154,8 @@ fn build_huffman_tree_from_weights(
     raise CorruptionDetected
   }
 
-  let code_ref : Ref[Int] = { val: 0 }
-  let current_bits_ref : Ref[Int] = { val: first_bits }
+  let code_ref : Ref[Int] = { val: 0, }
+  let current_bits_ref : Ref[Int] = { val: first_bits, }
 
   i = 0
   while i < symbols_by_weight.length() {
@@ -177,9 +177,9 @@ fn build_huffman_tree_from_weights(
     i = i + 1
   }
 
-  let left : Array[Int] = Array::new()
-  let right : Array[Int] = Array::new()
-  let symbol : Array[Int] = Array::new()
+  let left : Array[Int] = Array()
+  let right : Array[Int] = Array()
+  let symbol : Array[Int] = Array()
 
   ignore(add_huffman_node(left, right, symbol))
 
@@ -276,9 +276,9 @@ fn decode_huffman_single_stream(
     raise CorruptionDetected
   }
 
-  let out : Array[Byte] = Array::new()
-  let br_byte : Ref[Int] = { val: end_pos - 1 }
-  let br_bit : Ref[Int] = { val: -1 }
+  let out : Array[Byte] = Array()
+  let br_byte : Ref[Int] = { val: end_pos - 1, }
+  let br_bit : Ref[Int] = { val: -1, }
   init_reverse_bit_reader(src, start, br_byte, br_bit)
 
   let mut i = 0
@@ -365,7 +365,7 @@ fn decode_huffman_four_streams(
     src, stream4_start, stream4_end, out4_size, max_bits, left, right, symbol,
   )
 
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array()
   append_bytes(out, out1, 0, out1.length())
   append_bytes(out, out2, 0, out2.length())
   append_bytes(out, out3, 0, out3.length())

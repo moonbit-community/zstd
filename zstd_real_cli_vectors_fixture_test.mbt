@@ -35,7 +35,7 @@ fn rv_cli_p02_payload() -> Bytes {
     b"This payload intentionally mixes repeated and unique fragments.\n" +
     b"alpha-beta-gamma-delta-epsilon-zeta-eta-theta-iota-kappa-lambda.\n" +
     b"1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n"
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array()
   let mut i = 0
   while i < 24 {
     append_bytes_test(out, base, 0, base.length())

@@ -86,4 +86,3 @@ pub fn Decompressor::push(Self, Bytes) -> Unit
 // Type aliases
 
 // Traits
-

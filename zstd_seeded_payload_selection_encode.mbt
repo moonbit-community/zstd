@@ -30,17 +30,17 @@ fn rewrite_payload_with_seed_snapshot(
   if payload.length() == 0 {
     return b""
   }
-  let prev_rle_valid : Ref[Bool] = { val: seed_rle_valid }
-  let prev_ll_code : Ref[UInt] = { val: seed_ll_code }
-  let prev_off_code : Ref[UInt] = { val: seed_off_code }
-  let prev_ml_code : Ref[UInt] = { val: seed_ml_code }
-  let prev_predefined_valid : Ref[Bool] = { val: seed_predefined_valid }
-  let prev_compressed_valid : Ref[Bool] = { val: seed_compressed_valid }
-  let prev_ll_header : Ref[Bytes] = { val: seed_ll_header }
-  let prev_off_header : Ref[Bytes] = { val: seed_off_header }
-  let prev_ml_header : Ref[Bytes] = { val: seed_ml_header }
-  let prev_lit_huf_valid : Ref[Bool] = { val: seed_lit_huf_valid }
-  let prev_lit_huf_tree_desc : Ref[Bytes] = { val: seed_lit_huf_tree_desc }
+  let prev_rle_valid : Ref[Bool] = { val: seed_rle_valid, }
+  let prev_ll_code : Ref[UInt] = { val: seed_ll_code, }
+  let prev_off_code : Ref[UInt] = { val: seed_off_code, }
+  let prev_ml_code : Ref[UInt] = { val: seed_ml_code, }
+  let prev_predefined_valid : Ref[Bool] = { val: seed_predefined_valid, }
+  let prev_compressed_valid : Ref[Bool] = { val: seed_compressed_valid, }
+  let prev_ll_header : Ref[Bytes] = { val: seed_ll_header, }
+  let prev_off_header : Ref[Bytes] = { val: seed_off_header, }
+  let prev_ml_header : Ref[Bytes] = { val: seed_ml_header, }
+  let prev_lit_huf_valid : Ref[Bool] = { val: seed_lit_huf_valid, }
+  let prev_lit_huf_tree_desc : Ref[Bytes] = { val: seed_lit_huf_tree_desc, }
   let payload0 = maybe_rewrite_sequence_modes_to_repeat(
     payload, prev_rle_valid, prev_ll_code, prev_off_code, prev_ml_code, prev_predefined_valid,
     prev_compressed_valid, prev_ll_header, prev_off_header, prev_ml_header,
@@ -111,8 +111,8 @@ fn choose_seeded_best_payload(
   seed_lit_huf_valid : Bool,
   seed_lit_huf_tree_desc : Bytes,
 ) -> Bytes {
-  let best_raw : Ref[Bytes] = { val: b"" }
-  let best_preview : Ref[Bytes] = { val: b"" }
+  let best_raw : Ref[Bytes] = { val: b"", }
+  let best_preview : Ref[Bytes] = { val: b"", }
   consider_seeded_payload_candidate(
     payload_pref, best_raw, best_preview, seed_rle_valid, seed_ll_code, seed_off_code,
     seed_ml_code, seed_predefined_valid, seed_compressed_valid, seed_ll_header, seed_off_header,

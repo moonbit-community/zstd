@@ -68,10 +68,10 @@ fn decode_fse_symbol_stream_reverse(
     raise CorruptionDetected
   }
 
-  let ds_ptr : Ref[Int] = { val: start }
-  let ds_limit : Ref[Int] = { val: start + 8 }
-  let ds_bits_consumed : Ref[Int] = { val: 0 }
-  let ds_bit_container : Ref[UInt64] = { val: (0 : UInt64) }
+  let ds_ptr : Ref[Int] = { val: start, }
+  let ds_limit : Ref[Int] = { val: start + 8, }
+  let ds_bits_consumed : Ref[Int] = { val: 0, }
+  let ds_bit_container : Ref[UInt64] = { val: (0 : UInt64), }
   init_fse_dstream(
     src, start, end_pos, ds_ptr, ds_limit, ds_bits_consumed, ds_bit_container,
   )
@@ -96,7 +96,7 @@ fn decode_fse_symbol_stream_reverse(
     raise CorruptionDetected
   }
 
-  let out : Array[Int] = Array::new()
+  let out : Array[Int] = Array()
 
   while true {
     let (symbol1, next1) = decode_fse_symbol_update(

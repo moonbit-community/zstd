@@ -93,7 +93,7 @@ fn decode_compressed_block_minimal(
   let off_mode = (modes >> 4) & 0x3
   let ml_mode = (modes >> 2) & 0x3
 
-  let seq_pos_ref : Ref[Int] = { val: seq_pos0_end + 1 }
+  let seq_pos_ref : Ref[Int] = { val: seq_pos0_end + 1, }
   let (ll_kind, ll_code) = decode_sequence_source(
     src, block_end, seq_pos_ref, ll_mode, prev_ll_valid, prev_ll_kind, prev_ll_code,
     prev_ll_table_log, prev_ll_table_next_state, prev_ll_table_nb_add_bits, prev_ll_table_nb_bits,
@@ -122,15 +122,15 @@ fn decode_compressed_block_minimal(
   }
 
   let br_start = seq_pos
-  let br_byte : Ref[Int] = { val: block_end - 1 }
-  let br_bit : Ref[Int] = { val: -1 }
+  let br_byte : Ref[Int] = { val: block_end - 1, }
+  let br_bit : Ref[Int] = { val: -1, }
   if has_sequence_bitstream {
     init_reverse_bit_reader(src, br_start, br_byte, br_bit)
   }
 
-  let ll_state : Ref[Int] = { val: 0 }
-  let off_state : Ref[Int] = { val: 0 }
-  let ml_state : Ref[Int] = { val: 0 }
+  let ll_state : Ref[Int] = { val: 0, }
+  let off_state : Ref[Int] = { val: 0, }
+  let ml_state : Ref[Int] = { val: 0, }
 
   if ll_kind == sequence_table_kind_predefined {
     ll_state.val = init_fse_state_reverse(

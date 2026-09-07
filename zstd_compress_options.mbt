@@ -62,7 +62,7 @@ pub fn CompressOptions::with_single_segment(
   self : CompressOptions,
   enabled : Bool,
 ) -> CompressOptions {
-  { ..self, single_segment: enabled }
+  { ..self, single_segment: enabled, }
 }
 
 ///|
@@ -70,7 +70,7 @@ pub fn CompressOptions::with_content_size(
   self : CompressOptions,
   enabled : Bool,
 ) -> CompressOptions {
-  { ..self, write_content_size: enabled }
+  { ..self, write_content_size: enabled, }
 }
 
 ///|
@@ -78,7 +78,7 @@ pub fn CompressOptions::with_compact_frame_header(
   self : CompressOptions,
   enabled : Bool,
 ) -> CompressOptions {
-  { ..self, compact_frame_header: enabled }
+  { ..self, compact_frame_header: enabled, }
 }
 
 ///|
@@ -86,7 +86,7 @@ pub fn CompressOptions::with_window_log(
   self : CompressOptions,
   log : Int,
 ) -> CompressOptions {
-  { ..self, window_log: log }
+  { ..self, window_log: log, }
 }
 
 ///|
@@ -94,7 +94,7 @@ pub fn CompressOptions::with_long_distance_matching(
   self : CompressOptions,
   enabled : Bool,
 ) -> CompressOptions {
-  { ..self, enable_long_distance_matching: enabled }
+  { ..self, enable_long_distance_matching: enabled, }
 }
 
 ///|
@@ -102,7 +102,7 @@ pub fn CompressOptions::with_target_compressed_block_size(
   self : CompressOptions,
   size : Int,
 ) -> CompressOptions {
-  { ..self, target_compressed_block_size: size }
+  { ..self, target_compressed_block_size: size, }
 }
 
 ///|

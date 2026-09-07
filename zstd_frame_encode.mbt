@@ -259,15 +259,15 @@ fn append_frame_blocks_minimal(
     dictionary_state.off_header.length() > 0 &&
     dictionary_state.ml_header.length() > 0
   let src_len = src.length()
-  let prev_rle_valid : Ref[Bool] = { val: false }
-  let prev_predefined_valid : Ref[Bool] = { val: false }
-  let prev_compressed_valid : Ref[Bool] = { val: seed_has_sequence_headers }
-  let prev_ll_code : Ref[UInt] = { val: 0 }
-  let prev_off_code : Ref[UInt] = { val: 0 }
-  let prev_ml_code : Ref[UInt] = { val: 0 }
-  let prev_ll_header : Ref[Bytes] = { val: dictionary_state.ll_header }
-  let prev_off_header : Ref[Bytes] = { val: dictionary_state.off_header }
-  let prev_ml_header : Ref[Bytes] = { val: dictionary_state.ml_header }
+  let prev_rle_valid : Ref[Bool] = { val: false, }
+  let prev_predefined_valid : Ref[Bool] = { val: false, }
+  let prev_compressed_valid : Ref[Bool] = { val: seed_has_sequence_headers, }
+  let prev_ll_code : Ref[UInt] = { val: 0, }
+  let prev_off_code : Ref[UInt] = { val: 0, }
+  let prev_ml_code : Ref[UInt] = { val: 0, }
+  let prev_ll_header : Ref[Bytes] = { val: dictionary_state.ll_header, }
+  let prev_off_header : Ref[Bytes] = { val: dictionary_state.off_header, }
+  let prev_ml_header : Ref[Bytes] = { val: dictionary_state.ml_header, }
   let prev_lit_huf_valid : Ref[Bool] = {
     val: dictionary_state.huf_valid &&
     dictionary_state.huf_tree_desc.length() > 0,
@@ -275,21 +275,23 @@ fn append_frame_blocks_minimal(
   let prev_lit_huf_tree_desc : Ref[Bytes] = {
     val: dictionary_state.huf_tree_desc,
   }
-  let sim_out : Array[Byte] = Array::new()
+  let sim_out : Array[Byte] = Array()
   let mut sim_rep1 = dictionary_state.rep1
   let mut sim_rep2 = dictionary_state.rep2
   let mut sim_rep3 = dictionary_state.rep3
-  let sim_prev_huf_valid : Ref[Bool] = { val: dictionary_state.huf_valid }
-  let sim_prev_huf_max_bits : Ref[Int] = { val: dictionary_state.huf_max_bits }
-  let sim_prev_huf_left : Ref[Array[Int]] = { val: dictionary_state.huf_left }
-  let sim_prev_huf_right : Ref[Array[Int]] = { val: dictionary_state.huf_right }
+  let sim_prev_huf_valid : Ref[Bool] = { val: dictionary_state.huf_valid, }
+  let sim_prev_huf_max_bits : Ref[Int] = { val: dictionary_state.huf_max_bits, }
+  let sim_prev_huf_left : Ref[Array[Int]] = { val: dictionary_state.huf_left, }
+  let sim_prev_huf_right : Ref[Array[Int]] = {
+    val: dictionary_state.huf_right,
+  }
   let sim_prev_huf_symbol : Ref[Array[Int]] = {
     val: dictionary_state.huf_symbol,
   }
-  let sim_prev_ll_valid : Ref[Bool] = { val: dictionary_state.ll_valid }
-  let sim_prev_ll_kind : Ref[Int] = { val: dictionary_state.ll_kind }
-  let sim_prev_ll_code : Ref[UInt] = { val: dictionary_state.ll_code }
-  let sim_prev_ll_table_log : Ref[Int] = { val: dictionary_state.ll_table_log }
+  let sim_prev_ll_valid : Ref[Bool] = { val: dictionary_state.ll_valid, }
+  let sim_prev_ll_kind : Ref[Int] = { val: dictionary_state.ll_kind, }
+  let sim_prev_ll_code : Ref[UInt] = { val: dictionary_state.ll_code, }
+  let sim_prev_ll_table_log : Ref[Int] = { val: dictionary_state.ll_table_log, }
   let sim_prev_ll_table_next_state : Ref[Array[Int]] = {
     val: dictionary_state.ll_table_next_state,
   }
@@ -302,9 +304,9 @@ fn append_frame_blocks_minimal(
   let sim_prev_ll_table_base_values : Ref[Array[Int]] = {
     val: dictionary_state.ll_table_base_values,
   }
-  let sim_prev_off_valid : Ref[Bool] = { val: dictionary_state.off_valid }
-  let sim_prev_off_kind : Ref[Int] = { val: dictionary_state.off_kind }
-  let sim_prev_off_code : Ref[UInt] = { val: dictionary_state.off_code }
+  let sim_prev_off_valid : Ref[Bool] = { val: dictionary_state.off_valid, }
+  let sim_prev_off_kind : Ref[Int] = { val: dictionary_state.off_kind, }
+  let sim_prev_off_code : Ref[UInt] = { val: dictionary_state.off_code, }
   let sim_prev_off_table_log : Ref[Int] = {
     val: dictionary_state.off_table_log,
   }
@@ -320,10 +322,10 @@ fn append_frame_blocks_minimal(
   let sim_prev_off_table_base_values : Ref[Array[Int]] = {
     val: dictionary_state.off_table_base_values,
   }
-  let sim_prev_ml_valid : Ref[Bool] = { val: dictionary_state.ml_valid }
-  let sim_prev_ml_kind : Ref[Int] = { val: dictionary_state.ml_kind }
-  let sim_prev_ml_code : Ref[UInt] = { val: dictionary_state.ml_code }
-  let sim_prev_ml_table_log : Ref[Int] = { val: dictionary_state.ml_table_log }
+  let sim_prev_ml_valid : Ref[Bool] = { val: dictionary_state.ml_valid, }
+  let sim_prev_ml_kind : Ref[Int] = { val: dictionary_state.ml_kind, }
+  let sim_prev_ml_code : Ref[UInt] = { val: dictionary_state.ml_code, }
+  let sim_prev_ml_table_log : Ref[Int] = { val: dictionary_state.ml_table_log, }
   let sim_prev_ml_table_next_state : Ref[Array[Int]] = {
     val: dictionary_state.ml_table_next_state,
   }
@@ -341,7 +343,7 @@ fn append_frame_blocks_minimal(
     let remaining = src_len - pos
     let block_len = if remaining > 128 << 10 { 128 << 10 } else { remaining }
     let last_block = pos + block_len == src_len
-    let selected_payload : Ref[Bytes] = { val: b"" }
+    let selected_payload : Ref[Bytes] = { val: b"", }
     let frame_history = if pos > 0 { src[:pos].to_owned() } else { b"" }
     let compression_history = if dictionary_state.history.length() == 0 {
       frame_history

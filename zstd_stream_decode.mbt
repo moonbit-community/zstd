@@ -20,12 +20,12 @@ pub struct Decompressor {
 
 ///|
 pub fn new_decompressor() -> Decompressor {
-  { input_buffer: Array::new(), dictionary: b"" }
+  { input_buffer: Array(), dictionary: b"", }
 }
 
 ///|
 pub fn new_decompressor_with_dictionary(dictionary : Bytes) -> Decompressor {
-  { input_buffer: Array::new(), dictionary }
+  { input_buffer: Array(), dictionary, }
 }
 
 ///|
@@ -59,7 +59,7 @@ fn Decompressor::drain_complete_frames(
 
   let src = Bytes::from_array(self.input_buffer)
   let src_len = src.length()
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array()
   let mut pos = 0
 
   while pos < src_len {
@@ -92,7 +92,7 @@ fn Decompressor::drain_complete_frames(
   }
 
   if pos > 0 {
-    let next_buffer : Array[Byte] = Array::new()
+    let next_buffer : Array[Byte] = Array()
     append_bytes(next_buffer, src, pos, src_len - pos)
     self.input_buffer = next_buffer
   } else if require_complete && src_len > 0 {

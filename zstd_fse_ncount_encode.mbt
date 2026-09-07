@@ -91,7 +91,7 @@ fn write_fse_ncount_header(
   if normalized_counter_abs_sum(normalized_counter, max_symbol) != table_size {
     raise CorruptionDetected
   }
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array()
   let mut bit_stream = (table_log - fse_min_table_log).to_uint64()
   let mut bit_count = 4
   let mut remaining = table_size + 1

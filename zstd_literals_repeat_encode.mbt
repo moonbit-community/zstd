@@ -32,7 +32,7 @@ fn bytes_slice(src : Bytes, start : Int, len : Int) -> Bytes {
   if start < 0 || len < 0 || start + len > src.length() {
     return b""
   }
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array()
   append_bytes(out, src, start, len)
   Bytes::from_array(out)
 }
@@ -101,13 +101,13 @@ fn build_codes_from_decode_tree(
   symbol : Array[Int],
 ) -> (Bool, Array[UInt], Array[Int]) {
   if max_bits <= 0 || symbol.length() == 0 {
-    return (false, Array::new(), Array::new())
+    return (false, Array(), Array())
   }
   let codes = Array::make(256, (0 : UInt))
   let nb_bits = Array::make(256, 0)
-  let stack_node : Array[Int] = Array::new()
-  let stack_code : Array[UInt] = Array::new()
-  let stack_depth : Array[Int] = Array::new()
+  let stack_node : Array[Int] = Array()
+  let stack_code : Array[UInt] = Array()
+  let stack_depth : Array[Int] = Array()
   stack_node.push(0)
   stack_code.push((0 : UInt))
   stack_depth.push(0)
@@ -121,12 +121,12 @@ fn build_codes_from_decode_tree(
     ignore(stack_code.pop())
     ignore(stack_depth.pop())
     if node < 0 || node >= symbol.length() || depth > max_bits {
-      return (false, Array::new(), Array::new())
+      return (false, Array(), Array())
     }
     let value = symbol[node]
     if value >= 0 {
       if value >= 256 || depth <= 0 {
-        return (false, Array::new(), Array::new())
+        return (false, Array(), Array())
       }
       codes[value] = code
       nb_bits[value] = depth
@@ -135,7 +135,7 @@ fn build_codes_from_decode_tree(
       let l = left[node]
       let r = right[node]
       if l == -1 && r == -1 {
-        return (false, Array::new(), Array::new())
+        return (false, Array(), Array())
       }
       if r != -1 {
         stack_node.push(r)
@@ -150,7 +150,7 @@ fn build_codes_from_decode_tree(
     }
   }
   if assigned <= 0 {
-    return (false, Array::new(), Array::new())
+    return (false, Array(), Array())
   }
   (true, codes, nb_bits)
 }
@@ -166,7 +166,7 @@ fn build_treeless_literals_section_with_stream_payload(
   }
   let lit_c_size = stream_payload.length()
   let literals_block_type : UInt = 3
-  let out : Array[Byte] = Array::new()
+  let out : Array[Byte] = Array()
   if single_stream {
     if lit_len > 1023 || lit_c_size > 1023 {
       return b""
@@ -366,7 +366,7 @@ fn rewrite_literals_section_to_treeless_if_repeat(
         build_codes_from_decode_tree(
           prev_max_bits, prev_left, prev_right, prev_symbol,
         )
-      Err(_) => (false, Array::new(), Array::new())
+      Err(_) => (false, Array(), Array())
     }
     if !ok_codes {
       prev_huf_tree_desc.val = tree_desc
@@ -409,7 +409,7 @@ fn rewrite_literals_section_to_treeless_if_repeat(
       prev_huf_tree_desc.val = tree_desc
       return payload
     }
-    let rewritten : Array[Byte] = Array::new()
+    let rewritten : Array[Byte] = Array()
     append_bytes(rewritten, chosen, 0, chosen.length())
     append_bytes(
       rewritten,
@@ -429,7 +429,7 @@ fn rewrite_literals_section_to_treeless_if_repeat(
   if bitstream_size <= 0 {
     return payload
   }
-  let rewritten : Array[Byte] = Array::new()
+  let rewritten : Array[Byte] = Array()
   if !append_treeless_literals_header_with_size_format(
       rewritten, size_format, lit_size, bitstream_size,
     ) {
@@ -468,7 +468,7 @@ fn rewrite_literals_section_to_treeless_if_repeat(
             lit_size, four_stream_payload, false,
           )
           if four_section.length() > 0 {
-            let rewritten4 : Array[Byte] = Array::new()
+            let rewritten4 : Array[Byte] = Array()
             append_bytes(rewritten4, four_section, 0, four_section.length())
             append_bytes(
               rewritten4,

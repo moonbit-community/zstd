@@ -607,7 +607,7 @@ fn collect_level_aligned_sequences(
   rep3? : Int = 8,
   min_match? : Int = 3,
   prefer_offset_stability? : Bool = false,
-  off_base_values? : Array[Int] = Array::new(),
+  off_base_values? : Array[Int] = Array(),
 ) -> Unit {
   if should_use_level9_dict_lazy2(
       level,
