@@ -48,4 +48,4 @@ jobs:
 
       - name: moon test
         run: |
-          moon test --target wasm,wasm-gc,native
+          moon test --release --target wasm,wasm-gc,native
