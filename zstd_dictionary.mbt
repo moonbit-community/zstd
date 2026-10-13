@@ -13,48 +13,48 @@
 // limitations under the License.
 
 ///|
-let zstd_dictionary_magic_number : UInt = 0xEC30A437
+let zstd_dictionary_magic_number : UInt32 = 0xEC30A437
 
 ///|
 priv struct DictionaryState {
   has_dictionary : Bool
-  dict_id : UInt
+  dict_id : UInt32
   history : Bytes
-  rep1 : Int
-  rep2 : Int
-  rep3 : Int
+  rep1 : Int32
+  rep2 : Int32
+  rep3 : Int32
   huf_valid : Bool
   huf_tree_desc : Bytes
-  huf_max_bits : Int
-  huf_left : Array[Int]
-  huf_right : Array[Int]
-  huf_symbol : Array[Int]
+  huf_max_bits : Int32
+  huf_left : Array[Int32]
+  huf_right : Array[Int32]
+  huf_symbol : Array[Int32]
   ll_valid : Bool
-  ll_kind : Int
-  ll_code : UInt
-  ll_table_log : Int
-  ll_table_next_state : Array[Int]
-  ll_table_nb_add_bits : Array[Int]
-  ll_table_nb_bits : Array[Int]
-  ll_table_base_values : Array[Int]
+  ll_kind : Int32
+  ll_code : UInt32
+  ll_table_log : Int32
+  ll_table_next_state : Array[Int32]
+  ll_table_nb_add_bits : Array[Int32]
+  ll_table_nb_bits : Array[Int32]
+  ll_table_base_values : Array[Int32]
   ll_header : Bytes
   off_valid : Bool
-  off_kind : Int
-  off_code : UInt
-  off_table_log : Int
-  off_table_next_state : Array[Int]
-  off_table_nb_add_bits : Array[Int]
-  off_table_nb_bits : Array[Int]
-  off_table_base_values : Array[Int]
+  off_kind : Int32
+  off_code : UInt32
+  off_table_log : Int32
+  off_table_next_state : Array[Int32]
+  off_table_nb_add_bits : Array[Int32]
+  off_table_nb_bits : Array[Int32]
+  off_table_base_values : Array[Int32]
   off_header : Bytes
   ml_valid : Bool
-  ml_kind : Int
-  ml_code : UInt
-  ml_table_log : Int
-  ml_table_next_state : Array[Int]
-  ml_table_nb_add_bits : Array[Int]
-  ml_table_nb_bits : Array[Int]
-  ml_table_base_values : Array[Int]
+  ml_kind : Int32
+  ml_code : UInt32
+  ml_table_log : Int32
+  ml_table_next_state : Array[Int32]
+  ml_table_nb_add_bits : Array[Int32]
+  ml_table_nb_bits : Array[Int32]
+  ml_table_base_values : Array[Int32]
   ml_header : Bytes
 }
 
@@ -245,8 +245,8 @@ fn parse_dictionary_state(
 ///|
 fn dictionary_slice(
   src : Bytes,
-  start : Int,
-  len : Int,
+  start : Int32,
+  len : Int32,
 ) -> Bytes raise ZstdError {
   ensure_range(src.length(), start, len)
   let out : Array[Byte] = []
@@ -257,10 +257,18 @@ fn dictionary_slice(
 ///|
 fn parse_dictionary_sequence_table(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-  symbol_type : Int,
-) -> (Int, Bytes, Int, Array[Int], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  start : Int32,
+  end_pos : Int32,
+  symbol_type : Int32,
+) -> (
+  Int32,
+  Bytes,
+  Int32,
+  Array[Int32],
+  Array[Int32],
+  Array[Int32],
+  Array[Int32],
+) raise ZstdError {
   let (max_symbol, table_log_max) = sequence_symbol_limits(symbol_type)
   let (header_size, table_log, decoded_max_symbol, normalized_counter) = read_fse_ncount_header(
     src, start, end_pos, max_symbol, table_log_max,

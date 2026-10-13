@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn rv_up_pr3517_len() -> Int {
+fn rv_up_pr3517_len() -> Int32 {
   262144
 }
 
@@ -12019,7 +12019,7 @@ fn rv_up_pr3517_frame_l19() -> Bytes {
 }
 
 ///|
-fn rv_up_llml_len() -> Int {
+fn rv_up_llml_len() -> Int32 {
   199998
 }
 

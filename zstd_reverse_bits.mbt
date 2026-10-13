@@ -15,9 +15,9 @@
 ///|
 fn init_reverse_bit_reader(
   src : Bytes,
-  start : Int,
-  byte_ref : Ref[Int],
-  bit_ref : Ref[Int],
+  start : Int32,
+  byte_ref : Ref[Int32],
+  bit_ref : Ref[Int32],
 ) -> Unit raise ZstdError {
   if byte_ref.val < start {
     raise CorruptionDetected
@@ -36,12 +36,12 @@ fn init_reverse_bit_reader(
 ///|
 fn read_reverse_bits(
   src : Bytes,
-  start : Int,
-  byte_ref : Ref[Int],
-  bit_ref : Ref[Int],
-  count : Int,
-) -> UInt raise ZstdError {
-  let mut value : UInt = 0
+  start : Int32,
+  byte_ref : Ref[Int32],
+  bit_ref : Ref[Int32],
+  count : Int32,
+) -> UInt32 raise ZstdError {
+  let mut value : UInt32 = 0
   let mut i = 0
   while i < count {
     let bit = read_reverse_bit(src, start, byte_ref, bit_ref)
@@ -54,10 +54,10 @@ fn read_reverse_bits(
 ///|
 fn read_reverse_bit(
   src : Bytes,
-  start : Int,
-  byte_ref : Ref[Int],
-  bit_ref : Ref[Int],
-) -> UInt raise ZstdError {
+  start : Int32,
+  byte_ref : Ref[Int32],
+  bit_ref : Ref[Int32],
+) -> UInt32 raise ZstdError {
   if byte_ref.val < start {
     raise CorruptionDetected
   }
@@ -75,15 +75,15 @@ fn read_reverse_bit(
 
 ///|
 fn reverse_bits_consumed(
-  start : Int,
-  byte_ref : Ref[Int],
-  bit_ref : Ref[Int],
+  start : Int32,
+  byte_ref : Ref[Int32],
+  bit_ref : Ref[Int32],
 ) -> Bool {
   byte_ref.val < start || (byte_ref.val == start && bit_ref.val < 0)
 }
 
 ///|
-fn highest_bit_index(value : UInt) -> Int raise ZstdError {
+fn highest_bit_index(value : UInt32) -> Int32 raise ZstdError {
   if value == 0 {
     raise CorruptionDetected
   }

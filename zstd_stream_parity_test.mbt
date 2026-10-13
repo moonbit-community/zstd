@@ -14,7 +14,7 @@
 
 ///|
 test "stream parity: dictionary-required error is surfaced from pull" {
-  let dec = new_decompressor()
+  let dec = @zstd.new_decompressor()
   dec.push(standard_dictionary_fixture_frame())
   let result = try dec.pull() catch {
     e => Err(e)
@@ -27,9 +27,9 @@ test "stream parity: dictionary-required error is surfaced from pull" {
 
 ///|
 test "stream parity: pull returns complete prefix frame with incomplete tail buffered" {
-  let frame1 = compress(b"first")
-  let frame2 = compress(b"second")
-  let dec = new_decompressor()
+  let frame1 = @zstd.compress(b"first")
+  let frame2 = @zstd.compress(b"second")
+  let dec = @zstd.new_decompressor()
   dec.push(frame1 + frame2[:frame2.length() - 2].to_owned())
   let out = dec.pull()
   assert_eq(out, b"first")
@@ -46,7 +46,7 @@ test "stream parity: pull returns complete prefix frame with incomplete tail buf
 test "stream parity: dictionary decoder handles concatenated dictionary frames" {
   let frame = standard_dictionary_fixture_frame()
   let dict = standard_dictionary_fixture_dictionary()
-  let dec = new_decompressor_with_dictionary(dict)
+  let dec = @zstd.new_decompressor_with_dictionary(dict)
   dec.push(frame + frame)
   let out = dec.pull()
   assert_eq(
@@ -58,8 +58,8 @@ test "stream parity: dictionary decoder handles concatenated dictionary frames" 
 }
 
 ///|
-fn decode_stream_chunks(frame : Bytes, chunk_step : Int) -> Bytes raise Error {
-  let dec = new_decompressor()
+fn decode_stream_chunks(frame : Bytes, chunk_step : Int32) -> Bytes raise Error {
+  let dec = @zstd.new_decompressor()
   let mut pos = 0
   while pos < frame.length() {
     let remain = frame.length() - pos
@@ -77,9 +77,9 @@ fn decode_stream_chunks(frame : Bytes, chunk_step : Int) -> Bytes raise Error {
 fn decode_stream_chunks_with_dictionary(
   frame : Bytes,
   dictionary : Bytes,
-  chunk_step : Int,
+  chunk_step : Int32,
 ) -> Bytes raise Error {
-  let dec = new_decompressor_with_dictionary(dictionary)
+  let dec = @zstd.new_decompressor_with_dictionary(dictionary)
   let mut pos = 0
   while pos < frame.length() {
     let remain = frame.length() - pos

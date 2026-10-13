@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn rv_p03_expected_len() -> Int {
+fn rv_p03_expected_len() -> Int32 {
   14202
 }
 

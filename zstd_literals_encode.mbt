@@ -15,8 +15,8 @@
 ///|
 fn append_literals_header(
   out : Array[Byte],
-  lit_len : Int,
-  literals_block_type : UInt,
+  lit_len : Int32,
+  literals_block_type : UInt32,
 ) -> Unit raise ZstdError {
   if literals_block_type != 0 && literals_block_type != 1 {
     raise CorruptionDetected

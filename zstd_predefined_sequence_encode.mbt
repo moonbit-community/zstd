@@ -14,9 +14,9 @@
 
 ///|
 fn predefined_sequence_entry(
-  symbol_type : Int,
-  state : Int,
-) -> (Int, Int, Int, Int) raise ZstdError {
+  symbol_type : Int32,
+  state : Int32,
+) -> (Int32, Int32, Int32, Int32) raise ZstdError {
   if symbol_type == sequence_symbol_literal_length {
     ll_predefined_entry(state)
   } else if symbol_type == sequence_symbol_offset {
@@ -29,7 +29,7 @@ fn predefined_sequence_entry(
 }
 
 ///|
-fn predefined_state_limit(symbol_type : Int) -> Int raise ZstdError {
+fn predefined_state_limit(symbol_type : Int32) -> Int32 raise ZstdError {
   if symbol_type == sequence_symbol_literal_length ||
     symbol_type == sequence_symbol_match_length {
     63
@@ -42,15 +42,15 @@ fn predefined_state_limit(symbol_type : Int) -> Int raise ZstdError {
 
 ///|
 fn try_choose_predefined_state(
-  symbol_type : Int,
-  value : Int,
-) -> (Bool, Int, UInt, Int) raise ZstdError {
+  symbol_type : Int32,
+  value : Int32,
+) -> (Bool, Int32, UInt32, Int32) raise ZstdError {
   if value < 0 {
     return (false, 0, 0, 0)
   }
   let mut found = false
   let mut best_state = 0
-  let mut best_extra : UInt = 0
+  let mut best_extra : UInt32 = 0
   let mut best_nb_add_bits = 0
 
   let state_limit = predefined_state_limit(symbol_type)
@@ -95,23 +95,23 @@ fn try_choose_predefined_state(
 
 ///|
 fn try_choose_predefined_offset_state_with_repcodes(
-  value : Int,
-  ll : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Bool, Int, UInt, Int) raise ZstdError {
+  value : Int32,
+  ll : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (Bool, Int32, UInt32, Int32) raise ZstdError {
   if value <= 0 {
     return (false, 0, 0, 0)
   }
-  let states : Array[Int] = []
-  let extras : Array[UInt] = []
-  let nb_add_bits : Array[Int] = []
-  let next_states : Array[Int] = []
-  let nb_state_bits : Array[Int] = []
-  let out_r1 : Array[Int] = []
-  let out_r2 : Array[Int] = []
-  let out_r3 : Array[Int] = []
+  let states : Array[Int32] = []
+  let extras : Array[UInt32] = []
+  let nb_add_bits : Array[Int32] = []
+  let next_states : Array[Int32] = []
+  let nb_state_bits : Array[Int32] = []
+  let out_r1 : Array[Int32] = []
+  let out_r2 : Array[Int32] = []
+  let out_r3 : Array[Int32] = []
   collect_predefined_offset_candidates_for_context(
     value,
     ll == 0,
@@ -145,15 +145,15 @@ fn try_choose_predefined_offset_state_with_repcodes(
 ///|
 fn build_single_match_payload_predefined(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll : Int,
-  offset : Int,
-  ml : Int,
-  max_offset : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
+  start : Int32,
+  block_len : Int32,
+  ll : Int32,
+  offset : Int32,
+  ml : Int32,
+  max_offset : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
 ) -> Bytes raise ZstdError {
   if ll < 0 ||
     offset <= 0 ||
@@ -182,7 +182,7 @@ fn build_single_match_payload_predefined(
   }
   let literals = build_single_match_literals(src, start, block_len, ll, ml)
 
-  let extra_bits : Array[Int] = []
+  let extra_bits : Array[Int32] = []
   append_bits_be(
     extra_bits,
     ll_state.reinterpret_as_uint(),
@@ -206,7 +206,7 @@ fn build_single_match_payload_predefined(
   let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, 1)
-  payload.push((0 : UInt).to_byte()) // all predefined sequence modes
+  payload.push((0 : UInt32).to_byte()) // all predefined sequence modes
   append_bytes(payload, bitstream, 0, bitstream.length())
   Bytes::from_array(payload)
 }

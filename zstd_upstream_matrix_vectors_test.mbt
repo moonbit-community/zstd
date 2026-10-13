@@ -17,7 +17,7 @@ fn assert_upstream_matrix_plain_vector(
   name : String,
   frame : Bytes,
 ) -> Unit raise Error {
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -67,7 +67,7 @@ fn assert_upstream_matrix_dict_vector(
   frame : Bytes,
 ) -> Unit raise Error {
   let result = try
-    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+    @zstd.decompress_with_dictionary(frame, rv_up_gdict_http_dict())
   catch {
     e => Err(e)
   } noraise {

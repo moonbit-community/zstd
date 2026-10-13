@@ -18,7 +18,7 @@ fn assert_upstream_gdict_http_vector(
   frame : Bytes,
 ) -> Unit raise Error {
   let result = try
-    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+    @zstd.decompress_with_dictionary(frame, rv_up_gdict_http_dict())
   catch {
     e => Err(e)
   } noraise {
@@ -93,7 +93,7 @@ test "upstream golden dictionary dictID mismatch is rejected" {
     }
   })
   let result = try
-    decompress_with_dictionary(rv_up_gdict_http_frame_l19(), bad_dict)
+    @zstd.decompress_with_dictionary(rv_up_gdict_http_frame_l19(), bad_dict)
   catch {
     e => Err(e)
   } noraise {

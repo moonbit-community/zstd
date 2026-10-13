@@ -15,19 +15,19 @@
 ///|
 fn decode_frame_into(
   src : Bytes,
-  start : Int,
+  start : Int32,
   out : Array[Byte],
-) -> Int raise ZstdError {
+) -> Int32 raise ZstdError {
   decode_frame_into_with_history(src, start, out, b"")
 }
 
 ///|
 fn decode_frame_into_with_history(
   src : Bytes,
-  start : Int,
+  start : Int32,
   out : Array[Byte],
   history : Bytes,
-) -> Int raise ZstdError {
+) -> Int32 raise ZstdError {
   decode_frame_into_with_dictionary_state(
     src,
     start,
@@ -39,10 +39,10 @@ fn decode_frame_into_with_history(
 ///|
 fn decode_frame_into_with_dictionary(
   src : Bytes,
-  start : Int,
+  start : Int32,
   out : Array[Byte],
   dictionary : Bytes,
-) -> Int raise ZstdError {
+) -> Int32 raise ZstdError {
   decode_frame_into_with_dictionary_state(
     src,
     start,
@@ -54,10 +54,10 @@ fn decode_frame_into_with_dictionary(
 ///|
 fn decode_frame_into_with_dictionary_state(
   src : Bytes,
-  start : Int,
+  start : Int32,
   out : Array[Byte],
   dictionary_state : DictionaryState,
-) -> Int raise ZstdError {
+) -> Int32 raise ZstdError {
   let src_len = src.length()
   ensure_range(src_len, start, 4)
   let magic = read_u32_le(src, start)
@@ -103,7 +103,7 @@ fn decode_frame_into_with_dictionary_state(
   let dict_size = dict_id_size(dict_id_flag)
   ensure_range(src_len, pos, dict_size)
   let frame_dict_id = if dict_size == 0 {
-    (0 : UInt)
+    (0 : UInt32)
   } else if dict_size == 1 {
     src[pos].to_uint()
   } else if dict_size == 2 {
@@ -161,61 +161,63 @@ fn decode_frame_into_with_dictionary_state(
   let mut rep3 = dictionary_state.rep3
   let frame_out_start = out.length()
   let prev_huf_valid : Ref[Bool] = { val: dictionary_state.huf_valid, }
-  let prev_huf_max_bits : Ref[Int] = { val: dictionary_state.huf_max_bits, }
-  let prev_huf_left : Ref[Array[Int]] = { val: dictionary_state.huf_left, }
-  let prev_huf_right : Ref[Array[Int]] = { val: dictionary_state.huf_right, }
-  let prev_huf_symbol : Ref[Array[Int]] = { val: dictionary_state.huf_symbol, }
+  let prev_huf_max_bits : Ref[Int32] = { val: dictionary_state.huf_max_bits, }
+  let prev_huf_left : Ref[Array[Int32]] = { val: dictionary_state.huf_left, }
+  let prev_huf_right : Ref[Array[Int32]] = { val: dictionary_state.huf_right, }
+  let prev_huf_symbol : Ref[Array[Int32]] = {
+    val: dictionary_state.huf_symbol,
+  }
   let prev_ll_valid : Ref[Bool] = { val: dictionary_state.ll_valid, }
-  let prev_ll_kind : Ref[Int] = { val: dictionary_state.ll_kind, }
+  let prev_ll_kind : Ref[Int32] = { val: dictionary_state.ll_kind, }
   let prev_off_valid : Ref[Bool] = { val: dictionary_state.off_valid, }
-  let prev_off_kind : Ref[Int] = { val: dictionary_state.off_kind, }
+  let prev_off_kind : Ref[Int32] = { val: dictionary_state.off_kind, }
   let prev_ml_valid : Ref[Bool] = { val: dictionary_state.ml_valid, }
-  let prev_ml_kind : Ref[Int] = { val: dictionary_state.ml_kind, }
-  let prev_ll_code : Ref[UInt] = { val: dictionary_state.ll_code, }
-  let prev_off_code : Ref[UInt] = { val: dictionary_state.off_code, }
-  let prev_ml_code : Ref[UInt] = { val: dictionary_state.ml_code, }
-  let prev_ll_table_log : Ref[Int] = { val: dictionary_state.ll_table_log, }
-  let prev_off_table_log : Ref[Int] = { val: dictionary_state.off_table_log, }
-  let prev_ml_table_log : Ref[Int] = { val: dictionary_state.ml_table_log, }
-  let prev_ll_table_next_state : Ref[Array[Int]] = {
+  let prev_ml_kind : Ref[Int32] = { val: dictionary_state.ml_kind, }
+  let prev_ll_code : Ref[UInt32] = { val: dictionary_state.ll_code, }
+  let prev_off_code : Ref[UInt32] = { val: dictionary_state.off_code, }
+  let prev_ml_code : Ref[UInt32] = { val: dictionary_state.ml_code, }
+  let prev_ll_table_log : Ref[Int32] = { val: dictionary_state.ll_table_log, }
+  let prev_off_table_log : Ref[Int32] = { val: dictionary_state.off_table_log, }
+  let prev_ml_table_log : Ref[Int32] = { val: dictionary_state.ml_table_log, }
+  let prev_ll_table_next_state : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_next_state,
   }
-  let prev_ll_table_nb_add_bits : Ref[Array[Int]] = {
+  let prev_ll_table_nb_add_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_nb_add_bits,
   }
-  let prev_ll_table_nb_bits : Ref[Array[Int]] = {
+  let prev_ll_table_nb_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_nb_bits,
   }
-  let prev_ll_table_base_values : Ref[Array[Int]] = {
+  let prev_ll_table_base_values : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_base_values,
   }
-  let prev_off_table_next_state : Ref[Array[Int]] = {
+  let prev_off_table_next_state : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_next_state,
   }
-  let prev_off_table_nb_add_bits : Ref[Array[Int]] = {
+  let prev_off_table_nb_add_bits : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_nb_add_bits,
   }
-  let prev_off_table_nb_bits : Ref[Array[Int]] = {
+  let prev_off_table_nb_bits : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_nb_bits,
   }
-  let prev_off_table_base_values : Ref[Array[Int]] = {
+  let prev_off_table_base_values : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_base_values,
   }
-  let prev_ml_table_next_state : Ref[Array[Int]] = {
+  let prev_ml_table_next_state : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_next_state,
   }
-  let prev_ml_table_nb_add_bits : Ref[Array[Int]] = {
+  let prev_ml_table_nb_add_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_nb_add_bits,
   }
-  let prev_ml_table_nb_bits : Ref[Array[Int]] = {
+  let prev_ml_table_nb_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_nb_bits,
   }
-  let prev_ml_table_base_values : Ref[Array[Int]] = {
+  let prev_ml_table_base_values : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_base_values,
   }
   while !last_block {
     ensure_range(src_len, pos, 3)
-    let block_header : UInt = src[pos].to_uint() +
+    let block_header : UInt32 = src[pos].to_uint() +
       (src[pos + 1].to_uint() << 8) +
       (src[pos + 2].to_uint() << 16)
     pos = pos + 3

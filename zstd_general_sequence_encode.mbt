@@ -13,26 +13,26 @@
 // limitations under the License.
 
 ///|
-fn hash4_bytes(src : Bytes, pos : Int) -> Int {
-  let v : UInt = src[pos].to_uint() +
+fn hash4_bytes(src : Bytes, pos : Int32) -> Int32 {
+  let v : UInt32 = src[pos].to_uint() +
     (src[pos + 1].to_uint() << 8) +
     (src[pos + 2].to_uint() << 16) +
     (src[pos + 3].to_uint() << 24)
-  let x = v * (2654435761 : UInt)
-  ((x >> 17) & (((1 : UInt) << 15) - (1 : UInt))).reinterpret_as_int()
+  let x = v * (2654435761 : UInt32)
+  ((x >> 17) & (((1 : UInt32) << 15) - (1 : UInt32))).reinterpret_as_int()
 }
 
 ///|
 fn try_encode_common_offset_symbol(
-  values : Array[Int],
-) -> (Bool, UInt, Array[UInt], Int) raise ZstdError {
+  values : Array[Int32],
+) -> (Bool, UInt32, Array[UInt32], Int32) raise ZstdError {
   let mut code = 2
   while code <= 31 {
     let base = offset_base_from_code(code.reinterpret_as_uint())
     let base_u = base.to_uint64()
     let span = ((1 : UInt64) << code) - (1 : UInt64)
     let limit = base_u + span
-    let extras : Array[UInt] = []
+    let extras : Array[UInt32] = []
     let mut ok = true
     let mut i = 0
     while i < values.length() {
@@ -61,12 +61,12 @@ fn try_encode_common_offset_symbol(
 
 ///|
 fn try_encode_common_offset_symbol_with_repcodes(
-  values : Array[Int],
-  literal_lengths : Array[Int],
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Bool, UInt, Array[UInt], Int) raise ZstdError {
+  values : Array[Int32],
+  literal_lengths : Array[Int32],
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (Bool, UInt32, Array[UInt32], Int32) raise ZstdError {
   if values.length() != literal_lengths.length() {
     return (false, 0, [], 0)
   }
@@ -90,13 +90,13 @@ fn try_encode_common_offset_symbol_with_repcodes(
 
 ///|
 fn simulate_common_repcode_code0(
-  values : Array[Int],
-  literal_lengths : Array[Int],
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Bool, Array[UInt]) {
-  let extras : Array[UInt] = []
+  values : Array[Int32],
+  literal_lengths : Array[Int32],
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (Bool, Array[UInt32]) {
+  let extras : Array[UInt32] = []
   let mut r1 = rep1
   let mut r2 = rep2
   ignore(rep3)
@@ -108,7 +108,7 @@ fn simulate_common_repcode_code0(
     if off <= 0 || off != expected {
       return (false, [])
     }
-    extras.push((0 : UInt))
+    extras.push((0 : UInt32))
     if ll0 {
       let old_r1 = r1
       let old_r2 = r2
@@ -124,13 +124,13 @@ fn simulate_common_repcode_code0(
 
 ///|
 fn simulate_common_repcode_code1(
-  values : Array[Int],
-  literal_lengths : Array[Int],
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Bool, Array[UInt]) {
-  let extras : Array[UInt] = []
+  values : Array[Int32],
+  literal_lengths : Array[Int32],
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (Bool, Array[UInt32]) {
+  let extras : Array[UInt32] = []
   let mut r1 = rep1
   let mut r2 = rep2
   let mut r3 = rep3
@@ -174,13 +174,13 @@ fn simulate_common_repcode_code1(
 fn greedy_match_length_with_offset(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  history_len : Int,
-  pos : Int,
-  block_len : Int,
-  offset : Int,
-  min_match : Int,
-) -> Int {
+  start : Int32,
+  history_len : Int32,
+  pos : Int32,
+  block_len : Int32,
+  offset : Int32,
+  min_match : Int32,
+) -> Int32 {
   if offset <= 0 || min_match < 3 {
     return 0
   }
@@ -226,11 +226,11 @@ fn greedy_match_length_with_offset(
 ///|
 fn update_repcodes_after_greedy_offset(
   ll0 : Bool,
-  offset : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Int, Int, Int) {
+  offset : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (Int32, Int32, Int32) {
   if offset <= 0 {
     return (rep1, rep2, rep3)
   }
@@ -268,20 +268,20 @@ fn update_repcodes_after_greedy_offset(
 fn greedy_best_match_at_position(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  history_len : Int,
-  anchor : Int,
-  pos : Int,
-  block_len : Int,
-  effective_max_offset : Int,
-  min_match : Int,
-  r1 : Int,
-  r2 : Int,
-  r3 : Int,
-  prev_pos : Int,
-  chain : Array[Int],
-  depth_limit : Int,
-) -> (Int, Int, Bool, Int) {
+  start : Int32,
+  history_len : Int32,
+  anchor : Int32,
+  pos : Int32,
+  block_len : Int32,
+  effective_max_offset : Int32,
+  min_match : Int32,
+  r1 : Int32,
+  r2 : Int32,
+  r3 : Int32,
+  prev_pos : Int32,
+  chain : Array[Int32],
+  depth_limit : Int32,
+) -> (Int32, Int32, Bool, Int32) {
   let ll0 = pos == anchor
   let mut best_ml = 0
   let mut best_offset = 0
@@ -370,12 +370,12 @@ fn greedy_best_match_at_position(
 
 ///|
 fn greedy_offset_off_base(
-  raw_offset : Int,
+  raw_offset : Int32,
   ll0 : Bool,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> Int {
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> Int32 {
   if !ll0 && raw_offset == rep1 {
     return 1
   }
@@ -393,13 +393,13 @@ fn greedy_offset_off_base(
 
 ///|
 fn selected_offset_off_base(
-  raw_offset : Int,
+  raw_offset : Int32,
   ll0 : Bool,
   selected_rep_match : Bool,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> Int {
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> Int32 {
   if selected_rep_match {
     greedy_offset_off_base(raw_offset, ll0, rep1, rep2, rep3)
   } else {
@@ -410,26 +410,26 @@ fn selected_offset_off_base(
 ///|
 fn collect_greedy_sequences(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll_values : Array[Int],
-  off_values : Array[Int],
-  ml_values : Array[Int],
-  max_sequences : Int,
-  history? : Bytes = b"",
-  search_depth? : Int = 1,
-  max_match_offset? : Int = 0,
-  rep1? : Int = 1,
-  rep2? : Int = 4,
-  rep3? : Int = 8,
-  min_match? : Int = 3,
-  prefer_offset_stability? : Bool = false,
-  off_base_values? : Array[Int] = [],
+  start : Int32,
+  block_len : Int32,
+  ll_values : Array[Int32],
+  off_values : Array[Int32],
+  ml_values : Array[Int32],
+  max_sequences : Int32,
+  history~ : Bytes = b"",
+  search_depth~ : Int32 = 1,
+  max_match_offset~ : Int32 = 0,
+  rep1~ : Int32 = 1,
+  rep2~ : Int32 = 4,
+  rep3~ : Int32 = 8,
+  min_match~ : Int32 = 3,
+  prefer_offset_stability~ : Bool = false,
+  off_base_values~ : Array[Int32] = [],
 ) -> Unit {
   let history_len = history.length()
   let virtual_len = history_len + block_len
-  let hash_head : Array[Int] = Array::make(1 << 15, -1)
-  let chain : Array[Int] = Array::make(virtual_len, -1)
+  let hash_head : Array[Int32] = Array::make(1 << 15, -1)
+  let chain : Array[Int32] = Array::make(virtual_len, -1)
   if history_len >= 4 {
     let mut dict_pos = 0
     while dict_pos + 4 <= history_len {
@@ -668,22 +668,22 @@ fn collect_greedy_sequences(
 ///|
 fn build_general_rle_payload(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  level : Int,
-  dictionary_history? : Bytes = b"",
-  max_match_offset? : Int = 0,
-  enable_long_distance_matching? : Bool = false,
-  rep1? : Int = 1,
-  rep2? : Int = 4,
-  rep3? : Int = 8,
+  start : Int32,
+  block_len : Int32,
+  level : Int32,
+  dictionary_history~ : Bytes = b"",
+  max_match_offset~ : Int32 = 0,
+  enable_long_distance_matching~ : Bool = false,
+  rep1~ : Int32 = 1,
+  rep2~ : Int32 = 4,
+  rep3~ : Int32 = 8,
 ) -> Bytes raise ZstdError {
   if (level < 9 && dictionary_history.length() == 0) || block_len < 32 {
     return b""
   }
-  let ll_values : Array[Int] = []
-  let off_values : Array[Int] = []
-  let ml_values : Array[Int] = []
+  let ll_values : Array[Int32] = []
+  let off_values : Array[Int32] = []
+  let ml_values : Array[Int32] = []
   let max_sequences_base = general_rle_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 &&
     level < 10 &&
@@ -769,7 +769,7 @@ fn build_general_rle_payload(
     append_bytes(literals, src, start + consumed, tail_len)
   }
 
-  let extra_bits : Array[Int] = []
+  let extra_bits : Array[Int32] = []
   i = 0
   while i < seq_count {
     append_bits_be(extra_bits, off_extras[i], off_bits)
@@ -782,7 +782,7 @@ fn build_general_rle_payload(
   let payload : Array[Byte] = []
   append_best_literals_section(payload, Bytes::from_array(literals))
   append_sequence_count(payload, seq_count)
-  payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
+  payload.push((0x54 : UInt32).to_byte()) // all RLE sequence modes
   payload.push(ll_code.to_byte())
   payload.push(off_code.to_byte())
   payload.push(ml_code.to_byte())
@@ -794,9 +794,9 @@ fn build_general_rle_payload(
 fn virtual_match_source_byte(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  history_len : Int,
-  virtual_pos : Int,
+  start : Int32,
+  history_len : Int32,
+  virtual_pos : Int32,
 ) -> Byte {
   if virtual_pos < history_len {
     history[virtual_pos]

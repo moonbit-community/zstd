@@ -14,13 +14,13 @@
 
 ///|
 fn collect_predefined_candidates_for_value(
-  symbol_type : Int,
-  value : Int,
-  states : Array[Int],
-  extras : Array[UInt],
-  nb_add_bits : Array[Int],
-  next_states : Array[Int],
-  nb_state_bits : Array[Int],
+  symbol_type : Int32,
+  value : Int32,
+  states : Array[Int32],
+  extras : Array[UInt32],
+  nb_add_bits : Array[Int32],
+  next_states : Array[Int32],
+  nb_state_bits : Array[Int32],
 ) -> Unit raise ZstdError {
   let limit = predefined_state_limit(symbol_type)
   let mut state = 0
@@ -55,8 +55,8 @@ fn collect_predefined_candidates_for_value(
 
 ///|
 fn predefined_default_norm_data(
-  symbol_type : Int,
-) -> (Bool, Array[Int], Int, Int) {
+  symbol_type : Int32,
+) -> (Bool, Array[Int32], Int32, Int32) {
   if symbol_type == sequence_symbol_literal_length {
     (
       true,
@@ -95,16 +95,23 @@ fn predefined_default_norm_data(
 
 ///|
 fn select_predefined_state_path_reference(
-  values : Array[Int],
-  symbol_type : Int,
-) -> (Bool, Array[Int], Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  values : Array[Int32],
+  symbol_type : Int32,
+) -> (
+  Bool,
+  Array[Int32],
+  Array[UInt32],
+  Array[Int32],
+  Array[Int32],
+  Array[Int32],
+) raise ZstdError {
   let n = values.length()
   if n <= 0 {
     return (false, [], [], [], [], [])
   }
-  let symbols : Array[Int] = []
-  let extras : Array[UInt] = []
-  let extra_bits : Array[Int] = []
+  let symbols : Array[Int32] = []
+  let extras : Array[UInt32] = []
+  let extra_bits : Array[Int32] = []
   let mut i = 0
   while i < n {
     let (ok, symbol, extra, add_bits) = encode_symbol_for_value(
@@ -153,9 +160,16 @@ fn select_predefined_state_path_reference(
 
 ///|
 fn select_predefined_state_path(
-  values : Array[Int],
-  symbol_type : Int,
-) -> (Bool, Array[Int], Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  values : Array[Int32],
+  symbol_type : Int32,
+) -> (
+  Bool,
+  Array[Int32],
+  Array[UInt32],
+  Array[Int32],
+  Array[Int32],
+  Array[Int32],
+) raise ZstdError {
   let n = values.length()
   if n <= 0 {
     return (false, [], [], [], [], [])
@@ -164,19 +178,19 @@ fn select_predefined_state_path(
     return select_predefined_state_path_reference(values, symbol_type)
   }
 
-  let states_per_pos : Array[Array[Int]] = []
-  let extras_per_pos : Array[Array[UInt]] = []
-  let add_bits_per_pos : Array[Array[Int]] = []
-  let next_states_per_pos : Array[Array[Int]] = []
-  let state_bits_per_pos : Array[Array[Int]] = []
+  let states_per_pos : Array[Array[Int32]] = []
+  let extras_per_pos : Array[Array[UInt32]] = []
+  let add_bits_per_pos : Array[Array[Int32]] = []
+  let next_states_per_pos : Array[Array[Int32]] = []
+  let state_bits_per_pos : Array[Array[Int32]] = []
 
   let mut i = 0
   while i < n {
-    let cand_states : Array[Int] = []
-    let cand_extras : Array[UInt] = []
-    let cand_add_bits : Array[Int] = []
-    let cand_next_states : Array[Int] = []
-    let cand_state_bits : Array[Int] = []
+    let cand_states : Array[Int32] = []
+    let cand_extras : Array[UInt32] = []
+    let cand_add_bits : Array[Int32] = []
+    let cand_next_states : Array[Int32] = []
+    let cand_state_bits : Array[Int32] = []
     collect_predefined_candidates_for_value(
       symbol_type,
       values[i],
@@ -198,9 +212,9 @@ fn select_predefined_state_path(
   }
 
   let inf = 1 << 30
-  let parent_idx_per_pos : Array[Array[Int]] = []
-  let parent_bits_per_pos : Array[Array[Int]] = []
-  let mut cost_prev : Array[Int] = []
+  let parent_idx_per_pos : Array[Array[Int32]] = []
+  let parent_bits_per_pos : Array[Array[Int32]] = []
+  let mut cost_prev : Array[Int32] = []
 
   let cand0_len = states_per_pos[0].length()
   parent_idx_per_pos.push(Array::make(cand0_len, -1))
@@ -268,7 +282,7 @@ fn select_predefined_state_path(
   }
 
   let states = Array::make(n, 0)
-  let extras = Array::make(n, (0 : UInt))
+  let extras = Array::make(n, (0 : UInt32))
   let extra_bits = Array::make(n, 0)
   let trans_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }
   let trans_nb_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }
@@ -297,10 +311,10 @@ fn select_predefined_state_path(
 ///|
 fn build_literals_from_sequences(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll_values : Array[Int],
-  ml_values : Array[Int],
+  start : Int32,
+  block_len : Int32,
+  ll_values : Array[Int32],
+  ml_values : Array[Int32],
 ) -> Bytes raise ZstdError {
   if ll_values.length() != ml_values.length() {
     raise CorruptionDetected
@@ -330,23 +344,23 @@ fn build_literals_from_sequences(
 ///|
 fn build_general_predefined_payload(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  level : Int,
-  dictionary_history? : Bytes = b"",
-  max_match_offset? : Int = 0,
-  enable_long_distance_matching? : Bool = false,
-  rep1? : Int = 1,
-  rep2? : Int = 4,
-  rep3? : Int = 8,
+  start : Int32,
+  block_len : Int32,
+  level : Int32,
+  dictionary_history~ : Bytes = b"",
+  max_match_offset~ : Int32 = 0,
+  enable_long_distance_matching~ : Bool = false,
+  rep1~ : Int32 = 1,
+  rep2~ : Int32 = 4,
+  rep3~ : Int32 = 8,
 ) -> Bytes raise ZstdError {
   if (level < 9 && dictionary_history.length() == 0) || block_len < 64 {
     return b""
   }
 
-  let ll_values : Array[Int] = []
-  let off_values : Array[Int] = []
-  let ml_values : Array[Int] = []
+  let ll_values : Array[Int32] = []
+  let off_values : Array[Int32] = []
+  let ml_values : Array[Int32] = []
   let max_sequences_base = predefined_multi_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 &&
     level < 10 &&
@@ -435,7 +449,7 @@ fn build_general_predefined_payload(
   let literals = build_literals_from_sequences(
     src, start, block_len, ll_values, ml_values,
   )
-  let extra_bits : Array[Int] = []
+  let extra_bits : Array[Int32] = []
   append_bits_be(
     extra_bits,
     ll_states[0].reinterpret_as_uint(),
@@ -481,7 +495,7 @@ fn build_general_predefined_payload(
   let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
-  payload.push((0 : UInt).to_byte()) // all predefined sequence modes
+  payload.push((0 : UInt32).to_byte()) // all predefined sequence modes
   append_bytes(payload, bitstream, 0, bitstream.length())
   Bytes::from_array(payload)
 }

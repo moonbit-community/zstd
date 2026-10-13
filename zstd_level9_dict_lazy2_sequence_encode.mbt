@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-let zstd_level9_prime4bytes : UInt = 2654435761
+let zstd_level9_prime4bytes : UInt32 = 2654435761
 
 ///|
 let zstd_window_start_index = 2
@@ -34,7 +34,7 @@ let zstd_dubt_unsorted_mark = 1
 let zstd_level9_dict_lazy2_no_match_off_base = 999999999
 
 ///|
-fn level9_dict_lazy2_min_int(a : Int, b : Int) -> Int {
+fn level9_dict_lazy2_min_int(a : Int32, b : Int32) -> Int32 {
   if a < b {
     a
   } else {
@@ -43,7 +43,7 @@ fn level9_dict_lazy2_min_int(a : Int, b : Int) -> Int {
 }
 
 ///|
-fn level9_dict_lazy2_max_int(a : Int, b : Int) -> Int {
+fn level9_dict_lazy2_max_int(a : Int32, b : Int32) -> Int32 {
   if a > b {
     a
   } else {
@@ -52,18 +52,20 @@ fn level9_dict_lazy2_max_int(a : Int, b : Int) -> Int {
 }
 
 ///|
-fn level9_dict_lazy2_cparams(src_len : Int) -> (Bool, Int, Int, Int, Int) {
+fn level9_dict_lazy2_cparams(
+  src_len : Int32,
+) -> (Bool, Int32, Int32, Int32, Int32) {
   ignore(src_len)
   (true, 14, 15, 5, 4)
 }
 
 ///|
 fn should_use_level9_dict_lazy2(
-  level : Int,
-  start : Int,
-  src_len : Int,
-  history_len : Int,
-  block_len : Int,
+  level : Int32,
+  start : Int32,
+  src_len : Int32,
+  history_len : Int32,
+  block_len : Int32,
 ) -> Bool {
   let (enabled, _, _, _, _) = level9_dict_lazy2_cparams(src_len)
   enabled &&
@@ -74,7 +76,7 @@ fn should_use_level9_dict_lazy2(
 }
 
 ///|
-fn level9_dict_lazy2_dict_limit(history_len : Int) -> Int {
+fn level9_dict_lazy2_dict_limit(history_len : Int32) -> Int32 {
   zstd_window_start_index + history_len
 }
 
@@ -82,9 +84,9 @@ fn level9_dict_lazy2_dict_limit(history_len : Int) -> Int {
 fn level9_dict_lazy2_virtual_source_byte(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  dict_limit : Int,
-  index : Int,
+  start : Int32,
+  dict_limit : Int32,
+  index : Int32,
 ) -> Byte {
   if index < dict_limit {
     history[index - zstd_window_start_index]
@@ -97,11 +99,11 @@ fn level9_dict_lazy2_virtual_source_byte(
 fn level9_dict_lazy2_hash_abs(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  dict_limit : Int,
-  abs_pos : Int,
-  hash_log : Int,
-) -> Int {
+  start : Int32,
+  dict_limit : Int32,
+  abs_pos : Int32,
+  hash_log : Int32,
+) -> Int32 {
   let a = level9_dict_lazy2_virtual_source_byte(
     history, src, start, dict_limit, abs_pos,
   ).to_uint()
@@ -126,7 +128,7 @@ fn level9_dict_lazy2_hash_abs(
     dict_limit,
     abs_pos + 3,
   ).to_uint()
-  let v : UInt = a + (b << 8) + (c << 16) + (d << 24)
+  let v : UInt32 = a + (b << 8) + (c << 16) + (d << 24)
   let shift = 32 - hash_log
   ((v * zstd_level9_prime4bytes) >> shift).reinterpret_as_int()
 }
@@ -135,13 +137,13 @@ fn level9_dict_lazy2_hash_abs(
 fn level9_dict_lazy2_common_match_len_abs(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  dict_limit : Int,
-  pos_abs : Int,
-  cand_abs : Int,
-  end_abs : Int,
-  prefix_len? : Int = 0,
-) -> Int {
+  start : Int32,
+  dict_limit : Int32,
+  pos_abs : Int32,
+  cand_abs : Int32,
+  end_abs : Int32,
+  prefix_len~ : Int32 = 0,
+) -> Int32 {
   let mut ml = prefix_len
   while pos_abs + ml < end_abs &&
         level9_dict_lazy2_virtual_source_byte(
@@ -167,12 +169,12 @@ fn level9_dict_lazy2_common_match_len_abs(
 fn level9_dict_lazy2_count_match_len(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  dict_limit : Int,
-  pos : Int,
-  cand_abs : Int,
-  block_len : Int,
-) -> Int {
+  start : Int32,
+  dict_limit : Int32,
+  pos : Int32,
+  cand_abs : Int32,
+  block_len : Int32,
+) -> Int32 {
   let pos_abs = dict_limit + pos
   let end_abs = dict_limit + block_len
   if pos < 0 || pos_abs + 4 > end_abs {
@@ -192,13 +194,13 @@ fn level9_dict_lazy2_count_match_len(
 fn level9_dict_lazy2_extend_match_backward(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  dict_limit : Int,
-  anchor : Int,
-  pos : Int,
-  cand_abs : Int,
-  ml : Int,
-) -> (Int, Int, Int) {
+  start : Int32,
+  dict_limit : Int32,
+  anchor : Int32,
+  pos : Int32,
+  cand_abs : Int32,
+  ml : Int32,
+) -> (Int32, Int32, Int32) {
   let mut p = pos
   let mut c = cand_abs
   let mut m = ml
@@ -225,7 +227,7 @@ fn level9_dict_lazy2_extend_match_backward(
 }
 
 ///|
-fn level9_dict_lazy2_off_base_high_bit(off_base : Int) -> Int {
+fn level9_dict_lazy2_off_base_high_bit(off_base : Int32) -> Int32 {
   let bit = high_bit_floor_non_zero(off_base)
   if bit >= 0 {
     bit
@@ -236,12 +238,12 @@ fn level9_dict_lazy2_off_base_high_bit(off_base : Int) -> Int {
 
 ///|
 fn level9_dict_lazy2_raw_offset_from_off_base(
-  off_base : Int,
+  off_base : Int32,
   ll0 : Bool,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> Int {
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> Int32 {
   if off_base > 3 {
     return off_base - 3
   }
@@ -260,11 +262,11 @@ fn level9_dict_lazy2_raw_offset_from_off_base(
 ///|
 fn level9_dict_lazy2_update_repcodes(
   ll0 : Bool,
-  off_base : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Int, Int, Int) {
+  off_base : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (Int32, Int32, Int32) {
   if off_base > 3 {
     (off_base - 3, rep1, rep2)
   } else {
@@ -286,9 +288,9 @@ fn level9_dict_lazy2_update_repcodes(
 
 ///|
 fn level9_dict_lazy2_lowest_match_index(
-  current_abs : Int,
-  max_match_offset : Int,
-) -> Int {
+  current_abs : Int32,
+  max_match_offset : Int32,
+) -> Int32 {
   if max_match_offset <= 0 {
     return zstd_window_start_index
   }
@@ -303,15 +305,15 @@ fn level9_dict_lazy2_lowest_match_index(
 ///|
 fn level9_dict_lazy2_prefill_insert_bt1(
   history : Bytes,
-  hash_log : Int,
-  chain_log : Int,
-  search_log : Int,
-  hash_table : Array[Int],
-  bt_table : Array[Int],
-  curr_abs : Int,
-  target_abs : Int,
-  dict_limit : Int,
-) -> Int {
+  hash_log : Int32,
+  chain_log : Int32,
+  search_log : Int32,
+  hash_table : Array[Int32],
+  bt_table : Array[Int32],
+  curr_abs : Int32,
+  target_abs : Int32,
+  dict_limit : Int32,
+) -> Int32 {
   ignore(target_abs)
   let h = level9_dict_lazy2_hash_abs(
     history, b"", 0, dict_limit, curr_abs, hash_log,
@@ -415,10 +417,10 @@ fn level9_dict_lazy2_prefill_insert_bt1(
 ///|
 fn build_level9_dict_lazy2_bt_state(
   history : Bytes,
-  hash_log : Int,
-  chain_log : Int,
-  search_log : Int,
-) -> (Array[Int], Array[Int]) {
+  hash_log : Int32,
+  chain_log : Int32,
+  search_log : Int32,
+) -> (Array[Int32], Array[Int32]) {
   let dict_limit = level9_dict_lazy2_dict_limit(history.length())
   let hash_table = Array::make(1 << hash_log, 0)
   let bt_table = Array::make(1 << chain_log, 0)
@@ -438,14 +440,14 @@ fn build_level9_dict_lazy2_bt_state(
 fn level9_dict_lazy2_update_dubt(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  dict_limit : Int,
-  curr_abs : Int,
-  hash_log : Int,
-  chain_log : Int,
-  hash_table : Array[Int],
-  bt_table : Array[Int],
-  next_to_update : Ref[Int],
+  start : Int32,
+  dict_limit : Int32,
+  curr_abs : Int32,
+  hash_log : Int32,
+  chain_log : Int32,
+  hash_table : Array[Int32],
+  bt_table : Array[Int32],
+  next_to_update : Ref[Int32],
 ) -> Unit {
   let bt_mask = (1 << (chain_log - 1)) - 1
   let mut idx = next_to_update.val
@@ -467,16 +469,16 @@ fn level9_dict_lazy2_update_dubt(
 fn level9_dict_lazy2_insert_dubt1(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  dict_limit : Int,
-  current_abs : Int,
-  hash_log : Int,
-  chain_log : Int,
-  bt_table : Array[Int],
-  nb_compares : Int,
-  bt_low : Int,
-  max_match_offset : Int,
+  start : Int32,
+  block_len : Int32,
+  dict_limit : Int32,
+  current_abs : Int32,
+  hash_log : Int32,
+  chain_log : Int32,
+  bt_table : Array[Int32],
+  nb_compares : Int32,
+  bt_low : Int32,
+  max_match_offset : Int32,
 ) -> Unit {
   ignore(hash_log)
   let bt_mask = (1 << (chain_log - 1)) - 1
@@ -559,18 +561,18 @@ fn level9_dict_lazy2_insert_dubt1(
 fn level9_dict_lazy2_bt_find_best_match(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  pos : Int,
-  hash_log : Int,
-  chain_log : Int,
-  search_log : Int,
-  dict_limit : Int,
-  hash_table : Array[Int],
-  bt_table : Array[Int],
-  next_to_update : Ref[Int],
-  max_match_offset : Int,
-) -> (Int, Int) {
+  start : Int32,
+  block_len : Int32,
+  pos : Int32,
+  hash_log : Int32,
+  chain_log : Int32,
+  search_log : Int32,
+  dict_limit : Int32,
+  hash_table : Array[Int32],
+  bt_table : Array[Int32],
+  next_to_update : Ref[Int32],
+  max_match_offset : Int32,
+) -> (Int32, Int32) {
   let current_abs = dict_limit + pos
   if current_abs < next_to_update.val {
     return (0, zstd_level9_dict_lazy2_no_match_off_base)
@@ -722,14 +724,14 @@ fn level9_dict_lazy2_bt_find_best_match(
 fn level9_dict_lazy2_rep_match_length(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  dict_limit : Int,
-  pos : Int,
-  block_len : Int,
-  offset : Int,
-  current_abs : Int,
-  max_match_offset : Int,
-) -> Int {
+  start : Int32,
+  dict_limit : Int32,
+  pos : Int32,
+  block_len : Int32,
+  offset : Int32,
+  current_abs : Int32,
+  max_match_offset : Int32,
+) -> Int32 {
   if offset <= 0 {
     return 0
   }
@@ -749,18 +751,18 @@ fn level9_dict_lazy2_rep_match_length(
 ///|
 fn collect_level9_dict_lazy2_sequences(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll_values : Array[Int],
-  off_values : Array[Int],
-  off_base_values : Array[Int],
-  ml_values : Array[Int],
-  max_sequences : Int,
+  start : Int32,
+  block_len : Int32,
+  ll_values : Array[Int32],
+  off_values : Array[Int32],
+  off_base_values : Array[Int32],
+  ml_values : Array[Int32],
+  max_sequences : Int32,
   history : Bytes,
-  max_match_offset : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
+  max_match_offset : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
 ) -> Unit {
   let history_len = history.length()
   let (enabled, hash_log, chain_log, search_log, _) = level9_dict_lazy2_cparams(
@@ -776,7 +778,7 @@ fn collect_level9_dict_lazy2_sequences(
   let (hash_table, bt_table) = build_level9_dict_lazy2_bt_state(
     history, hash_log, chain_log, search_log,
   )
-  let next_to_update : Ref[Int] = { val: dict_limit, }
+  let next_to_update : Ref[Int32] = { val: dict_limit, }
   let mut ip = 1
   let mut anchor = 0
   let mut offset_1 = rep1

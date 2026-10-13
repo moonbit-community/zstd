@@ -139,7 +139,7 @@ fn rv_matrix_dict() -> Bytes {
 }
 
 ///|
-fn rv_matrix_a_len() -> Int {
+fn rv_matrix_a_len() -> Int32 {
   14111
 }
 
@@ -527,7 +527,7 @@ fn rv_matrix_a_frame_long27_l19() -> Bytes {
 }
 
 ///|
-fn rv_matrix_b_len() -> Int {
+fn rv_matrix_b_len() -> Int32 {
   14721
 }
 
@@ -986,7 +986,7 @@ fn rv_matrix_b_frame_long27_l19() -> Bytes {
 }
 
 ///|
-fn rv_matrix_c_len() -> Int {
+fn rv_matrix_c_len() -> Int32 {
   14667
 }
 

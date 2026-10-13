@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-let zstd_prime4bytes : UInt = 2654435761
+let zstd_prime4bytes : UInt32 = 2654435761
 
 ///|
 let zstd_prime8bytes : UInt64 = 0xCF1BBCDCB7A56463
@@ -22,17 +22,17 @@ let zstd_prime8bytes : UInt64 = 0xCF1BBCDCB7A56463
 let zstd_short_cache_tag_bits = 8
 
 ///|
-fn hash4_with_bits(src : Bytes, pos : Int, h_bits : Int) -> Int {
-  let v : UInt = src[pos].to_uint() +
+fn hash4_with_bits(src : Bytes, pos : Int32, h_bits : Int32) -> Int32 {
+  let v : UInt32 = src[pos].to_uint() +
     (src[pos + 1].to_uint() << 8) +
     (src[pos + 2].to_uint() << 16) +
     (src[pos + 3].to_uint() << 24)
   let shift = 32 - h_bits
-  (((v * zstd_prime4bytes) >> shift) & (((1 : UInt) << h_bits) - (1 : UInt))).reinterpret_as_int()
+  (((v * zstd_prime4bytes) >> shift) & (((1 : UInt32) << h_bits) - (1 : UInt32))).reinterpret_as_int()
 }
 
 ///|
-fn hash8_with_bits(src : Bytes, pos : Int, h_bits : Int) -> Int {
+fn hash8_with_bits(src : Bytes, pos : Int32, h_bits : Int32) -> Int32 {
   let v : UInt64 = src[pos].to_uint().to_uint64() +
     (src[pos + 1].to_uint().to_uint64() << 8) +
     (src[pos + 2].to_uint().to_uint64() << 16) +
@@ -46,7 +46,7 @@ fn hash8_with_bits(src : Bytes, pos : Int, h_bits : Int) -> Int {
 }
 
 ///|
-fn hash4_with_tag(src : Bytes, pos : Int, h_bits : Int) -> (Int, Int) {
+fn hash4_with_tag(src : Bytes, pos : Int32, h_bits : Int32) -> (Int32, Int32) {
   let hash_and_tag = hash4_with_bits(
     src,
     pos,
@@ -59,7 +59,7 @@ fn hash4_with_tag(src : Bytes, pos : Int, h_bits : Int) -> (Int, Int) {
 }
 
 ///|
-fn hash8_with_tag(src : Bytes, pos : Int, h_bits : Int) -> (Int, Int) {
+fn hash8_with_tag(src : Bytes, pos : Int32, h_bits : Int32) -> (Int32, Int32) {
   let hash_and_tag = hash8_with_bits(
     src,
     pos,
@@ -75,11 +75,11 @@ fn hash8_with_tag(src : Bytes, pos : Int, h_bits : Int) -> (Int, Int) {
 fn virtual_eq_at(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  history_len : Int,
-  pos : Int,
-  cand : Int,
-  count : Int,
+  start : Int32,
+  history_len : Int32,
+  pos : Int32,
+  cand : Int32,
+  count : Int32,
 ) -> Bool {
   if pos < 0 || cand < 0 || pos + count > src.length() - start {
     return false
@@ -99,13 +99,13 @@ fn virtual_eq_at(
 fn virtual_match_len_from(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  history_len : Int,
-  pos : Int,
-  cand : Int,
-  block_len : Int,
-  min_match : Int,
-) -> Int {
+  start : Int32,
+  history_len : Int32,
+  pos : Int32,
+  cand : Int32,
+  block_len : Int32,
+  min_match : Int32,
+) -> Int32 {
   let mut ml = min_match
   while pos + ml < block_len &&
         src[start + pos + ml] ==
@@ -119,14 +119,14 @@ fn virtual_match_len_from(
 fn extend_virtual_match_backward(
   history : Bytes,
   src : Bytes,
-  start : Int,
-  history_len : Int,
-  anchor : Int,
-  pos : Int,
-  cand : Int,
-  ml : Int,
-  cand_low_exclusive : Int,
-) -> (Int, Int, Int) {
+  start : Int32,
+  history_len : Int32,
+  anchor : Int32,
+  pos : Int32,
+  cand : Int32,
+  ml : Int32,
+  cand_low_exclusive : Int32,
+) -> (Int32, Int32, Int32) {
   let mut p = pos
   let mut c = cand
   let mut m = ml
@@ -142,7 +142,7 @@ fn extend_virtual_match_backward(
 }
 
 ///|
-fn index_overlap_check(prefix_lowest_index : Int, rep_index : Int) -> Bool {
+fn index_overlap_check(prefix_lowest_index : Int32, rep_index : Int32) -> Bool {
   if rep_index < 0 {
     return false
   }
@@ -154,9 +154,9 @@ fn index_overlap_check(prefix_lowest_index : Int, rep_index : Int) -> Bool {
 
 ///|
 fn dfast_hash_bits_for_level3_dict(
-  history_len : Int,
-  block_len : Int,
-) -> (Int, Int) {
+  history_len : Int32,
+  block_len : Int32,
+) -> (Int32, Int32) {
   let total_len = history_len + block_len
   let mut bits = 0
   let mut n = if total_len <= 1 { 1 } else { total_len - 1 }
@@ -178,17 +178,17 @@ fn dfast_hash_bits_for_level3_dict(
 ///|
 fn collect_level3_dict_dfast_sequences(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll_values : Array[Int],
-  off_values : Array[Int],
-  off_base_values : Array[Int],
-  ml_values : Array[Int],
-  max_sequences : Int,
+  start : Int32,
+  block_len : Int32,
+  ll_values : Array[Int32],
+  off_values : Array[Int32],
+  off_base_values : Array[Int32],
+  ml_values : Array[Int32],
+  max_sequences : Int32,
   history : Bytes,
-  max_match_offset : Int,
-  rep1 : Int,
-  rep2 : Int,
+  max_match_offset : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
 ) -> Unit {
   let history_len = history.length()
   if block_len < 8 || history_len < 8 {
@@ -210,12 +210,12 @@ fn collect_level3_dict_dfast_sequences(
     history_len, block_len,
   )
   let fast_hash_fill_step = 3
-  let dict_hash_long_index : Array[Int] = Array::make(1 << h_bits_long, -1)
-  let dict_hash_long_tag : Array[Int] = Array::make(1 << h_bits_long, -1)
-  let dict_hash_short_index : Array[Int] = Array::make(1 << h_bits_short, -1)
-  let dict_hash_short_tag : Array[Int] = Array::make(1 << h_bits_short, -1)
-  let prefix_hash_long : Array[Int] = Array::make(1 << h_bits_long, -1)
-  let prefix_hash_short : Array[Int] = Array::make(1 << h_bits_short, -1)
+  let dict_hash_long_index : Array[Int32] = Array::make(1 << h_bits_long, -1)
+  let dict_hash_long_tag : Array[Int32] = Array::make(1 << h_bits_long, -1)
+  let dict_hash_short_index : Array[Int32] = Array::make(1 << h_bits_short, -1)
+  let dict_hash_short_tag : Array[Int32] = Array::make(1 << h_bits_short, -1)
+  let prefix_hash_long : Array[Int32] = Array::make(1 << h_bits_long, -1)
+  let prefix_hash_short : Array[Int32] = Array::make(1 << h_bits_short, -1)
 
   // Follow ZSTD_fillDoubleHashTableForCDict full-load behavior.
   let dict_iend = history_len - 8
@@ -576,10 +576,10 @@ fn collect_level3_dict_dfast_sequences(
 
 ///|
 fn should_use_level3_dict_dfast(
-  level : Int,
-  history_len : Int,
-  block_len : Int,
-  min_match : Int,
+  level : Int32,
+  history_len : Int32,
+  block_len : Int32,
+  min_match : Int32,
 ) -> Bool {
   true &&
   level == 3 &&
@@ -592,22 +592,22 @@ fn should_use_level3_dict_dfast(
 ///|
 fn collect_level_aligned_sequences(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  level : Int,
-  ll_values : Array[Int],
-  off_values : Array[Int],
-  ml_values : Array[Int],
-  max_sequences : Int,
-  history? : Bytes = b"",
-  search_depth? : Int = 1,
-  max_match_offset? : Int = 0,
-  rep1? : Int = 1,
-  rep2? : Int = 4,
-  rep3? : Int = 8,
-  min_match? : Int = 3,
-  prefer_offset_stability? : Bool = false,
-  off_base_values? : Array[Int] = [],
+  start : Int32,
+  block_len : Int32,
+  level : Int32,
+  ll_values : Array[Int32],
+  off_values : Array[Int32],
+  ml_values : Array[Int32],
+  max_sequences : Int32,
+  history~ : Bytes = b"",
+  search_depth~ : Int32 = 1,
+  max_match_offset~ : Int32 = 0,
+  rep1~ : Int32 = 1,
+  rep2~ : Int32 = 4,
+  rep3~ : Int32 = 8,
+  min_match~ : Int32 = 3,
+  prefer_offset_stability~ : Bool = false,
+  off_base_values~ : Array[Int32] = [],
 ) -> Unit {
   if should_use_level9_dict_lazy2(
       level,

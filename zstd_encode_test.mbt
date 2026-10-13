@@ -13,14 +13,14 @@
 // limitations under the License.
 
 ///|
-fn read_u24_le_test(src : Bytes, pos : Int) -> UInt {
+fn read_u24_le_test(src : Bytes, pos : Int32) -> UInt32 {
   src[pos].to_uint() +
   (src[pos + 1].to_uint() << 8) +
   (src[pos + 2].to_uint() << 16)
 }
 
 ///|
-fn read_u32_le_test(src : Bytes, pos : Int) -> UInt {
+fn read_u32_le_test(src : Bytes, pos : Int32) -> UInt32 {
   src[pos].to_uint() +
   (src[pos + 1].to_uint() << 8) +
   (src[pos + 2].to_uint() << 16) +
@@ -28,7 +28,7 @@ fn read_u32_le_test(src : Bytes, pos : Int) -> UInt {
 }
 
 ///|
-fn dict_id_size_encode_test(flag : UInt) -> Int {
+fn dict_id_size_encode_test(flag : UInt32) -> Int32 {
   if flag == 0 {
     0
   } else if flag == 1 {
@@ -42,9 +42,9 @@ fn dict_id_size_encode_test(flag : UInt) -> Int {
 
 ///|
 fn frame_content_size_size_encode_test(
-  flag : UInt,
+  flag : UInt32,
   single_segment : Bool,
-) -> Int {
+) -> Int32 {
   if flag == 0 {
     if single_segment {
       1
@@ -64,8 +64,8 @@ fn frame_content_size_size_encode_test(
 fn append_bytes_encode_test(
   out : Array[Byte],
   src : Bytes,
-  start : Int,
-  len : Int,
+  start : Int32,
+  len : Int32,
 ) -> Unit {
   let mut i = 0
   while i < len {
@@ -75,7 +75,7 @@ fn append_bytes_encode_test(
 }
 
 ///|
-fn bytes_slice_encode_test(src : Bytes, start : Int, len : Int) -> Bytes {
+fn bytes_slice_encode_test(src : Bytes, start : Int32, len : Int32) -> Bytes {
   if start < 0 || len < 0 || start + len > src.length() {
     return b""
   }
@@ -87,7 +87,7 @@ fn bytes_slice_encode_test(src : Bytes, start : Int, len : Int) -> Bytes {
 ///|
 fn parse_compressed_literals_header_encode_test(
   payload : Bytes,
-) -> (Bool, UInt, UInt, Int, Int, Int, Int) {
+) -> (Bool, UInt32, UInt32, Int32, Int32, Int32, Int32) {
   if payload.length() < 4 {
     return (false, 0, 0, 0, 0, 0, 0)
   }
@@ -141,9 +141,9 @@ fn parse_compressed_literals_header_encode_test(
 ///|
 fn read_sequence_meta_from_compressed_payload(
   frame : Bytes,
-  payload_start : Int,
-  payload_end : Int,
-) -> (Int, Int) {
+  payload_start : Int32,
+  payload_end : Int32,
+) -> (Int32, Int32) {
   if payload_start < 0 ||
     payload_end > frame.length() ||
     payload_start >= payload_end {
@@ -238,7 +238,7 @@ fn read_sequence_meta_from_compressed_payload(
 }
 
 ///|
-fn read_first_block_sequence_meta(frame : Bytes) -> (Int, Int) {
+fn read_first_block_sequence_meta(frame : Bytes) -> (Int32, Int32) {
   let header_size = frame_header_size_encode_test(frame)
   if header_size < 0 || header_size + 3 > frame.length() {
     return (-1, -1)
@@ -257,19 +257,19 @@ fn read_first_block_sequence_meta(frame : Bytes) -> (Int, Int) {
 }
 
 ///|
-fn read_first_block_sequence_modes(frame : Bytes) -> Int {
+fn read_first_block_sequence_modes(frame : Bytes) -> Int32 {
   let (_, modes) = read_first_block_sequence_meta(frame)
   modes
 }
 
 ///|
-fn read_first_block_sequence_count(frame : Bytes) -> Int {
+fn read_first_block_sequence_count(frame : Bytes) -> Int32 {
   let (seq_count, _) = read_first_block_sequence_meta(frame)
   seq_count
 }
 
 ///|
-fn frame_header_size_encode_test(frame : Bytes) -> Int {
+fn frame_header_size_encode_test(frame : Bytes) -> Int32 {
   if frame.length() < 5 {
     return -1
   }
@@ -287,7 +287,7 @@ fn frame_header_size_encode_test(frame : Bytes) -> Int {
 }
 
 ///|
-fn first_block_payload_range_encode_test(frame : Bytes) -> (Int, Int) {
+fn first_block_payload_range_encode_test(frame : Bytes) -> (Int32, Int32) {
   let header_size = frame_header_size_encode_test(frame)
   if header_size < 0 || header_size + 3 > frame.length() {
     return (-1, -1)
@@ -306,7 +306,7 @@ fn first_block_payload_range_encode_test(frame : Bytes) -> (Int, Int) {
 }
 
 ///|
-fn window_size_from_descriptor_encode_test(descriptor : UInt) -> UInt64 {
+fn window_size_from_descriptor_encode_test(descriptor : UInt32) -> UInt64 {
   let exponent = descriptor >> 3
   let mantissa = descriptor & 0x7
   let window_log = 10 + exponent.reinterpret_as_int()
@@ -316,7 +316,7 @@ fn window_size_from_descriptor_encode_test(descriptor : UInt) -> UInt64 {
 }
 
 ///|
-fn first_block_type_encode_test(frame : Bytes) -> Int {
+fn first_block_type_encode_test(frame : Bytes) -> Int32 {
   let header_size = frame_header_size_encode_test(frame)
   if header_size < 0 || header_size + 3 > frame.length() {
     return -1
@@ -328,8 +328,8 @@ fn first_block_type_encode_test(frame : Bytes) -> Int {
 ///|
 test "compress emits rle block for repeated payload" {
   let input = b"aaaaaaaaaaaaaaaa"
-  let frame = compress(input)
-  assert_eq(decompress(frame), input)
+  let frame = @zstd.compress(input)
+  assert_eq(@zstd.decompress(frame), input)
 
   let block_header = read_u24_le_test(frame, 9)
   assert_eq(block_header & 1, 1) // last block
@@ -341,8 +341,8 @@ test "compress emits rle block for repeated payload" {
 ///|
 test "compress emits raw block for mixed payload" {
   let input = b"abababab"
-  let frame = compress(input)
-  assert_eq(decompress(frame), input)
+  let frame = @zstd.compress(input)
+  assert_eq(@zstd.decompress(frame), input)
 
   let block_header = read_u24_le_test(frame, 9)
   assert_eq((block_header >> 1) & 0x3, 0)
@@ -352,15 +352,15 @@ test "compress emits raw block for mixed payload" {
 ///|
 test "compress can emit frame checksum when requested" {
   let input = b"checksum-enabled-payload"
-  let frame = compress(input, checksum=true)
+  let frame = @zstd.compress(input, checksum=true)
   // Descriptor bit2 is checksum flag.
   assert_eq(frame[4].to_uint() & 0x4, 0x4)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
 test "compress default keeps checksum disabled" {
-  let frame = compress(b"no-checksum-default")
+  let frame = @zstd.compress(b"no-checksum-default")
   assert_eq(frame[4].to_uint() & 0x4, 0)
 }
 
@@ -369,19 +369,19 @@ test "compress_with_options can emit non-single-segment frame without content si
   let input = Bytes::makei(4096, i => {
     ((i * 17 + 11) % 251).reinterpret_as_uint().to_byte()
   })
-  let frame = compress_with_options(
+  let frame = @zstd.compress_with_options(
     input,
-    default_compress_options(level=10)
+    @zstd.default_compress_options(level=10)
     .with_single_segment(false)
     .with_content_size(false),
   )
   let descriptor = frame[4].to_uint()
-  assert_eq((descriptor >> 5) & 1, (0 : UInt))
-  assert_eq(descriptor >> 6, (0 : UInt))
+  assert_eq((descriptor >> 5) & 1, (0 : UInt32))
+  assert_eq(descriptor >> 6, (0 : UInt32))
   assert_eq(frame_header_size_encode_test(frame), 6)
   let window_size = window_size_from_descriptor_encode_test(frame[5].to_uint())
   assert_true(window_size >= input.length().to_uint64())
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
@@ -389,19 +389,19 @@ test "compress_with_options can emit non-single-segment frame with content size 
   let input = Bytes::makei(1500, i => {
     ((i * 13 + 5) % 251).reinterpret_as_uint().to_byte()
   })
-  let frame = compress_with_options(
+  let frame = @zstd.compress_with_options(
     input,
-    default_compress_options(level=10)
+    @zstd.default_compress_options(level=10)
     .with_single_segment(false)
     .with_window_log(20),
   )
   let descriptor = frame[4].to_uint()
-  assert_eq((descriptor >> 5) & 1, (0 : UInt))
-  assert_eq(descriptor >> 6, (2 : UInt))
+  assert_eq((descriptor >> 5) & 1, (0 : UInt32))
+  assert_eq(descriptor >> 6, (2 : UInt32))
   let window_size = window_size_from_descriptor_encode_test(frame[5].to_uint())
   assert_true(window_size >= (1 : UInt64) << 20)
   assert_eq(read_u32_le_test(frame, 6), input.length().reinterpret_as_uint())
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
@@ -412,32 +412,32 @@ test "compress_with_options honors declared non-single-segment window for cross-
   })
   let second_block = first_block[:4096].to_owned()
   let input = first_block + second_block
-  let frame = compress_with_options(
+  let frame = @zstd.compress_with_options(
     input,
-    default_compress_options(level=12)
+    @zstd.default_compress_options(level=12)
     .with_single_segment(false)
     .with_window_log(10),
   )
   let descriptor = frame[4].to_uint()
-  assert_eq((descriptor >> 5) & 1, (0 : UInt))
+  assert_eq((descriptor >> 5) & 1, (0 : UInt32))
   let window_size = window_size_from_descriptor_encode_test(frame[5].to_uint())
   assert_eq(window_size, (1 : UInt64) << 10)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
 test "compact frame header option can emit 1-byte single-segment content size" {
   let input = b"tiny-header"
-  let frame = compress_with_options(
+  let frame = @zstd.compress_with_options(
     input,
-    default_compress_options().with_compact_frame_header(true),
+    @zstd.default_compress_options().with_compact_frame_header(true),
   )
   let descriptor = frame[4].to_uint()
-  assert_eq((descriptor >> 5) & 1, (1 : UInt))
-  assert_eq(descriptor >> 6, (0 : UInt))
+  assert_eq((descriptor >> 5) & 1, (1 : UInt32))
+  assert_eq(descriptor >> 6, (0 : UInt32))
   assert_eq(frame_header_size_encode_test(frame), 6)
   assert_eq(frame[5].to_uint(), input.length().reinterpret_as_uint())
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
@@ -445,44 +445,44 @@ test "compact frame header option can emit 2-byte non-single-segment content siz
   let input = Bytes::makei(300, i => {
     ((i * 7 + 3) % 251).reinterpret_as_uint().to_byte()
   })
-  let frame = compress_with_options(
+  let frame = @zstd.compress_with_options(
     input,
-    default_compress_options()
+    @zstd.default_compress_options()
     .with_single_segment(false)
     .with_compact_frame_header(true),
   )
   let descriptor = frame[4].to_uint()
-  assert_eq((descriptor >> 5) & 1, (0 : UInt))
-  assert_eq(descriptor >> 6, (1 : UInt))
+  assert_eq((descriptor >> 5) & 1, (0 : UInt32))
+  assert_eq(descriptor >> 6, (1 : UInt32))
   assert_eq(frame_header_size_encode_test(frame), 8)
   let encoded = frame[6].to_uint() + (frame[7].to_uint() << 8)
   assert_eq(encoded + 256, input.length().reinterpret_as_uint())
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
 test "compress_with_dictionary emits dictID for standard dictionary" {
   let dict = standard_dictionary_fixture_dictionary()
   let input = standard_dictionary_fixture_payload()
-  let frame = compress_with_dictionary(input, dict, level=12)
+  let frame = @zstd.compress_with_dictionary(input, dict, level=12)
   assert_eq(frame[4].to_uint() & 0x3, 3)
   assert_eq(read_u32_le_test(frame, 5), read_u32_le_test(dict, 4))
-  let without_dict = try decompress(frame) catch {
+  let without_dict = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
   }
   assert_true(without_dict is Err(DictionaryRequired(_)))
-  assert_eq(decompress_with_dictionary(frame, dict), input)
+  assert_eq(@zstd.decompress_with_dictionary(frame, dict), input)
 }
 
 ///|
 test "compress_with_dictionary keeps dictID absent for raw dictionary history" {
   let dict = b"raw-prefix-history-dictionary"
   let input = b"plain payload"
-  let frame = compress_with_dictionary(input, dict, level=12)
+  let frame = @zstd.compress_with_dictionary(input, dict, level=12)
   assert_eq(frame[4].to_uint() & 0x3, 0)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
@@ -492,18 +492,18 @@ test "compress_with_dictionary can use first-block dictionary single match" {
   })
   let input = dict[200:290].to_owned()
 
-  let frame_without = compress(input, level=12)
-  let frame_with = compress_with_dictionary(input, dict, level=12)
+  let frame_without = @zstd.compress(input, level=12)
+  let frame_with = @zstd.compress_with_dictionary(input, dict, level=12)
   assert_eq(first_block_type_encode_test(frame_without), 0)
   assert_eq(first_block_type_encode_test(frame_with), 2)
   assert_true(frame_with.length() < frame_without.length())
-  let decode_without = try decompress(frame_with) catch {
+  let decode_without = try @zstd.decompress(frame_with) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
   }
   assert_true(decode_without is Err(CorruptionDetected))
-  assert_eq(decompress_with_dictionary(frame_with, dict), input)
+  assert_eq(@zstd.decompress_with_dictionary(frame_with, dict), input)
 }
 
 ///|
@@ -520,24 +520,24 @@ test "compress_with_dictionary can use multi-sequence dictionary matches" {
   let dict = prefix + part_a + mid + part_b + tail
   let input = part_a + b"@" + part_b + b"#"
 
-  let frame_without = compress(input, level=20)
-  let frame_with = compress_with_dictionary(input, dict, level=20)
+  let frame_without = @zstd.compress(input, level=20)
+  let frame_with = @zstd.compress_with_dictionary(input, dict, level=20)
   assert_eq(first_block_type_encode_test(frame_with), 2)
   assert_true(frame_with.length() < frame_without.length())
   let seq_count = read_first_block_sequence_count(frame_with)
   assert_true(seq_count >= 2)
-  assert_eq(decompress_with_dictionary(frame_with, dict), input)
+  assert_eq(@zstd.decompress_with_dictionary(frame_with, dict), input)
 }
 
 ///|
 test "compress_with_dictionary default level can emit compressed block with standard dictionary" {
   let dict = rv_up_gdict_http_dict()
   let input = rv_up_http_payload()
-  let frame = compress_with_dictionary(input, dict)
+  let frame = @zstd.compress_with_dictionary(input, dict)
   assert_eq(first_block_type_encode_test(frame), 2)
   assert_true(frame.length() <= 430)
   assert_true(frame.length() < input.length())
-  assert_eq(decompress_with_dictionary(frame, dict), input)
+  assert_eq(@zstd.decompress_with_dictionary(frame, dict), input)
 }
 
 ///|
@@ -552,7 +552,7 @@ test "sequence metadata parser can parse upstream missing-symbol dictionary fram
 ///|
 test "level3 dictionary missing-symbol frame keeps first-block sequence metadata parity" {
   let upstream = rv_up_gdict_missing_symbols_http_frame_default_nocheck()
-  let ours = compress_with_dictionary(
+  let ours = @zstd.compress_with_dictionary(
     rv_up_http_payload(),
     rv_up_gdict_http_dict(),
   )
@@ -575,7 +575,7 @@ test "level3 dictionary missing-symbol frame keeps first-block sequence metadata
 ///|
 test "level3 dictionary missing-symbol frame now matches literals length parity" {
   let upstream = rv_up_gdict_missing_symbols_http_frame_default_nocheck()
-  let ours = compress_with_dictionary(
+  let ours = @zstd.compress_with_dictionary(
     rv_up_http_payload(),
     rv_up_gdict_http_dict(),
   )
@@ -610,15 +610,17 @@ test "level3 dictionary missing-symbol frame now matches literals length parity"
 ///|
 test "compress_with_options can force raw block via target_compressed_block_size" {
   let input = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
-  let compressed_default = compress(input, level=10)
+  let compressed_default = @zstd.compress(input, level=10)
   assert_eq(first_block_type_encode_test(compressed_default), 2)
 
-  let forced_raw = compress_with_options(
+  let forced_raw = @zstd.compress_with_options(
     input,
-    default_compress_options(level=10).with_target_compressed_block_size(6),
+    @zstd.default_compress_options(level=10).with_target_compressed_block_size(
+      6,
+    ),
   )
   assert_eq(first_block_type_encode_test(forced_raw), 0)
-  assert_eq(decompress(forced_raw), input)
+  assert_eq(@zstd.decompress(forced_raw), input)
 }
 
 ///|
@@ -632,26 +634,26 @@ test "compress_with_dictionary_and_options supports long-distance toggle" {
   let tail = dict[120:210].to_owned()
   let input = prefix + tail
 
-  let no_ldm = compress_with_dictionary_and_options(
+  let no_ldm = @zstd.compress_with_dictionary_and_options(
     input,
     dict,
-    default_compress_options(level=12),
+    @zstd.default_compress_options(level=12),
   )
-  assert_eq(decompress_with_dictionary(no_ldm, dict), input)
+  assert_eq(@zstd.decompress_with_dictionary(no_ldm, dict), input)
 
-  let with_ldm = compress_with_dictionary_and_options(
+  let with_ldm = @zstd.compress_with_dictionary_and_options(
     input,
     dict,
-    default_compress_options(level=12).with_long_distance_matching(true),
+    @zstd.default_compress_options(level=12).with_long_distance_matching(true),
   )
-  assert_eq(decompress_with_dictionary(with_ldm, dict), input)
+  assert_eq(@zstd.decompress_with_dictionary(with_ldm, dict), input)
 }
 
 ///|
 test "compress emits rle blocks across 128k boundary" {
   let input = Bytes::makei((128 << 10) + 97, _ => b"x"[0])
-  let frame = compress(input)
-  assert_eq(decompress(frame), input)
+  let frame = @zstd.compress(input)
+  assert_eq(@zstd.decompress(frame), input)
 
   let block1_header = read_u24_le_test(frame, 9)
   assert_eq(block1_header & 1, 0)
@@ -676,8 +678,8 @@ test "compress can use previous block history for second block" {
   })
   let input = block1 + shared + tail
 
-  let frame = compress(input, level=14)
-  assert_eq(decompress(frame), input)
+  let frame = @zstd.compress(input, level=14)
+  assert_eq(@zstd.decompress(frame), input)
 
   let block1_header = read_u24_le_test(frame, 9)
   let block1_type = ((block1_header >> 1) & 0x3).reinterpret_as_int()
@@ -693,15 +695,15 @@ test "compress can use previous block history for second block" {
 test "compress emits compressed block for periodic payload at higher level" {
   let input = Bytes::makei(512, i => if i % 2 == 0 { b"a"[0] } else { b"b"[0] })
 
-  let frame_low = compress(input, level=3)
+  let frame_low = @zstd.compress(input, level=3)
   let block_low = read_u24_le_test(frame_low, 9)
   assert_eq((block_low >> 1) & 0x3, 0)
 
-  let frame_high = compress(input, level=10)
+  let frame_high = @zstd.compress(input, level=10)
   let block_high = read_u24_le_test(frame_high, 9)
   assert_eq((block_high >> 1) & 0x3, 2)
   assert_true(frame_high.length() < frame_low.length())
-  assert_eq(decompress(frame_high), input)
+  assert_eq(@zstd.decompress(frame_high), input)
 }
 
 ///|
@@ -719,10 +721,10 @@ test "compress periodic payload with larger period uses higher offset code" {
   }
   let input = Bytes::from_array(input_arr)
 
-  let frame = compress(input, level=10)
+  let frame = @zstd.compress(input, level=10)
   let block_header = read_u24_le_test(frame, 9)
   assert_eq((block_header >> 1) & 0x3, 2)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 }
 
 ///|
@@ -739,12 +741,12 @@ test "compress periodic prefix with literal tail emits compressed block" {
   let tail = b"tail-unique-42"
   let input = head + tail
 
-  let frame_low = compress(input, level=3)
-  let frame_high = compress(input, level=10)
+  let frame_low = @zstd.compress(input, level=3)
+  let frame_high = @zstd.compress(input, level=10)
   let block_high = read_u24_le_test(frame_high, 9)
   assert_eq((block_high >> 1) & 0x3, 2)
   assert_true(frame_high.length() < frame_low.length())
-  assert_eq(decompress(frame_high), input)
+  assert_eq(@zstd.decompress(frame_high), input)
 }
 
 ///|
@@ -754,12 +756,12 @@ test "compress can use periodic window after literal prefix" {
   let tail = b":END"
   let input = prefix + window + tail
 
-  let frame_low = compress(input, level=3)
-  let frame_high = compress(input, level=10)
+  let frame_low = @zstd.compress(input, level=3)
+  let frame_high = @zstd.compress(input, level=10)
   let block_high = read_u24_le_test(frame_high, 9)
   assert_eq((block_high >> 1) & 0x3, 2)
   assert_true(frame_high.length() < frame_low.length())
-  assert_eq(decompress(frame_high), input)
+  assert_eq(@zstd.decompress(frame_high), input)
 
   // For this shape encoder falls back to single sequence due prefixed literals.
   // literals = prefix(7) + period(2) + tail(4) => 13 bytes, raw literals header is 1 byte.
@@ -780,10 +782,10 @@ test "compress prefix periodic window can use multi-sequence when LL range fits"
   let body = Bytes::from_array(body_arr)
   let input = prefix + body + b"Z"
 
-  let frame = compress(input, level=18)
+  let frame = @zstd.compress(input, level=18)
   let block_header = read_u24_le_test(frame, 9)
   assert_eq((block_header >> 1) & 0x3, 2)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 
   // literals = prefix(1) + period(16) + period(16) + tail(1) = 34 bytes.
   // raw literals header uses size_format=1 => 2-byte header.
@@ -796,12 +798,12 @@ test "compress can encode non-periodic repeated segment as single match" {
   let phrase = b"the quick brown fox jumps over the lazy dog|"
   let input = b"prefix@" + phrase + b"--" + phrase + b"@tail"
 
-  let frame_low = compress(input, level=3)
-  let frame_high = compress(input, level=12)
+  let frame_low = @zstd.compress(input, level=3)
+  let frame_high = @zstd.compress(input, level=12)
   let block_high = read_u24_le_test(frame_high, 9)
   assert_eq((block_high >> 1) & 0x3, 2)
   assert_true(frame_high.length() < frame_low.length())
-  assert_eq(decompress(frame_high), input)
+  assert_eq(@zstd.decompress(frame_high), input)
 }
 
 ///|
@@ -814,10 +816,10 @@ test "compress single-match path can emit predefined sequence modes" {
   })
   let input = prefix + repeated + b"||" + repeated + b"@"
 
-  let frame = compress(input, level=12)
+  let frame = @zstd.compress(input, level=12)
   let block_header = read_u24_le_test(frame, 9)
   assert_eq((block_header >> 1) & 0x3, 2)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 
   let modes = read_first_block_sequence_modes(frame)
   assert_eq(modes, 0)
@@ -839,10 +841,10 @@ test "compress ultra level can prefer mode2 compressed sequence payload" {
   })
   let input = prefix + a + b + b + a + b + a + b + b + tail
 
-  let frame = compress(input, level=22)
+  let frame = @zstd.compress(input, level=22)
   let block_header = read_u24_le_test(frame, 9)
   assert_eq((block_header >> 1) & 0x3, 2)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 
   let modes = read_first_block_sequence_modes(frame)
   assert_eq(modes, 0xA8)
@@ -858,12 +860,12 @@ test "compress can emit multi-sequence general RLE block for non-periodic repeat
   })
   let input = chunk_a + b"|" + chunk_a + b"^" + chunk_b + b"|" + chunk_b + b"$"
 
-  let frame_low = compress(input, level=3)
-  let frame_high = compress(input, level=14)
+  let frame_low = @zstd.compress(input, level=3)
+  let frame_high = @zstd.compress(input, level=14)
   let block_header = read_u24_le_test(frame_high, 9)
   assert_eq((block_header >> 1) & 0x3, 2)
   assert_true(frame_high.length() < frame_low.length())
-  assert_eq(decompress(frame_high), input)
+  assert_eq(@zstd.decompress(frame_high), input)
 
   let seq_count = read_first_block_sequence_count(frame_high)
   assert_true(seq_count >= 2)
@@ -875,10 +877,10 @@ test "compress very high level can emit two-sequence periodic block" {
   let tail = b"XYZ"
   let input = head + tail
 
-  let frame = compress(input, level=18)
+  let frame = @zstd.compress(input, level=18)
   let block_header = read_u24_le_test(frame, 9)
   assert_eq((block_header >> 1) & 0x3, 2)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 
   // literals length = 2(seq1) + 2(seq2) + 3(tail) = 7, so raw literals header is 1 byte.
   let seq_count_pos = 12 + 1 + 7
@@ -891,10 +893,10 @@ test "compress ultra level can emit four-sequence periodic block" {
   let tail = b"Q"
   let input = head + tail
 
-  let frame = compress(input, level=24)
+  let frame = @zstd.compress(input, level=24)
   let block_header = read_u24_le_test(frame, 9)
   assert_eq((block_header >> 1) & 0x3, 2)
-  assert_eq(decompress(frame), input)
+  assert_eq(@zstd.decompress(frame), input)
 
   // literals length = 2 * 4 + 1 = 9, raw literals header size is 1 byte.
   let seq_count_pos = 12 + 1 + 9

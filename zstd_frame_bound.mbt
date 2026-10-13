@@ -15,8 +15,8 @@
 ///|
 fn parse_frame_size_info(
   src : Bytes,
-  start : Int,
-) -> (Int, UInt64) raise ZstdError {
+  start : Int32,
+) -> (Int32, UInt64) raise ZstdError {
   let src_len = src.length()
   ensure_range(src_len, start, 4)
   let magic = read_u32_le(src, start)
@@ -98,7 +98,7 @@ fn parse_frame_size_info(
     let mut last_block = false
     while !last_block {
       ensure_range(src_len, pos, 3)
-      let block_header : UInt = src[pos].to_uint() +
+      let block_header : UInt32 = src[pos].to_uint() +
         (src[pos + 1].to_uint() << 8) +
         (src[pos + 2].to_uint() << 16)
       pos = pos + 3
@@ -136,7 +136,7 @@ fn parse_frame_size_info(
 }
 
 ///|
-fn window_size_from_descriptor(descriptor : UInt) -> UInt64 {
+fn window_size_from_descriptor(descriptor : UInt32) -> UInt64 {
   let exponent = descriptor >> 3
   let mantissa = descriptor & 0x7
   let window_log = 10 + exponent.reinterpret_as_int()
@@ -146,7 +146,7 @@ fn window_size_from_descriptor(descriptor : UInt) -> UInt64 {
 }
 
 ///|
-fn frame_content_size_size(flag : UInt, single_segment : Bool) -> Int {
+fn frame_content_size_size(flag : UInt32, single_segment : Bool) -> Int32 {
   if flag == 0 {
     if single_segment {
       1
@@ -163,7 +163,7 @@ fn frame_content_size_size(flag : UInt, single_segment : Bool) -> Int {
 }
 
 ///|
-fn dict_id_size(flag : UInt) -> Int {
+fn dict_id_size(flag : UInt32) -> Int32 {
   if flag == 0 {
     0
   } else if flag == 1 {

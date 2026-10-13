@@ -16,9 +16,9 @@
 fn rewrite_payload_with_seed_snapshot(
   payload : Bytes,
   seed_rle_valid : Bool,
-  seed_ll_code : UInt,
-  seed_off_code : UInt,
-  seed_ml_code : UInt,
+  seed_ll_code : UInt32,
+  seed_off_code : UInt32,
+  seed_ml_code : UInt32,
   seed_predefined_valid : Bool,
   seed_compressed_valid : Bool,
   seed_ll_header : Bytes,
@@ -31,9 +31,9 @@ fn rewrite_payload_with_seed_snapshot(
     return b""
   }
   let prev_rle_valid : Ref[Bool] = { val: seed_rle_valid, }
-  let prev_ll_code : Ref[UInt] = { val: seed_ll_code, }
-  let prev_off_code : Ref[UInt] = { val: seed_off_code, }
-  let prev_ml_code : Ref[UInt] = { val: seed_ml_code, }
+  let prev_ll_code : Ref[UInt32] = { val: seed_ll_code, }
+  let prev_off_code : Ref[UInt32] = { val: seed_off_code, }
+  let prev_ml_code : Ref[UInt32] = { val: seed_ml_code, }
   let prev_predefined_valid : Ref[Bool] = { val: seed_predefined_valid, }
   let prev_compressed_valid : Ref[Bool] = { val: seed_compressed_valid, }
   let prev_ll_header : Ref[Bytes] = { val: seed_ll_header, }
@@ -56,9 +56,9 @@ fn consider_seeded_payload_candidate(
   best_raw : Ref[Bytes],
   best_preview : Ref[Bytes],
   seed_rle_valid : Bool,
-  seed_ll_code : UInt,
-  seed_off_code : UInt,
-  seed_ml_code : UInt,
+  seed_ll_code : UInt32,
+  seed_off_code : UInt32,
+  seed_ml_code : UInt32,
   seed_predefined_valid : Bool,
   seed_compressed_valid : Bool,
   seed_ll_header : Bytes,
@@ -100,9 +100,9 @@ fn choose_seeded_best_payload(
   general_payload : Bytes,
   literals_only_payload : Bytes,
   seed_rle_valid : Bool,
-  seed_ll_code : UInt,
-  seed_off_code : UInt,
-  seed_ml_code : UInt,
+  seed_ll_code : UInt32,
+  seed_off_code : UInt32,
+  seed_ml_code : UInt32,
   seed_predefined_valid : Bool,
   seed_compressed_valid : Bool,
   seed_ll_header : Bytes,

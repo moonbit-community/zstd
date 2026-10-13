@@ -13,29 +13,29 @@
 // limitations under the License.
 
 ///|
-fn hash4_for_dictionary(src : Bytes, pos : Int) -> Int {
-  let v : UInt = src[pos].to_uint() +
+fn hash4_for_dictionary(src : Bytes, pos : Int32) -> Int32 {
+  let v : UInt32 = src[pos].to_uint() +
     (src[pos + 1].to_uint() << 8) +
     (src[pos + 2].to_uint() << 16) +
     (src[pos + 3].to_uint() << 24)
-  let x = v * (2654435761 : UInt)
-  ((x >> 17) & (((1 : UInt) << 15) - (1 : UInt))).reinterpret_as_int()
+  let x = v * (2654435761 : UInt32)
+  ((x >> 17) & (((1 : UInt32) << 15) - (1 : UInt32))).reinterpret_as_int()
 }
 
 ///|
 fn detect_best_single_match_with_dictionary_history(
   src : Bytes,
-  start : Int,
-  block_len : Int,
+  start : Int32,
+  block_len : Int32,
   history : Bytes,
-  rep1? : Int = 1,
-  rep2? : Int = 4,
-  rep3? : Int = 8,
-  search_limit? : Int = 8192,
-  search_depth? : Int = 0,
-  max_match_offset? : Int = 0,
-  allow_internal? : Bool = true,
-) -> (Int, Int, Int) {
+  rep1~ : Int32 = 1,
+  rep2~ : Int32 = 4,
+  rep3~ : Int32 = 8,
+  search_limit~ : Int32 = 8192,
+  search_depth~ : Int32 = 0,
+  max_match_offset~ : Int32 = 0,
+  allow_internal~ : Bool = true,
+) -> (Int32, Int32, Int32) {
   let (best_ll0, best_offset0, best_ml0) = if allow_internal {
     detect_best_single_match(
       src,
@@ -63,8 +63,8 @@ fn detect_best_single_match_with_dictionary_history(
     return (best_ll, best_offset, best_ml)
   }
 
-  let dict_hash_head : Array[Int] = Array::make(1 << 15, -1)
-  let dict_chain : Array[Int] = Array::make(history_len, -1)
+  let dict_hash_head : Array[Int32] = Array::make(1 << 15, -1)
+  let dict_chain : Array[Int32] = Array::make(history_len, -1)
   let mut dict_pos = 0
   while dict_pos + 4 <= history_len {
     let h = hash4_for_dictionary(history, dict_pos)
@@ -157,10 +157,10 @@ fn detect_best_single_match_with_dictionary_history(
 
 ///|
 fn is_dictionary_rep_offset(
-  offset : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
+  offset : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
 ) -> Bool {
   offset > 0 && (offset == rep1 || offset == rep2 || offset == rep3)
 }

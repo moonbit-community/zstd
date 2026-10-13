@@ -14,12 +14,12 @@
 
 ///|
 fn finalize_offset_off_base(
-  raw_offset : Int,
+  raw_offset : Int32,
   ll0 : Bool,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> Int raise ZstdError {
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> Int32 raise ZstdError {
   if raw_offset <= 0 {
     raise CorruptionDetected
   }
@@ -41,11 +41,11 @@ fn finalize_offset_off_base(
 ///|
 fn update_repcodes_with_off_base(
   ll0 : Bool,
-  off_base : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Int, Int, Int) raise ZstdError {
+  off_base : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (Int32, Int32, Int32) raise ZstdError {
   if off_base <= 0 {
     raise CorruptionDetected
   }
@@ -76,8 +76,8 @@ fn update_repcodes_with_off_base(
 
 ///|
 fn offset_symbol_from_off_base(
-  off_base : Int,
-) -> (UInt, UInt, Int) raise ZstdError {
+  off_base : Int32,
+) -> (UInt32, UInt32, Int32) raise ZstdError {
   if off_base <= 0 {
     raise CorruptionDetected
   }
@@ -91,7 +91,7 @@ fn offset_symbol_from_off_base(
     raise CorruptionDetected
   }
   if bits == 0 {
-    return (0, (0 : UInt), 0)
+    return (0, (0 : UInt32), 0)
   }
   if bits == 1 {
     return (1, (off_base & 1).reinterpret_as_uint(), 1)

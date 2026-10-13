@@ -16,8 +16,8 @@
 fn append_bytes_test(
   out : Array[Byte],
   src : Bytes,
-  start : Int,
-  len : Int,
+  start : Int32,
+  len : Int32,
 ) -> Unit {
   let mut i = 0
   while i < len {

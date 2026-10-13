@@ -34,7 +34,7 @@ pub fn Decompressor::push(self : Decompressor, chunk : Bytes) -> Unit {
 }
 
 ///|
-pub fn Decompressor::pending_input(self : Decompressor) -> Int {
+pub fn Decompressor::pending_input(self : Decompressor) -> Int32 {
   self.input_buffer.length()
 }
 

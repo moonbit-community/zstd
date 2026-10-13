@@ -18,9 +18,9 @@ let huf_weight_fse_table_log_max = 6
 ///|
 fn read_huffman_weights_fse(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-) -> Array[Int] raise ZstdError {
+  start : Int32,
+  end_pos : Int32,
+) -> Array[Int32] raise ZstdError {
   if start >= end_pos {
     raise CorruptionDetected
   }
@@ -46,14 +46,14 @@ fn read_huffman_weights_fse(
 ///|
 fn decode_fse_symbol_stream_reverse(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-  table_log : Int,
-  next_state : Array[Int],
-  nb_bits : Array[Int],
-  symbols : Array[Int],
-  max_output_size : Int,
-) -> Array[Int] raise ZstdError {
+  start : Int32,
+  end_pos : Int32,
+  table_log : Int32,
+  next_state : Array[Int32],
+  nb_bits : Array[Int32],
+  symbols : Array[Int32],
+  max_output_size : Int32,
+) -> Array[Int32] raise ZstdError {
   if table_log <= 0 ||
     start >= end_pos ||
     max_output_size <= 0 ||
@@ -63,23 +63,23 @@ fn decode_fse_symbol_stream_reverse(
     raise CorruptionDetected
   }
 
-  let table_size = (1 : Int) << table_log
+  let table_size = (1 : Int32) << table_log
   if table_size != next_state.length() {
     raise CorruptionDetected
   }
 
-  let ds_ptr : Ref[Int] = { val: start, }
-  let ds_limit : Ref[Int] = { val: start + 8, }
-  let ds_bits_consumed : Ref[Int] = { val: 0, }
+  let ds_ptr : Ref[Int32] = { val: start, }
+  let ds_limit : Ref[Int32] = { val: start + 8, }
+  let ds_bits_consumed : Ref[Int32] = { val: 0, }
   let ds_bit_container : Ref[UInt64] = { val: (0 : UInt64), }
   init_fse_dstream(
     src, start, end_pos, ds_ptr, ds_limit, ds_bits_consumed, ds_bit_container,
   )
 
-  let state1_ref : Ref[Int] = {
+  let state1_ref : Ref[Int32] = {
     val: fse_read_bits(ds_bits_consumed, ds_bit_container, table_log).to_int(),
   }
-  let state2_ref : Ref[Int] = {
+  let state2_ref : Ref[Int32] = {
     val: fse_read_bits(ds_bits_consumed, ds_bit_container, table_log).to_int(),
   }
   if state1_ref.val < 0 ||
@@ -96,7 +96,7 @@ fn decode_fse_symbol_stream_reverse(
     raise CorruptionDetected
   }
 
-  let out : Array[Int] = []
+  let out : Array[Int32] = []
 
   while true {
     let (symbol1, next1) = decode_fse_symbol_update(
@@ -154,14 +154,14 @@ fn decode_fse_symbol_stream_reverse(
 
 ///|
 fn decode_fse_symbol_update(
-  bits_consumed : Ref[Int],
+  bits_consumed : Ref[Int32],
   bit_container : Ref[UInt64],
-  state : Int,
-  table_size : Int,
-  next_state : Array[Int],
-  nb_bits : Array[Int],
-  symbols : Array[Int],
-) -> (Int, Int) raise ZstdError {
+  state : Int32,
+  table_size : Int32,
+  next_state : Array[Int32],
+  nb_bits : Array[Int32],
+  symbols : Array[Int32],
+) -> (Int32, Int32) raise ZstdError {
   let symbol = read_fse_table_symbol(state, table_size, symbols)
 
   let bit_count = nb_bits[state]
@@ -179,10 +179,10 @@ fn decode_fse_symbol_update(
 
 ///|
 fn read_fse_table_symbol(
-  state : Int,
-  table_size : Int,
-  symbols : Array[Int],
-) -> Int raise ZstdError {
+  state : Int32,
+  table_size : Int32,
+  symbols : Array[Int32],
+) -> Int32 raise ZstdError {
   if state < 0 || state >= table_size || state >= symbols.length() {
     raise CorruptionDetected
   }
@@ -204,11 +204,11 @@ let fse_dstream_overflow = 3
 ///|
 fn init_fse_dstream(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-  ptr : Ref[Int],
-  limit : Ref[Int],
-  bits_consumed : Ref[Int],
+  start : Int32,
+  end_pos : Int32,
+  ptr : Ref[Int32],
+  limit : Ref[Int32],
+  bits_consumed : Ref[Int32],
   bit_container : Ref[UInt64],
 ) -> Unit raise ZstdError {
   if start < 0 || end_pos <= start || end_pos > src.length() {
@@ -233,7 +233,7 @@ fn init_fse_dstream(
 }
 
 ///|
-fn read_u64_le_padded(src : Bytes, start : Int, end_pos : Int) -> UInt64 {
+fn read_u64_le_padded(src : Bytes, start : Int32, end_pos : Int32) -> UInt64 {
   let mut value : UInt64 = 0
   let mut i = 0
   while start + i < end_pos && i < 8 {
@@ -245,9 +245,9 @@ fn read_u64_le_padded(src : Bytes, start : Int, end_pos : Int) -> UInt64 {
 
 ///|
 fn fse_read_bits(
-  bits_consumed : Ref[Int],
+  bits_consumed : Ref[Int32],
   bit_container : Ref[UInt64],
-  count : Int,
+  count : Int32,
 ) -> UInt64 raise ZstdError {
   if count < 0 || count > 24 {
     raise CorruptionDetected
@@ -265,12 +265,12 @@ fn fse_read_bits(
 ///|
 fn fse_reload_dstream(
   src : Bytes,
-  start : Int,
-  ptr : Ref[Int],
-  limit : Ref[Int],
-  bits_consumed : Ref[Int],
+  start : Int32,
+  ptr : Ref[Int32],
+  limit : Ref[Int32],
+  bits_consumed : Ref[Int32],
   bit_container : Ref[UInt64],
-) -> Int raise ZstdError {
+) -> Int32 raise ZstdError {
   if bits_consumed.val > 64 {
     return fse_dstream_overflow
   }

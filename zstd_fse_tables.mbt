@@ -30,10 +30,10 @@ let fse_table_log_absolute_max = 15
 ///|
 fn build_sequence_fse_table_from_header(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-  symbol_type : Int,
-) -> (Int, Int, Array[Int], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  start : Int32,
+  end_pos : Int32,
+  symbol_type : Int32,
+) -> (Int32, Int32, Array[Int32], Array[Int32], Array[Int32], Array[Int32]) raise ZstdError {
   let (max_symbol, max_table_log) = sequence_symbol_limits(symbol_type)
   let (header_size, table_log, decoded_max_symbol, normalized_counter) = read_fse_ncount_header(
     src, start, end_pos, max_symbol, max_table_log,
@@ -45,7 +45,9 @@ fn build_sequence_fse_table_from_header(
 }
 
 ///|
-fn sequence_symbol_limits(symbol_type : Int) -> (Int, Int) raise ZstdError {
+fn sequence_symbol_limits(
+  symbol_type : Int32,
+) -> (Int32, Int32) raise ZstdError {
   if symbol_type == sequence_symbol_literal_length {
     (35, 9)
   } else if symbol_type == sequence_symbol_offset {
@@ -59,9 +61,9 @@ fn sequence_symbol_limits(symbol_type : Int) -> (Int, Int) raise ZstdError {
 
 ///|
 fn sequence_symbol_base_additional_bits(
-  symbol_type : Int,
-  symbol : Int,
-) -> (Int, Int) raise ZstdError {
+  symbol_type : Int32,
+  symbol : Int32,
+) -> (Int32, Int32) raise ZstdError {
   if symbol_type == sequence_symbol_literal_length {
     literal_length_base_bits(symbol.reinterpret_as_uint())
   } else if symbol_type == sequence_symbol_offset {
@@ -75,20 +77,20 @@ fn sequence_symbol_base_additional_bits(
 
 ///|
 fn build_sequence_fse_decode_table(
-  normalized_counter : Array[Int],
-  max_symbol : Int,
-  table_log : Int,
-  symbol_type : Int,
-) -> (Array[Int], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  normalized_counter : Array[Int32],
+  max_symbol : Int32,
+  table_log : Int32,
+  symbol_type : Int32,
+) -> (Array[Int32], Array[Int32], Array[Int32], Array[Int32]) raise ZstdError {
   if table_log < fse_min_table_log || table_log > fse_table_log_absolute_max {
     raise CorruptionDetected
   }
-  let table_size = (1 : Int) << table_log
+  let table_size = (1 : Int32) << table_log
   let table_mask = table_size - 1
   let step = (table_size >> 1) + (table_size >> 3) + 3
 
-  let table_symbol : Array[Int] = []
-  let symbol_next : Array[Int] = []
+  let table_symbol : Array[Int32] = []
+  let symbol_next : Array[Int32] = []
   let mut i = 0
   while i < table_size {
     table_symbol.push(0)
@@ -140,10 +142,10 @@ fn build_sequence_fse_decode_table(
     raise CorruptionDetected
   }
 
-  let next_state : Array[Int] = []
-  let nb_add_bits : Array[Int] = []
-  let nb_bits : Array[Int] = []
-  let base_values : Array[Int] = []
+  let next_state : Array[Int32] = []
+  let nb_add_bits : Array[Int32] = []
+  let nb_bits : Array[Int32] = []
+  let base_values : Array[Int32] = []
   i = 0
   while i < table_size {
     next_state.push(0)
@@ -188,22 +190,22 @@ fn build_sequence_fse_decode_table(
 
 ///|
 fn build_fse_symbol_decode_table(
-  normalized_counter : Array[Int],
-  max_symbol : Int,
-  table_log : Int,
-) -> (Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  normalized_counter : Array[Int32],
+  max_symbol : Int32,
+  table_log : Int32,
+) -> (Array[Int32], Array[Int32], Array[Int32]) raise ZstdError {
   if table_log < fse_min_table_log || table_log > fse_table_log_absolute_max {
     raise CorruptionDetected
   }
   if max_symbol < 0 || max_symbol >= normalized_counter.length() {
     raise CorruptionDetected
   }
-  let table_size = (1 : Int) << table_log
+  let table_size = (1 : Int32) << table_log
   let table_mask = table_size - 1
   let step = (table_size >> 1) + (table_size >> 3) + 3
 
-  let table_symbol : Array[Int] = []
-  let symbol_next : Array[Int] = []
+  let table_symbol : Array[Int32] = []
+  let symbol_next : Array[Int32] = []
   let mut i = 0
   while i < table_size {
     table_symbol.push(0)
@@ -255,9 +257,9 @@ fn build_fse_symbol_decode_table(
     raise CorruptionDetected
   }
 
-  let next_state : Array[Int] = []
-  let nb_bits : Array[Int] = []
-  let symbols : Array[Int] = []
+  let next_state : Array[Int32] = []
+  let nb_bits : Array[Int32] = []
+  let symbols : Array[Int32] = []
   i = 0
   while i < table_size {
     next_state.push(0)
@@ -296,25 +298,25 @@ fn build_fse_symbol_decode_table(
 ///|
 fn read_fse_ncount_header(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-  max_symbol_limit : Int,
-  table_log_max : Int,
-) -> (Int, Int, Int, Array[Int]) raise ZstdError {
+  start : Int32,
+  end_pos : Int32,
+  max_symbol_limit : Int32,
+  table_log_max : Int32,
+) -> (Int32, Int32, Int32, Array[Int32]) raise ZstdError {
   if start >= end_pos || max_symbol_limit < 0 {
     raise CorruptionDetected
   }
   let hb_size = end_pos - start
   let total_bits = hb_size * 8
 
-  let normalized_counter : Array[Int] = []
+  let normalized_counter : Array[Int32] = []
   let mut i = 0
   while i <= max_symbol_limit {
     normalized_counter.push(0)
     i = i + 1
   }
 
-  let bit_pos : Ref[Int] = { val: 0, }
+  let bit_pos : Ref[Int32] = { val: 0, }
   let table_log = read_forward_bits(src, start, total_bits, bit_pos, 4).reinterpret_as_int() +
     fse_min_table_log
   if table_log < fse_min_table_log ||
@@ -323,8 +325,8 @@ fn read_fse_ncount_header(
     raise CorruptionDetected
   }
 
-  let mut remaining = ((1 : Int) << table_log) + 1
-  let mut threshold = (1 : Int) << table_log
+  let mut remaining = ((1 : Int32) << table_log) + 1
+  let mut threshold = (1 : Int32) << table_log
   let mut nb_bits = table_log + 1
   let mut charnum = 0
   let mut previous0 = false
@@ -397,7 +399,7 @@ fn read_fse_ncount_header(
         break
       }
       nb_bits = high_bit_positive(remaining) + 1
-      threshold = (1 : Int) << (nb_bits - 1)
+      threshold = (1 : Int32) << (nb_bits - 1)
     }
 
     if charnum >= max_symbol_limit + 1 {
@@ -423,11 +425,11 @@ fn read_fse_ncount_header(
 ///|
 fn read_forward_bits(
   src : Bytes,
-  start : Int,
-  total_bits : Int,
-  bit_pos : Ref[Int],
-  count : Int,
-) -> UInt raise ZstdError {
+  start : Int32,
+  total_bits : Int32,
+  bit_pos : Ref[Int32],
+  count : Int32,
+) -> UInt32 raise ZstdError {
   let value = peek_forward_bits(src, start, total_bits, bit_pos.val, count)
   bit_pos.val = bit_pos.val + count
   value
@@ -436,19 +438,19 @@ fn read_forward_bits(
 ///|
 fn peek_forward_bits(
   src : Bytes,
-  start : Int,
-  total_bits : Int,
-  bit_pos : Int,
-  count : Int,
-) -> UInt raise ZstdError {
+  start : Int32,
+  total_bits : Int32,
+  bit_pos : Int32,
+  count : Int32,
+) -> UInt32 raise ZstdError {
   if count < 0 || bit_pos < 0 || bit_pos + count > total_bits {
     raise CorruptionDetected
   }
   if count == 0 {
-    return (0 : UInt)
+    return (0 : UInt32)
   }
 
-  let mut value : UInt = 0
+  let mut value : UInt32 = 0
   let mut i = 0
   while i < count {
     let absolute_bit = bit_pos + i
@@ -462,7 +464,7 @@ fn peek_forward_bits(
 }
 
 ///|
-fn high_bit_positive(value : Int) -> Int raise ZstdError {
+fn high_bit_positive(value : Int32) -> Int32 raise ZstdError {
   if value <= 0 {
     raise CorruptionDetected
   }

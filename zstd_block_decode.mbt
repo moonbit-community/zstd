@@ -24,45 +24,45 @@ let sequence_table_kind_compressed = 2
 ///|
 fn decode_compressed_block_minimal(
   src : Bytes,
-  block_start : Int,
-  block_size : Int,
+  block_start : Int32,
+  block_size : Int32,
   out : Array[Byte],
-  frame_out_start : Int,
+  frame_out_start : Int32,
   history : Bytes,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
   prev_huf_valid : Ref[Bool],
-  prev_huf_max_bits : Ref[Int],
-  prev_huf_left : Ref[Array[Int]],
-  prev_huf_right : Ref[Array[Int]],
-  prev_huf_symbol : Ref[Array[Int]],
+  prev_huf_max_bits : Ref[Int32],
+  prev_huf_left : Ref[Array[Int32]],
+  prev_huf_right : Ref[Array[Int32]],
+  prev_huf_symbol : Ref[Array[Int32]],
   prev_ll_valid : Ref[Bool],
-  prev_ll_kind : Ref[Int],
-  prev_ll_code : Ref[UInt],
-  prev_ll_table_log : Ref[Int],
-  prev_ll_table_next_state : Ref[Array[Int]],
-  prev_ll_table_nb_add_bits : Ref[Array[Int]],
-  prev_ll_table_nb_bits : Ref[Array[Int]],
-  prev_ll_table_base_values : Ref[Array[Int]],
+  prev_ll_kind : Ref[Int32],
+  prev_ll_code : Ref[UInt32],
+  prev_ll_table_log : Ref[Int32],
+  prev_ll_table_next_state : Ref[Array[Int32]],
+  prev_ll_table_nb_add_bits : Ref[Array[Int32]],
+  prev_ll_table_nb_bits : Ref[Array[Int32]],
+  prev_ll_table_base_values : Ref[Array[Int32]],
   prev_off_valid : Ref[Bool],
-  prev_off_kind : Ref[Int],
-  prev_off_code : Ref[UInt],
-  prev_off_table_log : Ref[Int],
-  prev_off_table_next_state : Ref[Array[Int]],
-  prev_off_table_nb_add_bits : Ref[Array[Int]],
-  prev_off_table_nb_bits : Ref[Array[Int]],
-  prev_off_table_base_values : Ref[Array[Int]],
+  prev_off_kind : Ref[Int32],
+  prev_off_code : Ref[UInt32],
+  prev_off_table_log : Ref[Int32],
+  prev_off_table_next_state : Ref[Array[Int32]],
+  prev_off_table_nb_add_bits : Ref[Array[Int32]],
+  prev_off_table_nb_bits : Ref[Array[Int32]],
+  prev_off_table_base_values : Ref[Array[Int32]],
   prev_ml_valid : Ref[Bool],
-  prev_ml_kind : Ref[Int],
-  prev_ml_code : Ref[UInt],
-  prev_ml_table_log : Ref[Int],
-  prev_ml_table_next_state : Ref[Array[Int]],
-  prev_ml_table_nb_add_bits : Ref[Array[Int]],
-  prev_ml_table_nb_bits : Ref[Array[Int]],
-  prev_ml_table_base_values : Ref[Array[Int]],
-  window_size? : Int = 0,
-) -> (Int, UInt64, Int, Int, Int) raise ZstdError {
+  prev_ml_kind : Ref[Int32],
+  prev_ml_code : Ref[UInt32],
+  prev_ml_table_log : Ref[Int32],
+  prev_ml_table_next_state : Ref[Array[Int32]],
+  prev_ml_table_nb_add_bits : Ref[Array[Int32]],
+  prev_ml_table_nb_bits : Ref[Array[Int32]],
+  prev_ml_table_base_values : Ref[Array[Int32]],
+  window_size~ : Int32 = 0,
+) -> (Int32, UInt64, Int32, Int32, Int32) raise ZstdError {
   let src_len = src.length()
   if frame_out_start < 0 || frame_out_start > out.length() {
     raise CorruptionDetected
@@ -93,7 +93,7 @@ fn decode_compressed_block_minimal(
   let off_mode = (modes >> 4) & 0x3
   let ml_mode = (modes >> 2) & 0x3
 
-  let seq_pos_ref : Ref[Int] = { val: seq_pos0_end + 1, }
+  let seq_pos_ref : Ref[Int32] = { val: seq_pos0_end + 1, }
   let (ll_kind, ll_code) = decode_sequence_source(
     src, block_end, seq_pos_ref, ll_mode, prev_ll_valid, prev_ll_kind, prev_ll_code,
     prev_ll_table_log, prev_ll_table_next_state, prev_ll_table_nb_add_bits, prev_ll_table_nb_bits,
@@ -122,15 +122,15 @@ fn decode_compressed_block_minimal(
   }
 
   let br_start = seq_pos
-  let br_byte : Ref[Int] = { val: block_end - 1, }
-  let br_bit : Ref[Int] = { val: -1, }
+  let br_byte : Ref[Int32] = { val: block_end - 1, }
+  let br_bit : Ref[Int32] = { val: -1, }
   if has_sequence_bitstream {
     init_reverse_bit_reader(src, br_start, br_byte, br_bit)
   }
 
-  let ll_state : Ref[Int] = { val: 0, }
-  let off_state : Ref[Int] = { val: 0, }
-  let ml_state : Ref[Int] = { val: 0, }
+  let ll_state : Ref[Int32] = { val: 0, }
+  let off_state : Ref[Int32] = { val: 0, }
+  let ml_state : Ref[Int32] = { val: 0, }
 
   if ll_kind == sequence_table_kind_predefined {
     ll_state.val = init_fse_state_reverse(
@@ -277,7 +277,7 @@ fn decode_compressed_block_minimal(
     }
 
     let ml_extra = if ml_nb_add_bits == 0 {
-      (0 : UInt)
+      (0 : UInt32)
     } else if has_sequence_bitstream {
       read_reverse_bits(src, br_start, br_byte, br_bit, ml_nb_add_bits)
     } else {
@@ -285,7 +285,7 @@ fn decode_compressed_block_minimal(
     }
 
     let ll_extra = if ll_nb_add_bits == 0 {
-      (0 : UInt)
+      (0 : UInt32)
     } else if has_sequence_bitstream {
       read_reverse_bits(src, br_start, br_byte, br_bit, ll_nb_add_bits)
     } else {
@@ -349,10 +349,10 @@ fn decode_compressed_block_minimal(
 ///|
 fn read_match_byte(
   out : Array[Byte],
-  frame_out_start : Int,
+  frame_out_start : Int32,
   history : Bytes,
-  offset : Int,
-  window_size? : Int = 0,
+  offset : Int32,
+  window_size~ : Int32 = 0,
 ) -> Byte raise ZstdError {
   if offset <= 0 || frame_out_start < 0 || frame_out_start > out.length() {
     raise CorruptionDetected
@@ -377,15 +377,15 @@ fn read_match_byte(
 
 ///|
 fn sequence_symbol_entry(
-  kind : Int,
-  code : UInt,
-  state : Int,
-  table_next_state : Array[Int],
-  table_nb_add_bits : Array[Int],
-  table_nb_bits : Array[Int],
-  table_base_values : Array[Int],
-  symbol_type : Int,
-) -> (Int, Int, Int, Int) raise ZstdError {
+  kind : Int32,
+  code : UInt32,
+  state : Int32,
+  table_next_state : Array[Int32],
+  table_nb_add_bits : Array[Int32],
+  table_nb_bits : Array[Int32],
+  table_base_values : Array[Int32],
+  symbol_type : Int32,
+) -> (Int32, Int32, Int32, Int32) raise ZstdError {
   if kind == sequence_table_kind_rle {
     let (base, nb_add_bits) = sequence_symbol_base_additional_bits(
       symbol_type,
@@ -413,12 +413,12 @@ fn sequence_symbol_entry(
 
 ///|
 fn fse_table_entry(
-  table_next_state : Array[Int],
-  table_nb_add_bits : Array[Int],
-  table_nb_bits : Array[Int],
-  table_base_values : Array[Int],
-  state : Int,
-) -> (Int, Int, Int, Int) raise ZstdError {
+  table_next_state : Array[Int32],
+  table_nb_add_bits : Array[Int32],
+  table_nb_bits : Array[Int32],
+  table_base_values : Array[Int32],
+  state : Int32,
+) -> (Int32, Int32, Int32, Int32) raise ZstdError {
   if state < 0 ||
     state >= table_next_state.length() ||
     state >= table_nb_add_bits.length() ||
@@ -437,19 +437,19 @@ fn fse_table_entry(
 ///|
 fn decode_sequence_source(
   src : Bytes,
-  block_end : Int,
-  seq_pos_ref : Ref[Int],
-  mode : UInt,
+  block_end : Int32,
+  seq_pos_ref : Ref[Int32],
+  mode : UInt32,
   prev_valid : Ref[Bool],
-  prev_kind : Ref[Int],
-  prev_code : Ref[UInt],
-  prev_table_log : Ref[Int],
-  prev_table_next_state : Ref[Array[Int]],
-  prev_table_nb_add_bits : Ref[Array[Int]],
-  prev_table_nb_bits : Ref[Array[Int]],
-  prev_table_base_values : Ref[Array[Int]],
-  symbol_type : Int,
-) -> (Int, UInt) raise ZstdError {
+  prev_kind : Ref[Int32],
+  prev_code : Ref[UInt32],
+  prev_table_log : Ref[Int32],
+  prev_table_next_state : Ref[Array[Int32]],
+  prev_table_nb_add_bits : Ref[Array[Int32]],
+  prev_table_nb_bits : Ref[Array[Int32]],
+  prev_table_base_values : Ref[Array[Int32]],
+  symbol_type : Int32,
+) -> (Int32, UInt32) raise ZstdError {
   if mode == 1 {
     if seq_pos_ref.val >= block_end {
       raise CorruptionDetected
@@ -465,7 +465,7 @@ fn decode_sequence_source(
     prev_valid.val = true
     prev_kind.val = sequence_table_kind_predefined
     prev_code.val = 0
-    (sequence_table_kind_predefined, (0 : UInt))
+    (sequence_table_kind_predefined, (0 : UInt32))
   } else if mode == 2 {
     let (
       table_header_size,
@@ -491,7 +491,7 @@ fn decode_sequence_source(
     prev_table_nb_bits.val = table_nb_bits
     prev_table_base_values.val = table_base_values
 
-    (sequence_table_kind_compressed, (0 : UInt))
+    (sequence_table_kind_compressed, (0 : UInt32))
   } else if mode == 3 {
     if !prev_valid.val {
       raise CorruptionDetected
@@ -509,29 +509,29 @@ fn decode_sequence_source(
 ///|
 fn init_fse_state_reverse(
   src : Bytes,
-  br_start : Int,
-  br_byte : Ref[Int],
-  br_bit : Ref[Int],
-  table_log : Int,
-) -> Int raise ZstdError {
+  br_start : Int32,
+  br_byte : Ref[Int32],
+  br_bit : Ref[Int32],
+  table_log : Int32,
+) -> Int32 raise ZstdError {
   read_reverse_bits(src, br_start, br_byte, br_bit, table_log).reinterpret_as_int()
 }
 
 ///|
 fn update_fse_state_reverse(
   src : Bytes,
-  br_start : Int,
-  br_byte : Ref[Int],
-  br_bit : Ref[Int],
-  next_state : Int,
-  nb_bits : Int,
-) -> Int raise ZstdError {
+  br_start : Int32,
+  br_byte : Ref[Int32],
+  br_bit : Ref[Int32],
+  next_state : Int32,
+  nb_bits : Int32,
+) -> Int32 raise ZstdError {
   next_state +
   read_reverse_bits(src, br_start, br_byte, br_bit, nb_bits).reinterpret_as_int()
 }
 
 ///|
-fn offset_base_from_code(code : UInt) -> Int raise ZstdError {
+fn offset_base_from_code(code : UInt32) -> Int32 raise ZstdError {
   if code == 0 {
     0
   } else if code == 1 {
@@ -546,15 +546,15 @@ fn offset_base_from_code(code : UInt) -> Int raise ZstdError {
 ///|
 fn parse_sequence_count(
   src : Bytes,
-  seq_start : Int,
-  block_end : Int,
-) -> (UInt, Int) raise ZstdError {
+  seq_start : Int32,
+  block_end : Int32,
+) -> (UInt32, Int32) raise ZstdError {
   if seq_start >= block_end {
     raise CorruptionDetected
   }
   let byte0 = src[seq_start].to_uint()
   let mut seq_pos = seq_start + 1
-  let count : UInt = if byte0 < 128 {
+  let count : UInt32 = if byte0 < 128 {
     byte0
   } else if byte0 < 255 {
     ensure_range(src.length(), seq_pos, 1)

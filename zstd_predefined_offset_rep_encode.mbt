@@ -14,19 +14,19 @@
 
 ///|
 fn collect_predefined_offset_candidates_for_context(
-  value : Int,
+  value : Int32,
   ll0 : Bool,
-  r1 : Int,
-  r2 : Int,
-  r3 : Int,
-  states : Array[Int],
-  extras : Array[UInt],
-  nb_add_bits : Array[Int],
-  next_states : Array[Int],
-  nb_state_bits : Array[Int],
-  out_r1 : Array[Int],
-  out_r2 : Array[Int],
-  out_r3 : Array[Int],
+  r1 : Int32,
+  r2 : Int32,
+  r3 : Int32,
+  states : Array[Int32],
+  extras : Array[UInt32],
+  nb_add_bits : Array[Int32],
+  next_states : Array[Int32],
+  nb_state_bits : Array[Int32],
+  out_r1 : Array[Int32],
+  out_r2 : Array[Int32],
+  out_r3 : Array[Int32],
 ) -> Unit raise ZstdError {
   let mut state = 0
   while state <= 31 {
@@ -48,7 +48,7 @@ fn collect_predefined_offset_candidates_for_context(
       let decoded = if ll0 { r2 } else { r1 }
       if decoded == value && decoded > 0 {
         states.push(state)
-        extras.push((0 : UInt))
+        extras.push((0 : UInt32))
         nb_add_bits.push(0)
         next_states.push(next_state)
         nb_state_bits.push(state_bits)
@@ -89,23 +89,23 @@ fn collect_predefined_offset_candidates_for_context(
 
 ///|
 fn offset_candidate_index(
-  states : Array[Int],
-  extras : Array[UInt],
-  nb_add_bits : Array[Int],
-  next_states : Array[Int],
-  nb_state_bits : Array[Int],
-  out_r1 : Array[Int],
-  out_r2 : Array[Int],
-  out_r3 : Array[Int],
-  state : Int,
-  extra : UInt,
-  add_bits : Int,
-  next_state : Int,
-  state_bits : Int,
-  nr1 : Int,
-  nr2 : Int,
-  nr3 : Int,
-) -> Int {
+  states : Array[Int32],
+  extras : Array[UInt32],
+  nb_add_bits : Array[Int32],
+  next_states : Array[Int32],
+  nb_state_bits : Array[Int32],
+  out_r1 : Array[Int32],
+  out_r2 : Array[Int32],
+  out_r3 : Array[Int32],
+  state : Int32,
+  extra : UInt32,
+  add_bits : Int32,
+  next_state : Int32,
+  state_bits : Int32,
+  nr1 : Int32,
+  nr2 : Int32,
+  nr3 : Int32,
+) -> Int32 {
   let mut i = 0
   while i < states.length() {
     if states[i] == state &&
@@ -125,41 +125,48 @@ fn offset_candidate_index(
 
 ///|
 fn select_predefined_offset_state_path(
-  off_values : Array[Int],
-  ll_values : Array[Int],
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (Bool, Array[Int], Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  off_values : Array[Int32],
+  ll_values : Array[Int32],
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (
+  Bool,
+  Array[Int32],
+  Array[UInt32],
+  Array[Int32],
+  Array[Int32],
+  Array[Int32],
+) raise ZstdError {
   let n = off_values.length()
   if n <= 0 || ll_values.length() != n {
     return (false, [], [], [], [], [])
   }
   let inf = 1 << 30
 
-  let states_per_pos : Array[Array[Int]] = []
-  let extras_per_pos : Array[Array[UInt]] = []
-  let add_bits_per_pos : Array[Array[Int]] = []
-  let next_states_per_pos : Array[Array[Int]] = []
-  let state_bits_per_pos : Array[Array[Int]] = []
-  let out_r1_per_pos : Array[Array[Int]] = []
-  let out_r2_per_pos : Array[Array[Int]] = []
-  let out_r3_per_pos : Array[Array[Int]] = []
-  let cost_per_pos : Array[Array[Int]] = []
-  let parent_idx_per_pos : Array[Array[Int]] = []
-  let parent_trans_bits_per_pos : Array[Array[Int]] = []
-  let parent_trans_nb_bits_per_pos : Array[Array[Int]] = []
+  let states_per_pos : Array[Array[Int32]] = []
+  let extras_per_pos : Array[Array[UInt32]] = []
+  let add_bits_per_pos : Array[Array[Int32]] = []
+  let next_states_per_pos : Array[Array[Int32]] = []
+  let state_bits_per_pos : Array[Array[Int32]] = []
+  let out_r1_per_pos : Array[Array[Int32]] = []
+  let out_r2_per_pos : Array[Array[Int32]] = []
+  let out_r3_per_pos : Array[Array[Int32]] = []
+  let cost_per_pos : Array[Array[Int32]] = []
+  let parent_idx_per_pos : Array[Array[Int32]] = []
+  let parent_trans_bits_per_pos : Array[Array[Int32]] = []
+  let parent_trans_nb_bits_per_pos : Array[Array[Int32]] = []
 
   // pos = 0
   {
-    let states : Array[Int] = []
-    let extras : Array[UInt] = []
-    let add_bits : Array[Int] = []
-    let next_states : Array[Int] = []
-    let state_bits : Array[Int] = []
-    let out_r1 : Array[Int] = []
-    let out_r2 : Array[Int] = []
-    let out_r3 : Array[Int] = []
+    let states : Array[Int32] = []
+    let extras : Array[UInt32] = []
+    let add_bits : Array[Int32] = []
+    let next_states : Array[Int32] = []
+    let state_bits : Array[Int32] = []
+    let out_r1 : Array[Int32] = []
+    let out_r2 : Array[Int32] = []
+    let out_r3 : Array[Int32] = []
     collect_predefined_offset_candidates_for_context(
       off_values[0],
       ll_values[0] == 0,
@@ -178,10 +185,10 @@ fn select_predefined_offset_state_path(
     if states.length() == 0 {
       return (false, [], [], [], [], [])
     }
-    let costs : Array[Int] = []
-    let parents : Array[Int] = []
-    let trans_bits : Array[Int] = []
-    let trans_nb_bits : Array[Int] = []
+    let costs : Array[Int32] = []
+    let parents : Array[Int32] = []
+    let trans_bits : Array[Int32] = []
+    let trans_nb_bits : Array[Int32] = []
     let mut i = 0
     while i < states.length() {
       costs.push(add_bits[i])
@@ -214,31 +221,31 @@ fn select_predefined_offset_state_path(
     let prev_out_r2 = out_r2_per_pos[pos - 1]
     let prev_out_r3 = out_r3_per_pos[pos - 1]
 
-    let curr_states : Array[Int] = []
-    let curr_extras : Array[UInt] = []
-    let curr_add_bits : Array[Int] = []
-    let curr_next_states : Array[Int] = []
-    let curr_state_bits : Array[Int] = []
-    let curr_out_r1 : Array[Int] = []
-    let curr_out_r2 : Array[Int] = []
-    let curr_out_r3 : Array[Int] = []
-    let curr_costs : Array[Int] = []
-    let curr_parents : Array[Int] = []
-    let curr_trans_bits : Array[Int] = []
-    let curr_trans_nb_bits : Array[Int] = []
+    let curr_states : Array[Int32] = []
+    let curr_extras : Array[UInt32] = []
+    let curr_add_bits : Array[Int32] = []
+    let curr_next_states : Array[Int32] = []
+    let curr_state_bits : Array[Int32] = []
+    let curr_out_r1 : Array[Int32] = []
+    let curr_out_r2 : Array[Int32] = []
+    let curr_out_r3 : Array[Int32] = []
+    let curr_costs : Array[Int32] = []
+    let curr_parents : Array[Int32] = []
+    let curr_trans_bits : Array[Int32] = []
+    let curr_trans_nb_bits : Array[Int32] = []
 
     let mut p = 0
     while p < prev_states.length() {
       let p_cost = prev_costs[p]
       if p_cost < inf {
-        let cand_states : Array[Int] = []
-        let cand_extras : Array[UInt] = []
-        let cand_add_bits : Array[Int] = []
-        let cand_next_states : Array[Int] = []
-        let cand_state_bits : Array[Int] = []
-        let cand_out_r1 : Array[Int] = []
-        let cand_out_r2 : Array[Int] = []
-        let cand_out_r3 : Array[Int] = []
+        let cand_states : Array[Int32] = []
+        let cand_extras : Array[UInt32] = []
+        let cand_add_bits : Array[Int32] = []
+        let cand_next_states : Array[Int32] = []
+        let cand_state_bits : Array[Int32] = []
+        let cand_out_r1 : Array[Int32] = []
+        let cand_out_r2 : Array[Int32] = []
+        let cand_out_r3 : Array[Int32] = []
         collect_predefined_offset_candidates_for_context(
           off_values[pos],
           ll_values[pos] == 0,
@@ -346,7 +353,7 @@ fn select_predefined_offset_state_path(
   }
 
   let states = Array::make(n, 0)
-  let extras = Array::make(n, (0 : UInt))
+  let extras = Array::make(n, (0 : UInt32))
   let extra_bits = Array::make(n, 0)
   let trans_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }
   let trans_nb_bits = if n > 1 { Array::make(n - 1, 0) } else { [] }

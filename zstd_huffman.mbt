@@ -18,14 +18,14 @@ let huf_max_nb_bits = 12
 ///|
 fn read_huffman_tree_description(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-) -> (Int, Int, Array[Int], Array[Int], Array[Int]) raise ZstdError {
+  start : Int32,
+  end_pos : Int32,
+) -> (Int32, Int32, Array[Int32], Array[Int32], Array[Int32]) raise ZstdError {
   if start >= end_pos {
     raise CorruptionDetected
   }
   let header_byte = src[start].to_uint().reinterpret_as_int()
-  let weights : Array[Int] = if header_byte < 128 {
+  let weights : Array[Int32] = if header_byte < 128 {
     if start + 1 + header_byte > end_pos {
       raise CorruptionDetected
     }
@@ -40,7 +40,7 @@ fn read_huffman_tree_description(
       raise CorruptionDetected
     }
 
-    let parsed_weights : Array[Int] = []
+    let parsed_weights : Array[Int32] = []
     let mut i = 0
     while i < number_of_weights {
       parsed_weights.push(0)
@@ -74,7 +74,7 @@ fn read_huffman_tree_description(
       raise CorruptionDetected
     }
     if w > 0 {
-      weight_total = weight_total + ((1 : Int) << (w - 1))
+      weight_total = weight_total + ((1 : Int32) << (w - 1))
       non_zero_weights = non_zero_weights + 1
     }
     i = i + 1
@@ -88,7 +88,7 @@ fn read_huffman_tree_description(
     raise CorruptionDetected
   }
 
-  let total_weight = (1 : Int) << max_bits
+  let total_weight = (1 : Int32) << max_bits
   let rest = total_weight - weight_total
   if rest <= 0 || !is_power_of_two(rest) {
     raise CorruptionDetected
@@ -110,10 +110,10 @@ fn read_huffman_tree_description(
 
 ///|
 fn build_huffman_tree_from_weights(
-  weights : Array[Int],
-  max_bits : Int,
-) -> (Array[Int], Array[Int], Array[Int]) raise ZstdError {
-  let nb_bits : Array[Int] = []
+  weights : Array[Int32],
+  max_bits : Int32,
+) -> (Array[Int32], Array[Int32], Array[Int32]) raise ZstdError {
+  let nb_bits : Array[Int32] = []
   let mut i = 0
   while i < weights.length() {
     let w = weights[i]
@@ -125,7 +125,7 @@ fn build_huffman_tree_from_weights(
     i = i + 1
   }
 
-  let symbols_by_weight : Array[Int] = []
+  let symbols_by_weight : Array[Int32] = []
   let mut weight = 1
   while weight <= max_bits {
     i = 0
@@ -141,7 +141,7 @@ fn build_huffman_tree_from_weights(
     raise CorruptionDetected
   }
 
-  let codes : Array[Int] = []
+  let codes : Array[Int32] = []
   i = 0
   while i < nb_bits.length() {
     codes.push(0)
@@ -154,8 +154,8 @@ fn build_huffman_tree_from_weights(
     raise CorruptionDetected
   }
 
-  let code_ref : Ref[Int] = { val: 0, }
-  let current_bits_ref : Ref[Int] = { val: first_bits, }
+  let code_ref : Ref[Int32] = { val: 0, }
+  let current_bits_ref : Ref[Int32] = { val: first_bits, }
 
   i = 0
   while i < symbols_by_weight.length() {
@@ -177,9 +177,9 @@ fn build_huffman_tree_from_weights(
     i = i + 1
   }
 
-  let left : Array[Int] = []
-  let right : Array[Int] = []
-  let symbol : Array[Int] = []
+  let left : Array[Int32] = []
+  let right : Array[Int32] = []
+  let symbol : Array[Int32] = []
 
   ignore(add_huffman_node(left, right, symbol))
 
@@ -197,10 +197,10 @@ fn build_huffman_tree_from_weights(
 
 ///|
 fn add_huffman_node(
-  left : Array[Int],
-  right : Array[Int],
-  symbol : Array[Int],
-) -> Int {
+  left : Array[Int32],
+  right : Array[Int32],
+  symbol : Array[Int32],
+) -> Int32 {
   left.push(-1)
   right.push(-1)
   symbol.push(-1)
@@ -209,12 +209,12 @@ fn add_huffman_node(
 
 ///|
 fn insert_huffman_code(
-  left : Array[Int],
-  right : Array[Int],
-  symbol : Array[Int],
-  code : Int,
-  nb_bits : Int,
-  value : Int,
+  left : Array[Int32],
+  right : Array[Int32],
+  symbol : Array[Int32],
+  code : Int32,
+  nb_bits : Int32,
+  value : Int32,
 ) -> Unit raise ZstdError {
   let mut node = 0
   let mut bit_index = nb_bits - 1
@@ -263,13 +263,13 @@ fn insert_huffman_code(
 ///|
 fn decode_huffman_single_stream(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-  output_size : Int,
-  max_bits : Int,
-  left : Array[Int],
-  right : Array[Int],
-  symbol : Array[Int],
+  start : Int32,
+  end_pos : Int32,
+  output_size : Int32,
+  max_bits : Int32,
+  left : Array[Int32],
+  right : Array[Int32],
+  symbol : Array[Int32],
 ) -> Bytes raise ZstdError {
   ignore(max_bits)
   if output_size < 0 || start >= end_pos {
@@ -277,8 +277,8 @@ fn decode_huffman_single_stream(
   }
 
   let out : Array[Byte] = []
-  let br_byte : Ref[Int] = { val: end_pos - 1, }
-  let br_bit : Ref[Int] = { val: -1, }
+  let br_byte : Ref[Int32] = { val: end_pos - 1, }
+  let br_bit : Ref[Int32] = { val: -1, }
   init_reverse_bit_reader(src, start, br_byte, br_bit)
 
   let mut i = 0
@@ -300,13 +300,13 @@ fn decode_huffman_single_stream(
 ///|
 fn decode_huffman_four_streams(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
-  output_size : Int,
-  max_bits : Int,
-  left : Array[Int],
-  right : Array[Int],
-  symbol : Array[Int],
+  start : Int32,
+  end_pos : Int32,
+  output_size : Int32,
+  max_bits : Int32,
+  left : Array[Int32],
+  right : Array[Int32],
+  symbol : Array[Int32],
 ) -> Bytes raise ZstdError {
   if output_size < 0 || start + 6 > end_pos {
     raise CorruptionDetected
@@ -376,13 +376,13 @@ fn decode_huffman_four_streams(
 ///|
 fn decode_one_huffman_symbol(
   src : Bytes,
-  start : Int,
-  br_byte : Ref[Int],
-  br_bit : Ref[Int],
-  left : Array[Int],
-  right : Array[Int],
-  symbol : Array[Int],
-) -> Int raise ZstdError {
+  start : Int32,
+  br_byte : Ref[Int32],
+  br_bit : Ref[Int32],
+  left : Array[Int32],
+  right : Array[Int32],
+  symbol : Array[Int32],
+) -> Int32 raise ZstdError {
   let mut node = 0
   while true {
     if node < 0 ||
@@ -404,6 +404,6 @@ fn decode_one_huffman_symbol(
 }
 
 ///|
-fn is_power_of_two(value : Int) -> Bool {
+fn is_power_of_two(value : Int32) -> Bool {
   value > 0 && (value & (value - 1)) == 0
 }

@@ -28,7 +28,7 @@ let xxh64_prime4 : UInt64 = 0x85EBCA77C2B2AE63
 let xxh64_prime5 : UInt64 = 0x27D4EB2F165667C5
 
 ///|
-fn xxh64(src : Bytes, seed? : UInt64 = (0 : UInt64)) -> UInt64 raise ZstdError {
+fn xxh64(src : Bytes, seed~ : UInt64 = (0 : UInt64)) -> UInt64 raise ZstdError {
   let len = src.length()
   let end_pos = len
   let mut pos = 0
@@ -110,7 +110,7 @@ fn xxh64_avalanche(value : UInt64) -> UInt64 {
 }
 
 ///|
-fn xxh64_rotl64(value : UInt64, bits : Int) -> UInt64 {
+fn xxh64_rotl64(value : UInt64, bits : Int32) -> UInt64 {
   let b = bits & 63
   if b == 0 {
     value

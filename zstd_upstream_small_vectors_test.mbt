@@ -18,7 +18,7 @@ fn assert_upstream_small_vector(
   frame : Bytes,
   expected : Bytes,
 ) -> Unit raise Error {
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)

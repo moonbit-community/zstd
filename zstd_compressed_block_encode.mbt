@@ -15,9 +15,9 @@
 ///|
 fn detect_repeat_window(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-) -> (Int, Int, Int) {
+  start : Int32,
+  block_len : Int32,
+) -> (Int32, Int32, Int32) {
   if block_len < 5 {
     return (0, 0, 0)
   }
@@ -73,12 +73,14 @@ fn detect_repeat_window(
 }
 
 ///|
-fn choose_target_seq_count(level : Int, block_len : Int) -> Int {
+fn choose_target_seq_count(level : Int32, block_len : Int32) -> Int32 {
   level_periodic_target_seq_count(level, block_len)
 }
 
 ///|
-fn encode_offset_symbol(offset : Int) -> (UInt, UInt, Int) raise ZstdError {
+fn encode_offset_symbol(
+  offset : Int32,
+) -> (UInt32, UInt32, Int32) raise ZstdError {
   if offset <= 0 {
     raise CorruptionDetected
   }
@@ -99,12 +101,12 @@ fn encode_offset_symbol(offset : Int) -> (UInt, UInt, Int) raise ZstdError {
 
 ///|
 fn encode_offset_symbol_with_repcodes(
-  offset : Int,
-  literal_length : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-) -> (UInt, UInt, Int) raise ZstdError {
+  offset : Int32,
+  literal_length : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+) -> (UInt32, UInt32, Int32) raise ZstdError {
   let ll0 = literal_length == 0
   let off_base = finalize_offset_off_base(offset, ll0, rep1, rep2, rep3)
   offset_symbol_from_off_base(off_base)
@@ -112,10 +114,10 @@ fn encode_offset_symbol_with_repcodes(
 
 ///|
 fn try_encode_common_symbol(
-  symbol_type : Int,
-  max_code : Int,
-  values : Array[Int],
-) -> (Bool, UInt, Array[UInt], Int) raise ZstdError {
+  symbol_type : Int32,
+  max_code : Int32,
+  values : Array[Int32],
+) -> (Bool, UInt32, Array[UInt32], Int32) raise ZstdError {
   let mut code = 0
   while code <= max_code {
     let (base, nb_bits) = sequence_symbol_base_additional_bits(
@@ -123,7 +125,7 @@ fn try_encode_common_symbol(
     )
     let width = if nb_bits == 0 { 1 } else { 1 << nb_bits }
     let limit = base + width - 1
-    let extras : Array[UInt] = []
+    let extras : Array[UInt32] = []
     let mut ok = true
     let mut i = 0
     while i < values.length() {
@@ -145,8 +147,8 @@ fn try_encode_common_symbol(
 }
 
 ///|
-fn split_match_lengths(total_match : Int, seq_count : Int) -> Array[Int] {
-  let out : Array[Int] = []
+fn split_match_lengths(total_match : Int32, seq_count : Int32) -> Array[Int32] {
+  let out : Array[Int32] = []
   if seq_count <= 0 || total_match < seq_count * 3 {
     return out
   }
@@ -166,11 +168,11 @@ fn split_match_lengths(total_match : Int, seq_count : Int) -> Array[Int] {
 
 ///|
 fn single_symbol_encoding(
-  symbol_type : Int,
-  max_code : Int,
-  value : Int,
-) -> (Bool, UInt, UInt, Int) raise ZstdError {
-  let values : Array[Int] = []
+  symbol_type : Int32,
+  max_code : Int32,
+  value : Int32,
+) -> (Bool, UInt32, UInt32, Int32) raise ZstdError {
+  let values : Array[Int32] = []
   values.push(value)
   let (ok, code, extras, bits) = try_encode_common_symbol(
     symbol_type, max_code, values,
@@ -184,14 +186,14 @@ fn single_symbol_encoding(
 ///|
 fn detect_best_single_match(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  search_limit? : Int = 8192,
-  search_depth? : Int = 0,
-  rep1? : Int = 1,
-  rep2? : Int = 4,
-  rep3? : Int = 8,
-) -> (Int, Int, Int) {
+  start : Int32,
+  block_len : Int32,
+  search_limit~ : Int32 = 8192,
+  search_depth~ : Int32 = 0,
+  rep1~ : Int32 = 1,
+  rep2~ : Int32 = 4,
+  rep3~ : Int32 = 8,
+) -> (Int32, Int32, Int32) {
   if block_len < 4 {
     return (0, 0, 0)
   }
@@ -206,8 +208,8 @@ fn detect_best_single_match(
     single_match_default_search_depth(search_cap)
   }
   let depth_limit = if depth_limit0 > 0 { depth_limit0 } else { 1 }
-  let hash_head : Array[Int] = Array::make(1 << 15, -1)
-  let chain : Array[Int] = Array::make(search_len, -1)
+  let hash_head : Array[Int32] = Array::make(1 << 15, -1)
+  let chain : Array[Int32] = Array::make(search_len, -1)
   let mut best_ll = 0
   let mut best_offset = 0
   let mut best_ml = 0
@@ -269,7 +271,7 @@ fn detect_best_single_match(
 }
 
 ///|
-fn append_bits_be(bits : Array[Int], value : UInt, count : Int) -> Unit {
+fn append_bits_be(bits : Array[Int32], value : UInt32, count : Int32) -> Unit {
   let mut i = count - 1
   while i >= 0 {
     bits.push(((value >> i) & 1).reinterpret_as_int())
@@ -278,8 +280,12 @@ fn append_bits_be(bits : Array[Int], value : UInt, count : Int) -> Unit {
 }
 
 ///|
-fn bits_to_byte_value(bits : Array[Int], start : Int, count : Int) -> UInt {
-  let mut value : UInt = 0
+fn bits_to_byte_value(
+  bits : Array[Int32],
+  start : Int32,
+  count : Int32,
+) -> UInt32 {
+  let mut value : UInt32 = 0
   let mut i = 0
   while i < count {
     value = (value << 1) + bits[start + i].reinterpret_as_uint()
@@ -289,7 +295,7 @@ fn bits_to_byte_value(bits : Array[Int], start : Int, count : Int) -> UInt {
 }
 
 ///|
-fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
+fn build_reverse_bitstream(bits : Array[Int32]) -> Bytes {
   let bit_count = bits.length()
   if bit_count == 0 {
     return b""
@@ -297,7 +303,7 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
   let full_bytes = bit_count / 8
   let rem_bits = bit_count % 8
   let mut pos = 0
-  let packed_full : Array[UInt] = []
+  let packed_full : Array[UInt32] = []
   if rem_bits > 0 {
     pos = rem_bits
   }
@@ -315,9 +321,9 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
     i = i - 1
   }
   let last_byte = if rem_bits == 0 {
-    (1 : UInt)
+    (1 : UInt32)
   } else {
-    ((1 : UInt) << rem_bits) + bits_to_byte_value(bits, 0, rem_bits)
+    ((1 : UInt32) << rem_bits) + bits_to_byte_value(bits, 0, rem_bits)
   }
   out.push(last_byte.to_byte())
   Bytes::from_array(out)
@@ -326,7 +332,7 @@ fn build_reverse_bitstream(bits : Array[Int]) -> Bytes {
 ///|
 fn append_sequence_count(
   payload : Array[Byte],
-  seq_count : Int,
+  seq_count : Int32,
 ) -> Unit raise ZstdError {
   if seq_count < 0 {
     raise CorruptionDetected
@@ -338,7 +344,7 @@ fn append_sequence_count(
     payload.push((seq_count & 0xFF).reinterpret_as_uint().to_byte())
   } else if seq_count <= 0x17EFF {
     let rem = seq_count - 0x7F00
-    payload.push((0xFF : UInt).to_byte())
+    payload.push((0xFF : UInt32).to_byte())
     payload.push((rem & 0xFF).reinterpret_as_uint().to_byte())
     payload.push(((rem >> 8) & 0xFF).reinterpret_as_uint().to_byte())
   } else {
@@ -349,12 +355,12 @@ fn append_sequence_count(
 ///|
 fn build_periodic_literals(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  prefix_len : Int,
-  run_len : Int,
-  period : Int,
-  match_lengths : Array[Int],
+  start : Int32,
+  block_len : Int32,
+  prefix_len : Int32,
+  run_len : Int32,
+  period : Int32,
+  match_lengths : Array[Int32],
 ) -> Bytes raise ZstdError {
   let literals : Array[Byte] = []
   if prefix_len > 0 {
@@ -389,12 +395,12 @@ fn build_periodic_literals(
 ///|
 fn build_repeat_payload(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  prefix_len : Int,
-  period : Int,
-  run_len : Int,
-  seq_count : Int,
+  start : Int32,
+  block_len : Int32,
+  prefix_len : Int32,
+  period : Int32,
+  run_len : Int32,
+  seq_count : Int32,
 ) -> Bytes raise ZstdError {
   if seq_count <= 0 {
     return b""
@@ -405,7 +411,7 @@ fn build_repeat_payload(
     return b""
   }
 
-  let ll_values : Array[Int] = []
+  let ll_values : Array[Int32] = []
   let mut i = 0
   while i < seq_count {
     if i == 0 {
@@ -429,7 +435,7 @@ fn build_repeat_payload(
   }
   let (off_code, off_extra, off_bits) = encode_offset_symbol(period)
 
-  let extra_bits : Array[Int] = []
+  let extra_bits : Array[Int32] = []
   i = 0
   while i < seq_count {
     append_bits_be(extra_bits, off_extra, off_bits)
@@ -445,7 +451,7 @@ fn build_repeat_payload(
   let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, seq_count)
-  payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
+  payload.push((0x54 : UInt32).to_byte()) // all RLE sequence modes
   payload.push(ll_code.to_byte())
   payload.push(off_code.to_byte())
   payload.push(ml_code.to_byte())
@@ -456,10 +462,10 @@ fn build_repeat_payload(
 ///|
 fn build_single_match_literals(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll : Int,
-  ml : Int,
+  start : Int32,
+  block_len : Int32,
+  ll : Int32,
+  ml : Int32,
 ) -> Bytes raise ZstdError {
   if ll < 0 || ml < 3 || ll + ml > block_len {
     raise CorruptionDetected
@@ -478,15 +484,15 @@ fn build_single_match_literals(
 ///|
 fn build_single_match_payload_rle(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll : Int,
-  offset : Int,
-  ml : Int,
-  max_offset : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
+  start : Int32,
+  block_len : Int32,
+  ll : Int32,
+  offset : Int32,
+  ml : Int32,
+  max_offset : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
 ) -> Bytes raise ZstdError {
   if ll < 0 ||
     offset <= 0 ||
@@ -512,7 +518,7 @@ fn build_single_match_payload_rle(
   )
   let literals = build_single_match_literals(src, start, block_len, ll, ml)
 
-  let extra_bits : Array[Int] = []
+  let extra_bits : Array[Int32] = []
   append_bits_be(extra_bits, off_extra, off_bits)
   append_bits_be(extra_bits, ml_extra, ml_bits)
   append_bits_be(extra_bits, ll_extra, ll_bits)
@@ -521,7 +527,7 @@ fn build_single_match_payload_rle(
   let payload : Array[Byte] = []
   append_best_literals_section(payload, literals)
   append_sequence_count(payload, 1)
-  payload.push((0x54 : UInt).to_byte()) // all RLE sequence modes
+  payload.push((0x54 : UInt32).to_byte()) // all RLE sequence modes
   payload.push(ll_code.to_byte())
   payload.push(off_code.to_byte())
   payload.push(ml_code.to_byte())
@@ -532,15 +538,15 @@ fn build_single_match_payload_rle(
 ///|
 fn build_single_match_payload(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  ll : Int,
-  offset : Int,
-  ml : Int,
-  max_offset : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
+  start : Int32,
+  block_len : Int32,
+  ll : Int32,
+  offset : Int32,
+  ml : Int32,
+  max_offset : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
 ) -> Bytes raise ZstdError {
   let rle_payload = build_single_match_payload_rle(
     src, start, block_len, ll, offset, ml, max_offset, rep1, rep2, rep3,
@@ -564,9 +570,9 @@ fn build_single_match_payload(
 ///|
 fn build_best_periodic_payload(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  level : Int,
+  start : Int32,
+  block_len : Int32,
+  level : Int32,
 ) -> Bytes raise ZstdError {
   let (prefix_len, period, run_len) = detect_repeat_window(
     src, start, block_len,
@@ -592,7 +598,7 @@ fn build_best_periodic_payload(
 }
 
 ///|
-fn combine_max_offsets(base_limit : Int, extra_limit : Int) -> Int {
+fn combine_max_offsets(base_limit : Int32, extra_limit : Int32) -> Int32 {
   if base_limit > 0 && extra_limit > 0 {
     if base_limit < extra_limit {
       base_limit
@@ -609,20 +615,20 @@ fn combine_max_offsets(base_limit : Int, extra_limit : Int) -> Int {
 ///|
 fn append_compressed_repeat_block(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  level : Int,
+  start : Int32,
+  block_len : Int32,
+  level : Int32,
   dictionary_history : Bytes,
-  dictionary_rep1 : Int,
-  dictionary_rep2 : Int,
-  dictionary_rep3 : Int,
+  dictionary_rep1 : Int32,
+  dictionary_rep2 : Int32,
+  dictionary_rep3 : Int32,
   enable_long_distance_matching : Bool,
-  target_compressed_block_size : Int,
-  window_max_offset : Int,
+  target_compressed_block_size : Int32,
+  window_max_offset : Int32,
   prev_rle_valid : Ref[Bool],
-  prev_ll_code : Ref[UInt],
-  prev_off_code : Ref[UInt],
-  prev_ml_code : Ref[UInt],
+  prev_ll_code : Ref[UInt32],
+  prev_off_code : Ref[UInt32],
+  prev_ml_code : Ref[UInt32],
   prev_predefined_valid : Ref[Bool],
   prev_compressed_valid : Ref[Bool],
   prev_ll_header : Ref[Bytes],

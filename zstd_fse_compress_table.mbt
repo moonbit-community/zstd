@@ -14,17 +14,17 @@
 
 ///|
 fn build_fse_compression_table_from_normalized(
-  normalized_counter : Array[Int],
-  max_symbol : Int,
-  table_log : Int,
-) -> (Bool, Array[Int], Array[Int], Array[Int]) {
+  normalized_counter : Array[Int32],
+  max_symbol : Int32,
+  table_log : Int32,
+) -> (Bool, Array[Int32], Array[Int32], Array[Int32]) {
   if table_log < fse_min_table_log || table_log > fse_table_log_absolute_max {
     return (false, [], [], [])
   }
   if max_symbol < 0 || max_symbol >= normalized_counter.length() {
     return (false, [], [], [])
   }
-  let table_size = (1 : Int) << table_log
+  let table_size = (1 : Int32) << table_log
   let table_mask = table_size - 1
   let step = (table_size >> 1) + (table_size >> 3) + 3
   let cumul = Array::make(max_symbol + 2, 0)
@@ -125,11 +125,11 @@ fn build_fse_compression_table_from_normalized(
 
 ///|
 fn fse_init_cstate2_with_table(
-  state_table : Array[Int],
-  delta_nb_bits : Array[Int],
-  delta_find_state : Array[Int],
-  symbol : Int,
-) -> (Bool, Int) {
+  state_table : Array[Int32],
+  delta_nb_bits : Array[Int32],
+  delta_find_state : Array[Int32],
+  symbol : Int32,
+) -> (Bool, Int32) {
   let table_size = state_table.length()
   if table_size <= 0 ||
     symbol < 0 ||
@@ -156,12 +156,12 @@ fn fse_init_cstate2_with_table(
 
 ///|
 fn fse_encode_symbol_with_table(
-  state : Int,
-  symbol : Int,
-  state_table : Array[Int],
-  delta_nb_bits : Array[Int],
-  delta_find_state : Array[Int],
-) -> (Bool, Int, Int, Int) {
+  state : Int32,
+  symbol : Int32,
+  state_table : Array[Int32],
+  delta_nb_bits : Array[Int32],
+  delta_find_state : Array[Int32],
+) -> (Bool, Int32, Int32, Int32) {
   let table_size = state_table.length()
   if table_size <= 0 ||
     state < table_size ||
@@ -190,14 +190,14 @@ fn fse_encode_symbol_with_table(
 
 ///|
 fn build_reference_fse_state_path(
-  symbols : Array[Int],
-  table_symbol : Array[Int],
-  next_state : Array[Int],
-  nb_bits : Array[Int],
-  state_table : Array[Int],
-  delta_nb_bits : Array[Int],
-  delta_find_state : Array[Int],
-) -> (Bool, Int, Array[Int], Array[Int], Array[Int]) {
+  symbols : Array[Int32],
+  table_symbol : Array[Int32],
+  next_state : Array[Int32],
+  nb_bits : Array[Int32],
+  state_table : Array[Int32],
+  delta_nb_bits : Array[Int32],
+  delta_find_state : Array[Int32],
+) -> (Bool, Int32, Array[Int32], Array[Int32], Array[Int32]) {
   let n = symbols.length()
   let table_size = table_symbol.length()
   if n <= 0 ||

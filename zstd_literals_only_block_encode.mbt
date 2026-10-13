@@ -15,9 +15,9 @@
 ///|
 fn build_literals_only_payload(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  level : Int,
+  start : Int32,
+  block_len : Int32,
+  level : Int32,
 ) -> Bytes raise ZstdError {
   if level < 10 || block_len < 32 {
     return b""

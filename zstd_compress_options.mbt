@@ -14,20 +14,20 @@
 
 ///|
 pub struct CompressOptions {
-  level : Int
+  level : Int32
   checksum : Bool
   single_segment : Bool
   write_content_size : Bool
   compact_frame_header : Bool
-  window_log : Int
+  window_log : Int32
   enable_long_distance_matching : Bool
-  target_compressed_block_size : Int
+  target_compressed_block_size : Int32
 }
 
 ///|
 pub fn default_compress_options(
-  level? : Int = 3,
-  checksum? : Bool = false,
+  level~ : Int32 = 3,
+  checksum~ : Bool = false,
 ) -> CompressOptions {
   {
     level,
@@ -44,7 +44,7 @@ pub fn default_compress_options(
 ///|
 pub fn CompressOptions::with_level(
   self : CompressOptions,
-  level : Int,
+  level : Int32,
 ) -> CompressOptions {
   { ..self, level, }
 }
@@ -84,7 +84,7 @@ pub fn CompressOptions::with_compact_frame_header(
 ///|
 pub fn CompressOptions::with_window_log(
   self : CompressOptions,
-  log : Int,
+  log : Int32,
 ) -> CompressOptions {
   { ..self, window_log: log, }
 }
@@ -100,7 +100,7 @@ pub fn CompressOptions::with_long_distance_matching(
 ///|
 pub fn CompressOptions::with_target_compressed_block_size(
   self : CompressOptions,
-  size : Int,
+  size : Int32,
 ) -> CompressOptions {
   { ..self, target_compressed_block_size: size, }
 }

@@ -14,9 +14,9 @@
 
 ///|
 fn append_forward_bits_lsb(
-  bits : Array[Int],
-  value : Int,
-  count : Int,
+  bits : Array[Int32],
+  value : Int32,
+  count : Int32,
 ) -> Unit raise ZstdError {
   if count < 0 {
     raise CorruptionDetected
@@ -36,7 +36,7 @@ fn append_forward_bits_lsb(
 }
 
 ///|
-fn pack_forward_bits_lsb(bits : Array[Int]) -> Bytes {
+fn pack_forward_bits_lsb(bits : Array[Int32]) -> Bytes {
   if bits.length() == 0 {
     return b""
   }
@@ -47,7 +47,7 @@ fn pack_forward_bits_lsb(bits : Array[Int]) -> Bytes {
     if bits[i] == 1 {
       let byte_pos = i >> 3
       let bit_pos = i & 7
-      out[byte_pos] = (out[byte_pos].to_uint() + ((1 : UInt) << bit_pos)).to_byte()
+      out[byte_pos] = (out[byte_pos].to_uint() + ((1 : UInt32) << bit_pos)).to_byte()
     }
     i = i + 1
   }
@@ -56,9 +56,9 @@ fn pack_forward_bits_lsb(bits : Array[Int]) -> Bytes {
 
 ///|
 fn normalized_counter_abs_sum(
-  normalized_counter : Array[Int],
-  max_symbol : Int,
-) -> Int raise ZstdError {
+  normalized_counter : Array[Int32],
+  max_symbol : Int32,
+) -> Int32 raise ZstdError {
   if max_symbol < 0 || max_symbol >= normalized_counter.length() {
     raise CorruptionDetected
   }
@@ -77,9 +77,9 @@ fn normalized_counter_abs_sum(
 
 ///|
 fn write_fse_ncount_header(
-  normalized_counter : Array[Int],
-  max_symbol : Int,
-  table_log : Int,
+  normalized_counter : Array[Int32],
+  max_symbol : Int32,
+  table_log : Int32,
 ) -> Bytes raise ZstdError {
   if table_log < fse_min_table_log || table_log > fse_table_log_absolute_max {
     raise CorruptionDetected

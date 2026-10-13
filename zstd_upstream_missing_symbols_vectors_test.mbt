@@ -32,7 +32,7 @@ test "upstream golden dictionary missing-symbols http default level no-check" {
 fn assert_missing_symbols_vector_requires_dictionary(
   frame : Bytes,
 ) -> Unit raise Error {
-  let without_dict = try decompress(frame) catch {
+  let without_dict = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -41,7 +41,7 @@ fn assert_missing_symbols_vector_requires_dictionary(
 
   let wrong_dict = standard_dictionary_fixture_dictionary()
   let with_wrong_dict = try
-    decompress_with_dictionary(frame, wrong_dict)
+    @zstd.decompress_with_dictionary(frame, wrong_dict)
   catch {
     e => Err(e)
   } noraise {

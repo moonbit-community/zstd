@@ -15,22 +15,22 @@
 ///|
 fn append_frame_header(
   out : Array[Byte],
-  src_len : Int,
+  src_len : Int32,
   checksum : Bool,
-  dictionary_id? : UInt = 0,
-  single_segment? : Bool = true,
-  write_content_size? : Bool = true,
-  compact_frame_header? : Bool = false,
-  window_log? : Int = 0,
+  dictionary_id~ : UInt32 = 0,
+  single_segment~ : Bool = true,
+  write_content_size~ : Bool = true,
+  compact_frame_header~ : Bool = false,
+  window_log~ : Int32 = 0,
 ) -> Unit {
   append_u32_le(out, zstd_magic_number)
-  let checksum_bit : UInt = if checksum { 0x04 } else { 0 }
+  let checksum_bit : UInt32 = if checksum { 0x04 } else { 0 }
   let dict_flag = frame_header_dict_id_flag(dictionary_id)
   let (fcs_flag, fcs_size) = frame_header_fcs_layout(
     src_len, single_segment, write_content_size, compact_frame_header,
   )
   let descriptor = if single_segment {
-    (fcs_flag << 6) + ((1 : UInt) << 5) + checksum_bit + dict_flag
+    (fcs_flag << 6) + ((1 : UInt32) << 5) + checksum_bit + dict_flag
   } else {
     (fcs_flag << 6) + checksum_bit + dict_flag
   }
@@ -43,7 +43,7 @@ fn append_frame_header(
 }
 
 ///|
-fn frame_header_dict_id_flag(dict_id : UInt) -> UInt {
+fn frame_header_dict_id_flag(dict_id : UInt32) -> UInt32 {
   if dict_id == 0 {
     0
   } else if dict_id <= 0xFF {
@@ -58,8 +58,8 @@ fn frame_header_dict_id_flag(dict_id : UInt) -> UInt {
 ///|
 fn append_frame_header_dict_id(
   out : Array[Byte],
-  dict_id : UInt,
-  dict_flag : UInt,
+  dict_id : UInt32,
+  dict_flag : UInt32,
 ) -> Unit {
   if dict_flag == 1 {
     out.push(dict_id.to_byte())
@@ -72,7 +72,10 @@ fn append_frame_header_dict_id(
 }
 
 ///|
-fn frame_header_window_descriptor(src_len : Int, window_log : Int) -> UInt {
+fn frame_header_window_descriptor(
+  src_len : Int32,
+  window_log : Int32,
+) -> UInt32 {
   let target = if window_log > 0 {
     let clamped_log = if window_log < 10 {
       10
@@ -109,11 +112,11 @@ fn frame_header_window_descriptor(src_len : Int, window_log : Int) -> UInt {
 
 ///|
 fn frame_header_fcs_layout(
-  src_len : Int,
+  src_len : Int32,
   single_segment : Bool,
   write_content_size : Bool,
   compact_frame_header : Bool,
-) -> (UInt, Int) {
+) -> (UInt32, Int32) {
   let src_len_u = src_len.to_uint64()
   if single_segment {
     if compact_frame_header {
@@ -140,7 +143,7 @@ fn frame_header_fcs_layout(
 fn append_frame_content_size(
   out : Array[Byte],
   src_len : UInt64,
-  fcs_size : Int,
+  fcs_size : Int32,
 ) -> Unit {
   if fcs_size == 0 {
     return
@@ -171,13 +174,13 @@ fn append_frame_checksum(
 fn append_raw_block(
   out : Array[Byte],
   src : Bytes,
-  start : Int,
-  block_len : Int,
+  start : Int32,
+  block_len : Int32,
   last_block : Bool,
 ) -> Unit {
-  let last_block_bit : UInt = if last_block { 1 } else { 0 }
-  let block_type_raw : UInt = 0
-  let block_header : UInt = (block_len.reinterpret_as_uint() << 3) +
+  let last_block_bit : UInt32 = if last_block { 1 } else { 0 }
+  let block_type_raw : UInt32 = 0
+  let block_header : UInt32 = (block_len.reinterpret_as_uint() << 3) +
     (block_type_raw << 1) +
     last_block_bit
   append_u24_le(out, block_header)
@@ -188,12 +191,12 @@ fn append_raw_block(
 fn append_rle_block(
   out : Array[Byte],
   value : Byte,
-  block_len : Int,
+  block_len : Int32,
   last_block : Bool,
 ) -> Unit {
-  let last_block_bit : UInt = if last_block { 1 } else { 0 }
-  let block_type_rle : UInt = 1
-  let block_header : UInt = (block_len.reinterpret_as_uint() << 3) +
+  let last_block_bit : UInt32 = if last_block { 1 } else { 0 }
+  let block_type_rle : UInt32 = 1
+  let block_header : UInt32 = (block_len.reinterpret_as_uint() << 3) +
     (block_type_rle << 1) +
     last_block_bit
   append_u24_le(out, block_header)
@@ -206,9 +209,9 @@ fn append_compressed_block_payload(
   payload : Bytes,
   last_block : Bool,
 ) -> Unit {
-  let last_block_bit : UInt = if last_block { 1 } else { 0 }
-  let block_type_compressed : UInt = 2
-  let block_header : UInt = (payload.length().reinterpret_as_uint() << 3) +
+  let last_block_bit : UInt32 = if last_block { 1 } else { 0 }
+  let block_type_compressed : UInt32 = 2
+  let block_header : UInt32 = (payload.length().reinterpret_as_uint() << 3) +
     (block_type_compressed << 1) +
     last_block_bit
   append_u24_le(out, block_header)
@@ -216,7 +219,7 @@ fn append_compressed_block_payload(
 }
 
 ///|
-fn is_rle_block(src : Bytes, start : Int, block_len : Int) -> Bool {
+fn is_rle_block(src : Bytes, start : Int32, block_len : Int32) -> Bool {
   if block_len <= 1 {
     return false
   }
@@ -232,7 +235,7 @@ fn is_rle_block(src : Bytes, start : Int, block_len : Int) -> Bool {
 }
 
 ///|
-fn trim_history_to_window(history : Bytes, window_max_offset : Int) -> Bytes {
+fn trim_history_to_window(history : Bytes, window_max_offset : Int32) -> Bytes {
   if window_max_offset <= 0 || history.length() <= window_max_offset {
     return history
   }
@@ -243,11 +246,11 @@ fn trim_history_to_window(history : Bytes, window_max_offset : Int) -> Bytes {
 fn append_frame_blocks_minimal(
   out : Array[Byte],
   src : Bytes,
-  level : Int,
-  dictionary_state? : DictionaryState = empty_dictionary_state(),
-  enable_long_distance_matching? : Bool = false,
-  target_compressed_block_size? : Int = 0,
-  max_window_size? : UInt64 = (0 : UInt64),
+  level : Int32,
+  dictionary_state~ : DictionaryState = empty_dictionary_state(),
+  enable_long_distance_matching~ : Bool = false,
+  target_compressed_block_size~ : Int32 = 0,
+  max_window_size~ : UInt64 = (0 : UInt64),
 ) -> Unit raise ZstdError {
   let allow_low_level_dictionary_compressed = dictionary_state.history.length() >
     0
@@ -262,9 +265,9 @@ fn append_frame_blocks_minimal(
   let prev_rle_valid : Ref[Bool] = { val: false, }
   let prev_predefined_valid : Ref[Bool] = { val: false, }
   let prev_compressed_valid : Ref[Bool] = { val: seed_has_sequence_headers, }
-  let prev_ll_code : Ref[UInt] = { val: 0, }
-  let prev_off_code : Ref[UInt] = { val: 0, }
-  let prev_ml_code : Ref[UInt] = { val: 0, }
+  let prev_ll_code : Ref[UInt32] = { val: 0, }
+  let prev_off_code : Ref[UInt32] = { val: 0, }
+  let prev_ml_code : Ref[UInt32] = { val: 0, }
   let prev_ll_header : Ref[Bytes] = { val: dictionary_state.ll_header, }
   let prev_off_header : Ref[Bytes] = { val: dictionary_state.off_header, }
   let prev_ml_header : Ref[Bytes] = { val: dictionary_state.ml_header, }
@@ -280,62 +283,70 @@ fn append_frame_blocks_minimal(
   let mut sim_rep2 = dictionary_state.rep2
   let mut sim_rep3 = dictionary_state.rep3
   let sim_prev_huf_valid : Ref[Bool] = { val: dictionary_state.huf_valid, }
-  let sim_prev_huf_max_bits : Ref[Int] = { val: dictionary_state.huf_max_bits, }
-  let sim_prev_huf_left : Ref[Array[Int]] = { val: dictionary_state.huf_left, }
-  let sim_prev_huf_right : Ref[Array[Int]] = {
+  let sim_prev_huf_max_bits : Ref[Int32] = {
+    val: dictionary_state.huf_max_bits,
+  }
+  let sim_prev_huf_left : Ref[Array[Int32]] = {
+    val: dictionary_state.huf_left,
+  }
+  let sim_prev_huf_right : Ref[Array[Int32]] = {
     val: dictionary_state.huf_right,
   }
-  let sim_prev_huf_symbol : Ref[Array[Int]] = {
+  let sim_prev_huf_symbol : Ref[Array[Int32]] = {
     val: dictionary_state.huf_symbol,
   }
   let sim_prev_ll_valid : Ref[Bool] = { val: dictionary_state.ll_valid, }
-  let sim_prev_ll_kind : Ref[Int] = { val: dictionary_state.ll_kind, }
-  let sim_prev_ll_code : Ref[UInt] = { val: dictionary_state.ll_code, }
-  let sim_prev_ll_table_log : Ref[Int] = { val: dictionary_state.ll_table_log, }
-  let sim_prev_ll_table_next_state : Ref[Array[Int]] = {
+  let sim_prev_ll_kind : Ref[Int32] = { val: dictionary_state.ll_kind, }
+  let sim_prev_ll_code : Ref[UInt32] = { val: dictionary_state.ll_code, }
+  let sim_prev_ll_table_log : Ref[Int32] = {
+    val: dictionary_state.ll_table_log,
+  }
+  let sim_prev_ll_table_next_state : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_next_state,
   }
-  let sim_prev_ll_table_nb_add_bits : Ref[Array[Int]] = {
+  let sim_prev_ll_table_nb_add_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_nb_add_bits,
   }
-  let sim_prev_ll_table_nb_bits : Ref[Array[Int]] = {
+  let sim_prev_ll_table_nb_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_nb_bits,
   }
-  let sim_prev_ll_table_base_values : Ref[Array[Int]] = {
+  let sim_prev_ll_table_base_values : Ref[Array[Int32]] = {
     val: dictionary_state.ll_table_base_values,
   }
   let sim_prev_off_valid : Ref[Bool] = { val: dictionary_state.off_valid, }
-  let sim_prev_off_kind : Ref[Int] = { val: dictionary_state.off_kind, }
-  let sim_prev_off_code : Ref[UInt] = { val: dictionary_state.off_code, }
-  let sim_prev_off_table_log : Ref[Int] = {
+  let sim_prev_off_kind : Ref[Int32] = { val: dictionary_state.off_kind, }
+  let sim_prev_off_code : Ref[UInt32] = { val: dictionary_state.off_code, }
+  let sim_prev_off_table_log : Ref[Int32] = {
     val: dictionary_state.off_table_log,
   }
-  let sim_prev_off_table_next_state : Ref[Array[Int]] = {
+  let sim_prev_off_table_next_state : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_next_state,
   }
-  let sim_prev_off_table_nb_add_bits : Ref[Array[Int]] = {
+  let sim_prev_off_table_nb_add_bits : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_nb_add_bits,
   }
-  let sim_prev_off_table_nb_bits : Ref[Array[Int]] = {
+  let sim_prev_off_table_nb_bits : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_nb_bits,
   }
-  let sim_prev_off_table_base_values : Ref[Array[Int]] = {
+  let sim_prev_off_table_base_values : Ref[Array[Int32]] = {
     val: dictionary_state.off_table_base_values,
   }
   let sim_prev_ml_valid : Ref[Bool] = { val: dictionary_state.ml_valid, }
-  let sim_prev_ml_kind : Ref[Int] = { val: dictionary_state.ml_kind, }
-  let sim_prev_ml_code : Ref[UInt] = { val: dictionary_state.ml_code, }
-  let sim_prev_ml_table_log : Ref[Int] = { val: dictionary_state.ml_table_log, }
-  let sim_prev_ml_table_next_state : Ref[Array[Int]] = {
+  let sim_prev_ml_kind : Ref[Int32] = { val: dictionary_state.ml_kind, }
+  let sim_prev_ml_code : Ref[UInt32] = { val: dictionary_state.ml_code, }
+  let sim_prev_ml_table_log : Ref[Int32] = {
+    val: dictionary_state.ml_table_log,
+  }
+  let sim_prev_ml_table_next_state : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_next_state,
   }
-  let sim_prev_ml_table_nb_add_bits : Ref[Array[Int]] = {
+  let sim_prev_ml_table_nb_add_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_nb_add_bits,
   }
-  let sim_prev_ml_table_nb_bits : Ref[Array[Int]] = {
+  let sim_prev_ml_table_nb_bits : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_nb_bits,
   }
-  let sim_prev_ml_table_base_values : Ref[Array[Int]] = {
+  let sim_prev_ml_table_base_values : Ref[Array[Int32]] = {
     val: dictionary_state.ml_table_base_values,
   }
   let mut pos = 0

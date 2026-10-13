@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn literal_length_base_bits(code : UInt) -> (Int, Int) raise ZstdError {
+fn literal_length_base_bits(code : UInt32) -> (Int32, Int32) raise ZstdError {
   if code <= 15 {
     (code.reinterpret_as_int(), 0)
   } else if code == 16 {
@@ -62,7 +62,7 @@ fn literal_length_base_bits(code : UInt) -> (Int, Int) raise ZstdError {
 }
 
 ///|
-fn match_length_base_bits(code : UInt) -> (Int, Int) raise ZstdError {
+fn match_length_base_bits(code : UInt32) -> (Int32, Int32) raise ZstdError {
   if code <= 31 {
     (code.reinterpret_as_int() + 3, 0)
   } else if code == 32 {

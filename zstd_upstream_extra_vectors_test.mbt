@@ -18,7 +18,7 @@ fn assert_upstream_extra_vector(
   frame : Bytes,
   expected : Bytes,
 ) -> Unit raise Error {
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -58,7 +58,7 @@ fn assert_upstream_extra_dict_vector(
   frame : Bytes,
 ) -> Unit raise Error {
   let result = try
-    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+    @zstd.decompress_with_dictionary(frame, rv_up_gdict_http_dict())
   catch {
     e => Err(e)
   } noraise {
@@ -111,11 +111,11 @@ fn assert_upstream_extra_dict_vector(
 fn assert_upstream_extra_dict_large_repeat_vector(
   name : String,
   frame : Bytes,
-  repeat_count : Int,
+  repeat_count : Int32,
 ) -> Unit raise Error {
   let unit = rv_up_http_payload()
   let result = try
-    decompress_with_dictionary(frame, rv_up_gdict_http_dict())
+    @zstd.decompress_with_dictionary(frame, rv_up_gdict_http_dict())
   catch {
     e => Err(e)
   } noraise {

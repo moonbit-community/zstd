@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn payload_sequence_modes_offset(payload : Bytes) -> Int {
+fn payload_sequence_modes_offset(payload : Bytes) -> Int32 {
   let seq_count_pos = payload_sequence_count_offset(payload)
   if seq_count_pos < 0 {
     return -1
@@ -39,8 +39,8 @@ fn payload_sequence_modes_offset(payload : Bytes) -> Int {
 ///|
 fn payload_sequence_count_header_len(
   payload : Bytes,
-  seq_count_pos : Int,
-) -> Int {
+  seq_count_pos : Int32,
+) -> Int32 {
   if seq_count_pos < 0 || seq_count_pos >= payload.length() {
     return -1
   }
@@ -55,7 +55,7 @@ fn payload_sequence_count_header_len(
 }
 
 ///|
-fn payload_sequence_count_offset(payload : Bytes) -> Int {
+fn payload_sequence_count_offset(payload : Bytes) -> Int32 {
   if payload.length() == 0 {
     return -1
   }
@@ -124,8 +124,8 @@ fn payload_sequence_count_offset(payload : Bytes) -> Int {
 ///|
 fn copy_bytes_range(
   src : Bytes,
-  start : Int,
-  len : Int,
+  start : Int32,
+  len : Int32,
 ) -> Bytes raise ZstdError {
   ensure_range(src.length(), start, len)
   let out : Array[Byte] = []
@@ -136,11 +136,11 @@ fn copy_bytes_range(
 ///|
 fn parse_sequence_source_header(
   payload : Bytes,
-  pos : Int,
-  mode : UInt,
-  max_symbol_limit : Int,
-  table_log_max : Int,
-) -> (Bytes, Int) raise ZstdError {
+  pos : Int32,
+  mode : UInt32,
+  max_symbol_limit : Int32,
+  table_log_max : Int32,
+) -> (Bytes, Int32) raise ZstdError {
   if mode == 0 || mode == 3 {
     return (b"", pos)
   }
@@ -165,7 +165,7 @@ fn parse_sequence_source_header(
 ///|
 fn parse_sequence_mode_sources(
   payload : Bytes,
-) -> (Int, UInt, UInt, UInt, Bytes, Bytes, Bytes, Int) raise ZstdError {
+) -> (Int32, UInt32, UInt32, UInt32, Bytes, Bytes, Bytes, Int32) raise ZstdError {
   let seq_count_pos = payload_sequence_count_offset(payload)
   let seq_count_header_len = payload_sequence_count_header_len(
     payload, seq_count_pos,
@@ -206,8 +206,8 @@ fn has_compressed_header(header : Bytes) -> Bool {
 
 ///|
 fn update_prev_compressed_header_state(
-  mode : UInt,
-  mode0 : UInt,
+  mode : UInt32,
+  mode0 : UInt32,
   source : Bytes,
   prev_header : Ref[Bytes],
 ) -> Unit {
@@ -224,9 +224,9 @@ fn update_prev_compressed_header_state(
 fn maybe_rewrite_sequence_modes_to_repeat(
   payload : Bytes,
   prev_rle_valid : Ref[Bool],
-  prev_ll_code : Ref[UInt],
-  prev_off_code : Ref[UInt],
-  prev_ml_code : Ref[UInt],
+  prev_ll_code : Ref[UInt32],
+  prev_off_code : Ref[UInt32],
+  prev_ml_code : Ref[UInt32],
   prev_predefined_valid : Ref[Bool],
   prev_compressed_valid : Ref[Bool],
   prev_ll_header : Ref[Bytes],
@@ -242,7 +242,7 @@ fn maybe_rewrite_sequence_modes_to_repeat(
     if prev_predefined_valid.val {
       let out : Array[Byte] = []
       append_bytes(out, payload, 0, modes_pos)
-      out.push((0xFC : UInt).to_byte()) // all repeat sequence modes
+      out.push((0xFC : UInt32).to_byte()) // all repeat sequence modes
       append_bytes(
         out,
         payload,
@@ -272,7 +272,7 @@ fn maybe_rewrite_sequence_modes_to_repeat(
       ml_code == prev_ml_code.val {
       let out : Array[Byte] = []
       append_bytes(out, payload, 0, modes_pos)
-      out.push((0xFC : UInt).to_byte()) // all repeat sequence modes
+      out.push((0xFC : UInt32).to_byte()) // all repeat sequence modes
       append_bytes(
         out,
         payload,
@@ -313,21 +313,21 @@ fn maybe_rewrite_sequence_modes_to_repeat(
         bitstream_start,
       )
     ) => {
-      let ll_mode : UInt = if ll_mode0 == 2 &&
+      let ll_mode : UInt32 = if ll_mode0 == 2 &&
         has_compressed_header(prev_ll_header.val) &&
         ll_source == prev_ll_header.val {
         3
       } else {
         ll_mode0
       }
-      let off_mode : UInt = if off_mode0 == 2 &&
+      let off_mode : UInt32 = if off_mode0 == 2 &&
         has_compressed_header(prev_off_header.val) &&
         off_source == prev_off_header.val {
         3
       } else {
         off_mode0
       }
-      let ml_mode : UInt = if ml_mode0 == 2 &&
+      let ml_mode : UInt32 = if ml_mode0 == 2 &&
         has_compressed_header(prev_ml_header.val) &&
         ml_source == prev_ml_header.val {
         3

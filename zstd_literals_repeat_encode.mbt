@@ -28,7 +28,7 @@ fn bytes_equal(lhs : Bytes, rhs : Bytes) -> Bool {
 }
 
 ///|
-fn bytes_slice(src : Bytes, start : Int, len : Int) -> Bytes {
+fn bytes_slice(src : Bytes, start : Int32, len : Int32) -> Bytes {
   if start < 0 || len < 0 || start + len > src.length() {
     return b""
   }
@@ -40,7 +40,7 @@ fn bytes_slice(src : Bytes, start : Int, len : Int) -> Bytes {
 ///|
 fn parse_compressed_literals_header(
   payload : Bytes,
-) -> (Bool, UInt, UInt, Int, Int, Int, Int) {
+) -> (Bool, UInt32, UInt32, Int32, Int32, Int32, Int32) {
   if payload.length() < 4 {
     return (false, 0, 0, 0, 0, 0, 0)
   }
@@ -95,21 +95,21 @@ fn parse_compressed_literals_header(
 
 ///|
 fn build_codes_from_decode_tree(
-  max_bits : Int,
-  left : Array[Int],
-  right : Array[Int],
-  symbol : Array[Int],
-) -> (Bool, Array[UInt], Array[Int]) {
+  max_bits : Int32,
+  left : Array[Int32],
+  right : Array[Int32],
+  symbol : Array[Int32],
+) -> (Bool, Array[UInt32], Array[Int32]) {
   if max_bits <= 0 || symbol.length() == 0 {
     return (false, [], [])
   }
-  let codes = Array::make(256, (0 : UInt))
+  let codes = Array::make(256, (0 : UInt32))
   let nb_bits = Array::make(256, 0)
-  let stack_node : Array[Int] = []
-  let stack_code : Array[UInt] = []
-  let stack_depth : Array[Int] = []
+  let stack_node : Array[Int32] = []
+  let stack_code : Array[UInt32] = []
+  let stack_depth : Array[Int32] = []
   stack_node.push(0)
-  stack_code.push((0 : UInt))
+  stack_code.push((0 : UInt32))
   stack_depth.push(0)
   let mut assigned = 0
   while stack_node.length() > 0 {
@@ -157,7 +157,7 @@ fn build_codes_from_decode_tree(
 
 ///|
 fn build_treeless_literals_section_with_stream_payload(
-  lit_len : Int,
+  lit_len : Int32,
   stream_payload : Bytes,
   single_stream : Bool,
 ) -> Bytes {
@@ -165,7 +165,7 @@ fn build_treeless_literals_section_with_stream_payload(
     return b""
   }
   let lit_c_size = stream_payload.length()
-  let literals_block_type : UInt = 3
+  let literals_block_type : UInt32 = 3
   let out : Array[Byte] = []
   if single_stream {
     if lit_len > 1023 || lit_c_size > 1023 {
@@ -176,21 +176,21 @@ fn build_treeless_literals_section_with_stream_payload(
       literals_block_type
     append_u24_le(out, header)
   } else if lit_len >= 6 && lit_len <= 1023 && lit_c_size <= 1023 {
-    let size_format_1 : UInt = 1
+    let size_format_1 : UInt32 = 1
     let header = ((lit_len.reinterpret_as_uint() & 0x3FF) << 4) +
       ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
       (size_format_1 << 2) +
       literals_block_type
     append_u24_le(out, header)
   } else if lit_len <= 0x3FFF && lit_c_size <= 0x3FFF {
-    let size_format_2 : UInt = 2
+    let size_format_2 : UInt32 = 2
     let header = ((lit_len.reinterpret_as_uint() & 0x3FFF) << 4) +
       ((lit_c_size.reinterpret_as_uint() & 0x3FFF) << 18) +
       (size_format_2 << 2) +
       literals_block_type
     append_u32_le(out, header)
   } else if lit_len <= 0x3FFFF && lit_c_size <= 0x3FFFF {
-    let size_format_3 : UInt = 3
+    let size_format_3 : UInt32 = 3
     let lit_c_low = lit_c_size & 0x3FF
     let lit_c_high = lit_c_size >> 10
     if lit_c_high < 0 || lit_c_high > 0xFF {
@@ -212,11 +212,11 @@ fn build_treeless_literals_section_with_stream_payload(
 ///|
 fn append_treeless_literals_header_with_size_format(
   out : Array[Byte],
-  size_format : UInt,
-  lit_size : Int,
-  lit_c_size : Int,
+  size_format : UInt32,
+  lit_size : Int32,
+  lit_c_size : Int32,
 ) -> Bool {
-  let literals_block_type : UInt = 3
+  let literals_block_type : UInt32 = 3
   if size_format == 0 || size_format == 1 {
     if lit_size > 1023 || lit_c_size > 1023 {
       return false
@@ -267,7 +267,7 @@ fn rewrite_literals_section_to_treeless_if_repeat(
   payload : Bytes,
   prev_huf_valid : Ref[Bool],
   prev_huf_tree_desc : Ref[Bytes],
-  force_reencode? : Bool = false,
+  force_reencode~ : Bool = false,
 ) -> Bytes {
   let (
     ok,

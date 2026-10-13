@@ -16,11 +16,13 @@
 fn assert_matrix_case(
   name : String,
   frame : Bytes,
-  expected_len : Int,
+  expected_len : Int32,
   expected_prefix_64 : Bytes,
   expected_suffix_64 : Bytes,
 ) -> Unit raise Error {
-  let result = try decompress_with_dictionary(frame, rv_matrix_dict()) catch {
+  let result = try
+    @zstd.decompress_with_dictionary(frame, rv_matrix_dict())
+  catch {
     e => Err(e)
   } noraise {
     value => Ok(value)

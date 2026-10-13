@@ -13,8 +13,8 @@
 // limitations under the License.
 
 ///|
-fn matrix_l9_options(checksum : Bool) -> CompressOptions {
-  default_compress_options(level=9).with_checksum(checksum)
+fn matrix_l9_options(checksum : Bool) -> @zstd.CompressOptions {
+  @zstd.default_compress_options(level=9).with_checksum(checksum)
 }
 
 ///|
@@ -79,7 +79,7 @@ fn assert_frame_parity(
 }
 
 ///|
-fn read_u24_le_matrix_diag(src : Bytes, pos : Int) -> Int {
+fn read_u24_le_matrix_diag(src : Bytes, pos : Int32) -> Int32 {
   src[pos].to_int() +
   (src[pos + 1].to_int() << 8) +
   (src[pos + 2].to_int() << 16)
@@ -91,7 +91,7 @@ fn frame_block_summary(frame : Bytes) -> String {
     return "short"
   }
   let descriptor = frame[4].to_uint()
-  let single_segment = ((descriptor >> 5) & 1) == (1 : UInt)
+  let single_segment = ((descriptor >> 5) & 1) == (1 : UInt32)
   let dict_flag = (descriptor & 0x3).reinterpret_as_int()
   let fcs_flag = (descriptor >> 6).reinterpret_as_int()
   let mut pos = 5
@@ -160,12 +160,12 @@ fn frame_block_summary(frame : Bytes) -> String {
 }
 
 ///|
-fn frame_first_block_header_pos(frame : Bytes) -> Int {
+fn frame_first_block_header_pos(frame : Bytes) -> Int32 {
   if frame.length() < 10 {
     return -1
   }
   let descriptor = frame[4].to_uint()
-  let single_segment = ((descriptor >> 5) & 1) == (1 : UInt)
+  let single_segment = ((descriptor >> 5) & 1) == (1 : UInt32)
   let dict_flag = (descriptor & 0x3).reinterpret_as_int()
   let fcs_flag = (descriptor >> 6).reinterpret_as_int()
   let mut pos = 5
@@ -198,7 +198,7 @@ fn frame_first_block_header_pos(frame : Bytes) -> Int {
 }
 
 ///|
-fn parse_seq_count_brief(payload : Bytes, pos : Int) -> (Bool, Int, Int) {
+fn parse_seq_count_brief(payload : Bytes, pos : Int32) -> (Bool, Int32, Int32) {
   if pos >= payload.length() {
     return (false, 0, 0)
   }
@@ -362,7 +362,7 @@ fn first_block_payload_brief(frame : Bytes) -> String {
 
 ///|
 test "upstream matrix encode byte parity plain level9 default checksum" {
-  let frame = compress_with_options(
+  let frame = @zstd.compress_with_options(
     rv_up_extra_http_x420_payload(),
     matrix_l9_options(true),
   )
@@ -371,7 +371,7 @@ test "upstream matrix encode byte parity plain level9 default checksum" {
 
 ///|
 test "upstream matrix encode byte parity plain level9 no-check" {
-  let frame = compress_with_options(
+  let frame = @zstd.compress_with_options(
     rv_up_extra_http_x420_payload(),
     matrix_l9_options(false),
   )
@@ -384,7 +384,7 @@ test "upstream matrix encode byte parity plain level9 no-check" {
 
 ///|
 test "upstream matrix encode byte parity dictionary level9 default checksum" {
-  let frame = compress_with_dictionary_and_options(
+  let frame = @zstd.compress_with_dictionary_and_options(
     rv_up_extra_http_x420_payload(),
     rv_up_gdict_http_dict(),
     matrix_l9_options(true),
@@ -394,7 +394,7 @@ test "upstream matrix encode byte parity dictionary level9 default checksum" {
 
 ///|
 test "upstream matrix encode byte parity dictionary level9 no-check" {
-  let frame = compress_with_dictionary_and_options(
+  let frame = @zstd.compress_with_dictionary_and_options(
     rv_up_extra_http_x420_payload(),
     rv_up_gdict_http_dict(),
     matrix_l9_options(false),

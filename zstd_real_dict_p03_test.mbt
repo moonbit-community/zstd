@@ -15,7 +15,7 @@
 ///|
 fn assert_real_vector_p03(frame : Bytes) -> Unit raise Error {
   let result = try
-    decompress_with_dictionary(frame, rv_dict_p03_20260222())
+    @zstd.decompress_with_dictionary(frame, rv_dict_p03_20260222())
   catch {
     e => Err(e)
   } noraise {

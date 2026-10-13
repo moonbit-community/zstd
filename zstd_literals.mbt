@@ -15,14 +15,14 @@
 ///|
 fn decode_literals_section_minimal(
   src : Bytes,
-  start : Int,
-  end_pos : Int,
+  start : Int32,
+  end_pos : Int32,
   prev_huf_valid : Ref[Bool],
-  prev_huf_max_bits : Ref[Int],
-  prev_huf_left : Ref[Array[Int]],
-  prev_huf_right : Ref[Array[Int]],
-  prev_huf_symbol : Ref[Array[Int]],
-) -> (Int, Bytes) raise ZstdError {
+  prev_huf_max_bits : Ref[Int32],
+  prev_huf_left : Ref[Array[Int32]],
+  prev_huf_right : Ref[Array[Int32]],
+  prev_huf_symbol : Ref[Array[Int32]],
+) -> (Int32, Bytes) raise ZstdError {
   if start >= end_pos {
     raise CorruptionDetected
   }

@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn sum_int_array(values : Array[Int]) -> Int {
+fn sum_int_array(values : Array[Int32]) -> Int32 {
   let mut total = 0
   let mut i = 0
   while i < values.length() {
@@ -24,8 +24,8 @@ fn sum_int_array(values : Array[Int]) -> Int {
 }
 
 ///|
-fn make_constant_int_array(len : Int, value : Int) -> Array[Int] {
-  let out : Array[Int] = []
+fn make_constant_int_array(len : Int32, value : Int32) -> Array[Int32] {
+  let out : Array[Int32] = []
   let mut i = 0
   while i < len {
     out.push(value)
@@ -37,10 +37,10 @@ fn make_constant_int_array(len : Int, value : Int) -> Array[Int] {
 ///|
 fn source_option_score_bits(
   source_bytes : Bytes,
-  init_bits : Int,
-  extra_bits : Array[Int],
-  trans_nb_bits : Array[Int],
-) -> Int {
+  init_bits : Int32,
+  extra_bits : Array[Int32],
+  trans_nb_bits : Array[Int32],
+) -> Int32 {
   source_bytes.length() * 8 +
   init_bits +
   sum_int_array(extra_bits) +
@@ -49,32 +49,32 @@ fn source_option_score_bits(
 
 ///|
 fn choose_sequence_source_mode(
-  values : Array[Int],
-  symbol_type : Int,
-  level : Int,
+  values : Array[Int32],
+  symbol_type : Int32,
+  level : Int32,
 ) -> (
   Bool,
-  UInt,
+  UInt32,
   Bytes,
-  Int,
-  Int,
-  Array[UInt],
-  Array[Int],
-  Array[Int],
-  Array[Int],
+  Int32,
+  Int32,
+  Array[UInt32],
+  Array[Int32],
+  Array[Int32],
+  Array[Int32],
 ) raise ZstdError {
   if values.length() <= 0 {
     return (false, 0, b"", 0, 0, [], [], [], [])
   }
   let mut have = false
-  let mut best_mode : UInt = 0
+  let mut best_mode : UInt32 = 0
   let mut best_source = b""
   let mut best_init_state = 0
   let mut best_init_bits = 0
-  let mut best_extras : Array[UInt] = []
-  let mut best_extra_bits : Array[Int] = []
-  let mut best_trans_bits : Array[Int] = []
-  let mut best_trans_nb_bits : Array[Int] = []
+  let mut best_extras : Array[UInt32] = []
+  let mut best_extra_bits : Array[Int32] = []
+  let mut best_trans_bits : Array[Int32] = []
+  let mut best_trans_nb_bits : Array[Int32] = []
   let mut best_score = 0
 
   // RLE mode (01)
@@ -197,40 +197,40 @@ fn choose_sequence_source_mode(
 
 ///|
 fn choose_offset_source_mode_with_repcodes(
-  off_values : Array[Int],
-  ll_values : Array[Int],
-  level : Int,
-  rep1 : Int,
-  rep2 : Int,
-  rep3 : Int,
-  off_base_values? : Array[Int] = [],
+  off_values : Array[Int32],
+  ll_values : Array[Int32],
+  level : Int32,
+  rep1 : Int32,
+  rep2 : Int32,
+  rep3 : Int32,
+  off_base_values~ : Array[Int32] = [],
 ) -> (
   Bool,
-  UInt,
+  UInt32,
   Bytes,
-  Int,
-  Int,
-  Array[UInt],
-  Array[Int],
-  Array[Int],
-  Array[Int],
+  Int32,
+  Int32,
+  Array[UInt32],
+  Array[Int32],
+  Array[Int32],
+  Array[Int32],
 ) raise ZstdError {
   if off_values.length() <= 0 || ll_values.length() != off_values.length() {
     return (false, 0, b"", 0, 0, [], [], [], [])
   }
   let mut have = false
-  let mut best_mode : UInt = 0
+  let mut best_mode : UInt32 = 0
   let mut best_source = b""
   let mut best_init_state = 0
   let mut best_init_bits = 0
-  let mut best_extras : Array[UInt] = []
-  let mut best_extra_bits : Array[Int] = []
-  let mut best_trans_bits : Array[Int] = []
-  let mut best_trans_nb_bits : Array[Int] = []
+  let mut best_extras : Array[UInt32] = []
+  let mut best_extra_bits : Array[Int32] = []
+  let mut best_trans_bits : Array[Int32] = []
+  let mut best_trans_nb_bits : Array[Int32] = []
   let mut best_score = 0
 
-  fn copy_int_array(values : Array[Int]) -> Array[Int] {
-    let out : Array[Int] = []
+  fn copy_int_array(values : Array[Int32]) -> Array[Int32] {
+    let out : Array[Int32] = []
     let mut i = 0
     while i < values.length() {
       out.push(values[i])
@@ -240,9 +240,9 @@ fn choose_offset_source_mode_with_repcodes(
   }
 
   fn count_secondary_rep_off_bases(
-    off_base_values : Array[Int],
-    ll_values : Array[Int],
-  ) -> Int {
+    off_base_values : Array[Int32],
+    ll_values : Array[Int32],
+  ) -> Int32 {
     let mut count = 0
     let mut i = 0
     while i < off_base_values.length() && i < ll_values.length() {
@@ -256,13 +256,22 @@ fn choose_offset_source_mode_with_repcodes(
   }
 
   fn choose_compressed_offset_source(
-    off_values : Array[Int],
-    ll_values : Array[Int],
-    rep1 : Int,
-    rep2 : Int,
-    rep3 : Int,
-    off_base_values : Array[Int],
-  ) -> (Bool, Bytes, Int, Int, Array[UInt], Array[Int], Array[Int], Array[Int]) raise ZstdError {
+    off_values : Array[Int32],
+    ll_values : Array[Int32],
+    rep1 : Int32,
+    rep2 : Int32,
+    rep3 : Int32,
+    off_base_values : Array[Int32],
+  ) -> (
+    Bool,
+    Bytes,
+    Int32,
+    Int32,
+    Array[UInt32],
+    Array[Int32],
+    Array[Int32],
+    Array[Int32],
+  ) raise ZstdError {
     if off_base_values.length() == off_values.length() {
       let base = build_compressed_offset_sequence_source_from_off_bases(
         off_base_values,
@@ -441,23 +450,23 @@ fn choose_offset_source_mode_with_repcodes(
 ///|
 fn build_general_mixed_sequence_payload(
   src : Bytes,
-  start : Int,
-  block_len : Int,
-  level : Int,
-  dictionary_history? : Bytes = b"",
-  max_match_offset? : Int = 0,
-  enable_long_distance_matching? : Bool = false,
-  rep1? : Int = 1,
-  rep2? : Int = 4,
-  rep3? : Int = 8,
+  start : Int32,
+  block_len : Int32,
+  level : Int32,
+  dictionary_history~ : Bytes = b"",
+  max_match_offset~ : Int32 = 0,
+  enable_long_distance_matching~ : Bool = false,
+  rep1~ : Int32 = 1,
+  rep2~ : Int32 = 4,
+  rep3~ : Int32 = 8,
 ) -> Bytes raise ZstdError {
   if (level < 9 && dictionary_history.length() == 0) || block_len < 96 {
     return b""
   }
-  let ll_values : Array[Int] = []
-  let off_values : Array[Int] = []
-  let off_base_values : Array[Int] = []
-  let ml_values : Array[Int] = []
+  let ll_values : Array[Int32] = []
+  let off_values : Array[Int32] = []
+  let off_base_values : Array[Int32] = []
+  let ml_values : Array[Int32] = []
   let max_sequences_base = mixed_sequence_cap(level, block_len)
   let max_sequences = if dictionary_history.length() > 0 &&
     level < 10 &&
@@ -570,7 +579,7 @@ fn build_general_mixed_sequence_payload(
   let literals = build_literals_from_sequences(
     src, start, block_len, ll_values, ml_values,
   )
-  let bits : Array[Int] = []
+  let bits : Array[Int32] = []
 
   if ll_mode != 1 {
     append_bits_be(bits, ll_init_state.reinterpret_as_uint(), ll_init_bits)

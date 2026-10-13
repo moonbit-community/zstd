@@ -13,7 +13,9 @@
 // limitations under the License.
 
 ///|
-fn assert_decode_error(result : Result[Bytes, ZstdError]) -> Unit raise Error {
+fn assert_decode_error(
+  result : Result[Bytes, @zstd.ZstdError],
+) -> Unit raise Error {
   assert_true(
     result is Err(CorruptionDetected) ||
     result is Err(SrcSizeWrong) ||
@@ -32,7 +34,10 @@ test "invalid dictionary: zero rep offsets is rejected" {
   arr[rep_start + 3] = b'\x00'
   let bad_dict = Bytes::from_array(arr)
   let result = try
-    decompress_with_dictionary(standard_dictionary_fixture_frame(), bad_dict)
+    @zstd.decompress_with_dictionary(
+      standard_dictionary_fixture_frame(),
+      bad_dict,
+    )
   catch {
     e => Err(e)
   } noraise {
@@ -46,7 +51,10 @@ test "invalid dictionary: truncated dict content is rejected" {
   let dict = standard_dictionary_fixture_dictionary()
   let truncated = dict[:dict.length() - 16].to_owned()
   let result = try
-    decompress_with_dictionary(standard_dictionary_fixture_frame(), truncated)
+    @zstd.decompress_with_dictionary(
+      standard_dictionary_fixture_frame(),
+      truncated,
+    )
   catch {
     e => Err(e)
   } noraise {
@@ -59,7 +67,7 @@ test "invalid dictionary: truncated dict content is rejected" {
 test "fuzz regression: malformed frame with random descriptor flags errors cleanly" {
   // Well-formed magic, but malformed descriptor / payload layout.
   let frame = b"\x28\xb5\x2f\xfd\xff\xff\xff\xff\xff\x00\x01\x02\x03"
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -74,7 +82,7 @@ test "fuzz regression: corrupted compressed block payload errors cleanly" {
   let arr = frame.to_array()
   arr[12] = (arr[12].to_uint() ^ 0x7F).to_byte()
   let corrupted = Bytes::from_array(arr)
-  let result = try decompress(corrupted) catch {
+  let result = try @zstd.decompress(corrupted) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)

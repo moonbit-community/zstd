@@ -16,11 +16,11 @@
 fn assert_upstream_large_vector(
   name : String,
   frame : Bytes,
-  expected_len : Int,
+  expected_len : Int32,
   prefix64 : Bytes,
   suffix64 : Bytes,
 ) -> Unit raise Error {
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)

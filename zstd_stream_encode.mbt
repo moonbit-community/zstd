@@ -20,14 +20,14 @@ pub struct Compressor {
 }
 
 ///|
-pub fn new_compressor(level? : Int = 3) -> Compressor {
+pub fn new_compressor(level~ : Int32 = 3) -> Compressor {
   new_compressor_with_options(default_compress_options(level~))
 }
 
 ///|
 pub fn new_compressor_with_dictionary(
   dictionary : Bytes,
-  level? : Int = 3,
+  level~ : Int32 = 3,
 ) -> Compressor {
   new_compressor_with_dictionary_and_options(
     dictionary,
@@ -62,7 +62,7 @@ pub fn Compressor::push(self : Compressor, chunk : Bytes) -> Unit {
 }
 
 ///|
-pub fn Compressor::pending_input(self : Compressor) -> Int {
+pub fn Compressor::pending_input(self : Compressor) -> Int32 {
   self.input_buffer.length()
 }
 

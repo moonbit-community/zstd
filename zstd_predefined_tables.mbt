@@ -22,7 +22,9 @@ let of_predefined_table_log = 5
 let ml_predefined_table_log = 6
 
 ///|
-fn ll_predefined_entry(state : Int) -> (Int, Int, Int, Int) raise ZstdError {
+fn ll_predefined_entry(
+  state : Int32,
+) -> (Int32, Int32, Int32, Int32) raise ZstdError {
   match state {
     0 => (0, 0, 4, 0)
     1 => (16, 0, 4, 0)
@@ -93,7 +95,9 @@ fn ll_predefined_entry(state : Int) -> (Int, Int, Int, Int) raise ZstdError {
 }
 
 ///|
-fn of_predefined_entry(state : Int) -> (Int, Int, Int, Int) raise ZstdError {
+fn of_predefined_entry(
+  state : Int32,
+) -> (Int32, Int32, Int32, Int32) raise ZstdError {
   match state {
     0 => (0, 0, 5, 0)
     1 => (0, 6, 4, 61)
@@ -132,7 +136,9 @@ fn of_predefined_entry(state : Int) -> (Int, Int, Int, Int) raise ZstdError {
 }
 
 ///|
-fn ml_predefined_entry(state : Int) -> (Int, Int, Int, Int) raise ZstdError {
+fn ml_predefined_entry(
+  state : Int32,
+) -> (Int32, Int32, Int32, Int32) raise ZstdError {
   match state {
     0 => (0, 0, 6, 3)
     1 => (0, 0, 4, 4)

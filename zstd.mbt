@@ -23,13 +23,13 @@ let max_input_size : UInt64 = 0xFF00FF00FF00FF00
 let small_input_cutoff : UInt64 = (128 : UInt64) << 10
 
 ///|
-let zstd_magic_number : UInt = 0xFD2FB528
+let zstd_magic_number : UInt32 = 0xFD2FB528
 
 ///|
-let skippable_magic_start : UInt = 0x184D2A50
+let skippable_magic_start : UInt32 = 0x184D2A50
 
 ///|
-let skippable_magic_mask : UInt = 0xFFFFFFF0
+let skippable_magic_mask : UInt32 = 0xFFFFFFF0
 
 ///|
 let zstd_block_size_max : UInt64 = (128 : UInt64) << 10
@@ -40,7 +40,7 @@ pub suberror ZstdError {
   SrcSizeWrong
   CorruptionDetected
   BoundOverflow
-  DictionaryRequired(UInt)
+  DictionaryRequired(UInt32)
   UnsupportedFeature(String)
 }
 
@@ -76,8 +76,8 @@ pub fn compress_bound(src_size : UInt64) -> UInt64 raise ZstdError {
 /// compressed-block path for periodic payloads at higher levels.
 pub fn compress(
   src : Bytes,
-  level? : Int = 3,
-  checksum? : Bool = false,
+  level~ : Int32 = 3,
+  checksum~ : Bool = false,
 ) -> Bytes raise ZstdError {
   compress_with_options(src, default_compress_options(level~, checksum~))
 }
@@ -89,8 +89,8 @@ pub fn compress(
 pub fn compress_with_dictionary(
   src : Bytes,
   dictionary : Bytes,
-  level? : Int = 3,
-  checksum? : Bool = false,
+  level~ : Int32 = 3,
+  checksum~ : Bool = false,
 ) -> Bytes raise ZstdError {
   compress_with_dictionary_and_options(
     src,

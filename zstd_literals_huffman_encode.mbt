@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn high_bit_positive_noerr_huf(value : Int) -> Int {
+fn high_bit_positive_noerr_huf(value : Int32) -> Int32 {
   if value <= 0 {
     return 0
   }
@@ -27,7 +27,7 @@ fn high_bit_positive_noerr_huf(value : Int) -> Int {
 }
 
 ///|
-fn huf_optimal_table_log_cheap(src_size : Int, max_symbol : Int) -> Int {
+fn huf_optimal_table_log_cheap(src_size : Int32, max_symbol : Int32) -> Int32 {
   let mut table_log = 11
   if src_size <= 1 {
     return table_log
@@ -57,11 +57,11 @@ fn huf_optimal_table_log_cheap(src_size : Int, max_symbol : Int) -> Int {
 
 ///|
 fn enforce_huffman_max_height(
-  sorted_counts : Array[Int],
-  nb_bits : Array[Int],
-  leaf_count : Int,
-  target_nb_bits : Int,
-) -> Int {
+  sorted_counts : Array[Int32],
+  nb_bits : Array[Int32],
+  leaf_count : Int32,
+  target_nb_bits : Int32,
+) -> Int32 {
   if leaf_count <= 0 {
     return 0
   }
@@ -182,13 +182,13 @@ fn enforce_huffman_max_height(
 
 ///|
 fn build_literal_huffman_lengths_from_frequencies(
-  freq : Array[Int],
-  max_symbol : Int,
-) -> (Bool, Array[Int], Int) {
+  freq : Array[Int32],
+  max_symbol : Int32,
+) -> (Bool, Array[Int32], Int32) {
   if max_symbol < 0 || max_symbol >= freq.length() {
     return (false, [], 0)
   }
-  let leaves : Array[Int] = []
+  let leaves : Array[Int32] = []
   let mut s = 0
   while s <= max_symbol {
     if freq[s] > 0 {
@@ -215,10 +215,10 @@ fn build_literal_huffman_lengths_from_frequencies(
   }
 
   let total_nodes = leaf_count * 2
-  let node_weight : Array[Int] = Array::make(total_nodes, 0)
-  let node_parent : Array[Int] = Array::make(total_nodes, -1)
-  let node_depth : Array[Int] = Array::make(total_nodes, 0)
-  let node_symbol : Array[Int] = Array::make(total_nodes, -1)
+  let node_weight : Array[Int32] = Array::make(total_nodes, 0)
+  let node_parent : Array[Int32] = Array::make(total_nodes, -1)
+  let node_depth : Array[Int32] = Array::make(total_nodes, 0)
+  let node_symbol : Array[Int32] = Array::make(total_nodes, -1)
 
   i = 0
   while i < leaf_count {
@@ -333,9 +333,9 @@ fn build_literal_huffman_lengths_from_frequencies(
 
 ///|
 fn infer_last_huffman_weight_from_prefix(
-  weights : Array[Int],
-  last_symbol : Int,
-) -> (Bool, Int, Int) raise ZstdError {
+  weights : Array[Int32],
+  last_symbol : Int32,
+) -> (Bool, Int32, Int32) raise ZstdError {
   if last_symbol <= 0 || last_symbol >= weights.length() {
     return (false, 0, 0)
   }
@@ -347,7 +347,7 @@ fn infer_last_huffman_weight_from_prefix(
       return (false, 0, 0)
     }
     if w > 0 {
-      weight_total = weight_total + ((1 : Int) << (w - 1))
+      weight_total = weight_total + ((1 : Int32) << (w - 1))
     }
     s = s + 1
   }
@@ -358,7 +358,7 @@ fn infer_last_huffman_weight_from_prefix(
   if max_bits <= 0 || max_bits > huf_max_nb_bits {
     return (false, 0, 0)
   }
-  let total_weight = (1 : Int) << max_bits
+  let total_weight = (1 : Int32) << max_bits
   let rest = total_weight - weight_total
   if rest <= 0 || !is_power_of_two(rest) {
     return (false, 0, 0)
@@ -372,10 +372,10 @@ fn infer_last_huffman_weight_from_prefix(
 
 ///|
 fn build_huffman_canonical_codes_from_weights(
-  weights : Array[Int],
-  max_symbol : Int,
-  max_bits : Int,
-) -> (Bool, Array[UInt], Array[Int]) {
+  weights : Array[Int32],
+  max_symbol : Int32,
+  max_bits : Int32,
+) -> (Bool, Array[UInt32], Array[Int32]) {
   if max_symbol < 0 || max_symbol >= weights.length() {
     return (false, [], [])
   }
@@ -399,7 +399,7 @@ fn build_huffman_canonical_codes_from_weights(
     s = s + 1
   }
 
-  let symbols_by_weight : Array[Int] = []
+  let symbols_by_weight : Array[Int32] = []
   let mut weight = 1
   while weight <= max_bits {
     s = 0
@@ -415,13 +415,13 @@ fn build_huffman_canonical_codes_from_weights(
     return (false, [], [])
   }
 
-  let codes = Array::make(max_symbol + 1, (0 : UInt))
+  let codes = Array::make(max_symbol + 1, (0 : UInt32))
   let first_symbol = symbols_by_weight[0]
-  let current_bits_ref : Ref[Int] = { val: nb_bits[first_symbol], }
+  let current_bits_ref : Ref[Int32] = { val: nb_bits[first_symbol], }
   if current_bits_ref.val <= 0 {
     return (false, [], [])
   }
-  let code_ref : Ref[Int] = { val: 0, }
+  let code_ref : Ref[Int32] = { val: 0, }
   let mut i = 0
   while i < symbols_by_weight.length() {
     let symbol = symbols_by_weight[i]
@@ -433,7 +433,7 @@ fn build_huffman_canonical_codes_from_weights(
       code_ref.val = code_ref.val >> (current_bits_ref.val - n)
       current_bits_ref.val = n
     }
-    if code_ref.val < 0 || code_ref.val >= (1 : Int) << n {
+    if code_ref.val < 0 || code_ref.val >= (1 : Int32) << n {
       return (false, [], [])
     }
     codes[symbol] = code_ref.val.reinterpret_as_uint()
@@ -445,8 +445,8 @@ fn build_huffman_canonical_codes_from_weights(
 
 ///|
 fn build_huffman_direct_weights_description(
-  weights : Array[Int],
-  last_symbol : Int,
+  weights : Array[Int32],
+  last_symbol : Int32,
 ) -> Bytes {
   if last_symbol <= 0 || last_symbol >= weights.length() || last_symbol > 128 {
     return b""
@@ -467,7 +467,7 @@ fn build_huffman_direct_weights_description(
 }
 
 ///|
-fn append_u16_le_checked(out : Array[Byte], value : Int) -> Bool {
+fn append_u16_le_checked(out : Array[Byte], value : Int32) -> Bool {
   if value < 0 || value > 0xFFFF {
     return false
   }
@@ -479,10 +479,10 @@ fn append_u16_le_checked(out : Array[Byte], value : Int) -> Bool {
 ///|
 fn encode_literals_huffman_single_stream_range(
   literals : Bytes,
-  start : Int,
-  len : Int,
-  codes : Array[UInt],
-  nb_bits : Array[Int],
+  start : Int32,
+  len : Int32,
+  codes : Array[UInt32],
+  nb_bits : Array[Int32],
 ) -> Bytes {
   if start < 0 || len <= 0 || start + len > literals.length() {
     return b""
@@ -490,7 +490,7 @@ fn encode_literals_huffman_single_stream_range(
   if codes.length() != nb_bits.length() {
     return b""
   }
-  let bits : Array[Int] = []
+  let bits : Array[Int32] = []
   let mut i = start
   while i < start + len {
     let symbol = literals[i].to_uint().reinterpret_as_int()
@@ -510,8 +510,8 @@ fn encode_literals_huffman_single_stream_range(
 ///|
 fn encode_literals_huffman_single_stream(
   literals : Bytes,
-  codes : Array[UInt],
-  nb_bits : Array[Int],
+  codes : Array[UInt32],
+  nb_bits : Array[Int32],
 ) -> Bytes {
   encode_literals_huffman_single_stream_range(
     literals,
@@ -525,8 +525,8 @@ fn encode_literals_huffman_single_stream(
 ///|
 fn encode_literals_huffman_four_stream(
   literals : Bytes,
-  codes : Array[UInt],
-  nb_bits : Array[Int],
+  codes : Array[UInt32],
+  nb_bits : Array[Int32],
 ) -> Bytes {
   let lit_len = literals.length()
   if lit_len < 8 {
@@ -582,7 +582,7 @@ fn encode_literals_huffman_four_stream(
 ///|
 fn build_literal_huffman_model(
   literals : Bytes,
-) -> (Bool, Int, Array[Int], Array[UInt], Array[Int]) raise ZstdError {
+) -> (Bool, Int32, Array[Int32], Array[UInt32], Array[Int32]) raise ZstdError {
   if literals.length() < 2 || literals.length() > 128 << 10 {
     return (false, 0, [], [], [])
   }
@@ -650,7 +650,7 @@ fn build_literal_huffman_model(
 
 ///|
 fn build_compressed_literals_section_with_stream_payload(
-  lit_len : Int,
+  lit_len : Int32,
   tree_desc : Bytes,
   stream_payload : Bytes,
   single_stream : Bool,
@@ -659,7 +659,7 @@ fn build_compressed_literals_section_with_stream_payload(
     return b""
   }
   let lit_c_size = tree_desc.length() + stream_payload.length()
-  let literals_block_type : UInt = 2
+  let literals_block_type : UInt32 = 2
   let out : Array[Byte] = []
   if single_stream {
     if lit_len > 1023 || lit_c_size > 1023 {
@@ -670,21 +670,21 @@ fn build_compressed_literals_section_with_stream_payload(
       literals_block_type
     append_u24_le(out, header)
   } else if lit_len >= 6 && lit_len <= 1023 && lit_c_size <= 1023 {
-    let size_format_1 : UInt = 1
+    let size_format_1 : UInt32 = 1
     let header = ((lit_len.reinterpret_as_uint() & 0x3FF) << 4) +
       ((lit_c_size.reinterpret_as_uint() & 0x3FF) << 14) +
       (size_format_1 << 2) +
       literals_block_type
     append_u24_le(out, header)
   } else if lit_len <= 0x3FFF && lit_c_size <= 0x3FFF {
-    let size_format_2 : UInt = 2
+    let size_format_2 : UInt32 = 2
     let header = ((lit_len.reinterpret_as_uint() & 0x3FFF) << 4) +
       ((lit_c_size.reinterpret_as_uint() & 0x3FFF) << 18) +
       (size_format_2 << 2) +
       literals_block_type
     append_u32_le(out, header)
   } else if lit_len <= 0x3FFFF && lit_c_size <= 0x3FFFF {
-    let size_format_3 : UInt = 3
+    let size_format_3 : UInt32 = 3
     let lit_c_low = lit_c_size & 0x3FF
     let lit_c_high = lit_c_size >> 10
     if lit_c_high < 0 || lit_c_high > 0xFF {

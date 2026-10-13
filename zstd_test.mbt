@@ -19,7 +19,7 @@ test "compress_bound matches macro on power-of-two sizes" {
   let mut s = 0
   while s < 30 {
     let w = (1 : UInt64) << s
-    assert_eq(compress_bound(w), compress_bound_macro(w))
+    assert_eq(@zstd.compress_bound(w), @zstd.compress_bound_macro(w))
     s = s + 1
   }
 }
@@ -29,7 +29,7 @@ test "compress_bound matches macro on power-of-two sizes" {
 /// - zstd/tests/fuzzer.c:test_compressBound()
 test "compress_bound raises on src size larger than max input" {
   let w : UInt64 = 0xFF00FF00FF00FF00 + 1
-  let result = try compress_bound(w) catch {
+  let result = try @zstd.compress_bound(w) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -38,7 +38,7 @@ test "compress_bound raises on src size larger than max input" {
     Err(SrcSizeTooLarge(size)) => assert_eq(size, w)
     _ => fail("expected SrcSizeTooLarge")
   }
-  assert_eq(compress_bound_macro(w), 0)
+  assert_eq(@zstd.compress_bound_macro(w), 0)
 }
 
 ///|
@@ -46,7 +46,7 @@ test "compress_bound raises on src size larger than max input" {
 /// - zstd/tests/fuzzer.c:test_decompressBound()
 test "decompress_bound returns frame content size for single-segment frame" {
   let frame = b"\x28\xB5\x2F\xFD\x20\x04\x21\x00\x00\x61\x62\x63\x64"
-  assert_eq(decompress_bound(frame), (4 : UInt64))
+  assert_eq(@zstd.decompress_bound(frame), (4 : UInt64))
 }
 
 ///|
@@ -54,7 +54,7 @@ test "decompress_bound returns frame content size for single-segment frame" {
 /// - zstd/tests/fuzzer.c:test_decompressBound()
 test "decompress_bound returns one block max when content size is missing" {
   let frame = b"\x28\xB5\x2F\xFD\x00\x38\x01\x00\x00"
-  assert_eq(decompress_bound(frame), (128 : UInt64) << 10)
+  assert_eq(@zstd.decompress_bound(frame), (128 : UInt64) << 10)
 }
 
 ///|
@@ -63,7 +63,7 @@ test "decompress_bound returns one block max when content size is missing" {
 test "decompress_bound sums concatenated frame bounds" {
   let frame1 = b"\x28\xB5\x2F\xFD\x20\x04\x21\x00\x00\x61\x62\x63\x64"
   let frame2 = b"\x28\xB5\x2F\xFD\x20\x03\x19\x00\x00\x78\x79\x7A"
-  assert_eq(decompress_bound(frame1 + frame2), (7 : UInt64))
+  assert_eq(@zstd.decompress_bound(frame1 + frame2), (7 : UInt64))
 }
 
 ///|
@@ -72,7 +72,7 @@ test "decompress_bound sums concatenated frame bounds" {
 test "decompress_bound ignores skippable frame payload in bound" {
   let skippable = b"\x50\x2A\x4D\x18\x04\x00\x00\x00test"
   let frame = b"\x28\xB5\x2F\xFD\x20\x04\x21\x00\x00\x61\x62\x63\x64"
-  assert_eq(decompress_bound(skippable + frame), (4 : UInt64))
+  assert_eq(@zstd.decompress_bound(skippable + frame), (4 : UInt64))
 }
 
 ///|
@@ -81,7 +81,7 @@ test "decompress_bound ignores skippable frame payload in bound" {
 test "decompress_bound raises when frame payload is truncated" {
   let frame = b"\x28\xB5\x2F\xFD\x20\x04\x21\x00\x00\x61\x62\x63\x64"
   let truncated = frame[:frame.length() - 1].to_owned()
-  let result = try decompress_bound(truncated) catch {
+  let result = try @zstd.decompress_bound(truncated) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -92,16 +92,16 @@ test "decompress_bound raises when frame payload is truncated" {
 ///|
 test "pure compress/decompress roundtrip with raw blocks" {
   let input = b"moonbit pure zstd"
-  let compressed = compress(input)
-  let restored = decompress(compressed)
+  let compressed = @zstd.compress(input)
+  let restored = @zstd.decompress(compressed)
   assert_eq(restored, input)
 }
 
 ///|
 test "pure compress handles payload larger than one zstd block" {
   let input = Bytes::makei(140000, i => (i % 251).to_byte())
-  let compressed = compress(input)
-  let restored = decompress(compressed)
+  let compressed = @zstd.compress(input)
+  let restored = @zstd.decompress(compressed)
   assert_eq(restored, input)
 }
 
@@ -113,7 +113,7 @@ test "decode compressed block subset: one sequence" {
   // - literals: raw 'a'
   // - sequence section: 1 sequence, all RLE modes, LL=1, Off=0, ML=0
   let frame = b"\x28\xb5\x2f\xfd\x20\x04\x3d\x00\x00\x08\x61\x01\x54\x01\x00\x00"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, b"aaaa")
 }
 
@@ -121,7 +121,7 @@ test "decode compressed block subset: one sequence" {
 test "decode compressed block subset: two sequences" {
   // Same subset encoding, but Number_of_Sequences=2 and literals are 'a','b'.
   let frame = b"\x28\xb5\x2f\xfd\x20\x08\x45\x00\x00\x10\x61\x62\x02\x54\x01\x00\x00"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, b"aaaabbbb")
 }
 
@@ -129,7 +129,7 @@ test "decode compressed block subset: two sequences" {
 test "compressed block subset rejects unsupported sequence bitstream" {
   // LL mode is FSE compressed (mode=2) but section is intentionally malformed.
   let frame = b"\x28\xb5\x2f\xfd\x20\x04\x3d\x00\x00\x08\x61\x01\x94\x00\x00\x00"
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -142,7 +142,7 @@ test "decode compressed block subset with reverse bitstream extras" {
   // One sequence, off_code=2 with 2 extra bits set to 0 (bitstream byte 0x04),
   // so offset_value=4 -> offset=1.
   let frame = b"\x28\xb5\x2f\xfd\x20\x04\x45\x00\x00\x08\x61\x01\x54\x01\x02\x00\x04"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, b"aaaa")
 }
 
@@ -150,7 +150,7 @@ test "decode compressed block subset with reverse bitstream extras" {
 test "compressed block subset detects insufficient reverse bits" {
   // Same frame as above but with bitstream byte 0x01 (no available payload bits).
   let frame = b"\x28\xb5\x2f\xfd\x20\x04\x45\x00\x00\x08\x61\x01\x54\x01\x02\x00\x01"
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -164,14 +164,14 @@ test "decode compressed block subset with repeat sequence mode" {
   // 1) all-RLE sequence modes (establishes previous sequence tables)
   // 2) all-Repeat sequence modes (reuses previous RLE symbols)
   let frame = b"\x28\xb5\x2f\xfd\x20\x08\x3c\x00\x00\x08\x61\x01\x54\x01\x00\x00\x25\x00\x00\x08\x62\x01\xfc"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, b"aaaabbbb")
 }
 
 ///|
 test "repeat sequence mode without previous table is rejected" {
   let frame = b"\x28\xb5\x2f\xfd\x20\x04\x25\x00\x00\x08\x61\x01\xfc"
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -184,7 +184,7 @@ test "decode compressed block subset with predefined sequence mode" {
   // One sequence with all predefined modes.
   // Sequence bitstream initializes LL state=2 (base=1), OF state=0 (repcode), ML state=0 (base=3).
   let frame = b"\x28\xb5\x2f\xfd\x20\x04\x3d\x00\x00\x08\x61\x01\x00\x00\x10\x02"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, b"aaaa")
 }
 
@@ -192,7 +192,7 @@ test "decode compressed block subset with predefined sequence mode" {
 test "repeat sequence mode can reuse predefined sequence tables" {
   // Block1 uses predefined sequence tables; block2 repeats them.
   let frame = b"\x28\xb5\x2f\xfd\x20\x08\x3c\x00\x00\x08\x61\x01\x00\x00\x10\x02\x3d\x00\x00\x08\x62\x01\xfc\x00\x10\x02"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, b"aaaabbbb")
 }
 
@@ -202,13 +202,13 @@ test "decompress_with_dictionary supports initial history matches" {
   // Output is matched entirely from dictionary history.
   let frame = b"\x28\xb5\x2f\xfd\x20\x03\x3d\x00\x00\x00\x01\x54\x00\x04\x00\x13"
   let dict = b"0123456789abcdef"
-  let result_without = try decompress(frame) catch {
+  let result_without = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
   }
   assert_true(result_without is Err(CorruptionDetected))
-  let out = decompress_with_dictionary(frame, dict)
+  let out = @zstd.decompress_with_dictionary(frame, dict)
   assert_eq(out, b"012")
 }
 
@@ -216,13 +216,13 @@ test "decompress_with_dictionary supports initial history matches" {
 test "frame with dictionary id requires dictionary in this subset" {
   let frame = b"\x28\xb5\x2f\xfd\x21\x01\x03\x3d\x00\x00\x00\x01\x54\x00\x04\x00\x13"
   let dict = b"0123456789abcdef"
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
   }
   assert_true(result is Err(DictionaryRequired(_)))
-  let out = decompress_with_dictionary(frame, dict)
+  let out = @zstd.decompress_with_dictionary(frame, dict)
   assert_eq(out, b"012")
 }
 
@@ -231,13 +231,13 @@ test "decompress_with_dictionary supports standard zstd dictionary blob" {
   let frame = standard_dictionary_fixture_frame()
   let dict = standard_dictionary_fixture_dictionary()
   let expected = standard_dictionary_fixture_payload()
-  let result_without = try decompress(frame) catch {
+  let result_without = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
   }
   assert_true(result_without is Err(DictionaryRequired(_)))
-  let out = decompress_with_dictionary(frame, dict)
+  let out = @zstd.decompress_with_dictionary(frame, dict)
   assert_eq(out, expected)
 }
 
@@ -252,7 +252,7 @@ test "standard dictionary dictID mismatch is rejected" {
       dict[i]
     }
   })
-  let result = try decompress_with_dictionary(frame, bad_dict) catch {
+  let result = try @zstd.decompress_with_dictionary(frame, bad_dict) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -264,7 +264,7 @@ test "standard dictionary dictID mismatch is rejected" {
 test "decompress validates frame checksum when present" {
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\x01\x02\x00\x44\x20\x82\x3c\xfd\xe6\xf1\xc2\x6b\x30\xf9\x0e\xc7\xdd\x01\xe4\x88\x75\x34\xa2\x0f\x0b\x0d\x04\xc3\x6e\xd8\x0e\x71\xe0\xfd\x77\xb0\x76\x70\xeb\x94\x0b\xd5\x33\x5f\x97\x3d\xaa\xd8\x61\x9b\x91\xff\xc9\x11\xf5\x7c\xce\xd4\x58\xbb\xbf\x2c\xe0\x37\x53\xc9\xbd\xad\x85\xec\x3d"
   let expected = b"\x44\x20\x82\x3c\xfd\xe6\xf1\xc2\x6b\x30\xf9\x0e\xc7\xdd\x01\xe4\x88\x75\x34\xa2\x0f\x0b\x0d\x04\xc3\x6e\xd8\x0e\x71\xe0\xfd\x77\xb0\x76\x70\xeb\x94\x0b\xd5\x33\x5f\x97\x3d\xaa\xd8\x61\x9b\x91\xff\xc9\x11\xf5\x7c\xce\xd4\x58\xbb\xbf\x2c\xe0\x37\x53\xc9\xbd"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, expected)
 }
 
@@ -274,7 +274,7 @@ test "decompress rejects corrupted frame checksum" {
   let bad_last = (frame[frame.length() - 1].to_uint() ^ 1).to_byte()
   let bad_frame = frame[:frame.length() - 1].to_owned() +
     Bytes::makei(1, _ => bad_last)
-  let result = try decompress(bad_frame) catch {
+  let result = try @zstd.decompress(bad_frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -285,7 +285,7 @@ test "decompress rejects corrupted frame checksum" {
 ///|
 test "decode compressed literals block with direct Huffman weights (single stream)" {
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\xc5\x00\x00\x02\x04\x05\x82\x11\x10\x3d\x34\xf8\xdb\x1b\x6d\x3a\x68\xe4\xed\xe7\x48\xbd\x3c\x27\x9a\x01\x00\xe3\x43\x89\xf5"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   let expected = b"\x02\x01\x02\x02\x00\x02\x01\x03\x00\x03\x03\x00\x02\x03\x03\x01\x01\x00\x02\x00\x03\x02\x01\x03\x03\x02\x03\x01\x03\x02\x01\x00\x01\x02\x02\x00\x00\x03\x02\x02\x01\x02\x03\x01\x00\x01\x02\x03\x03\x01\x02\x03\x03\x03\x02\x00\x00\x03\x01\x00\x00\x03\x03\x01"
   assert_eq(out, expected)
 }
@@ -296,14 +296,14 @@ test "decode compressed literals block with FSE-compressed Huffman weights" {
   // This frame uses literals block type=2 where the Huffman tree description header byte is < 128.
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\x55\x01\x00\x02\x84\x09\x05\x30\xfa\x36\x64\x0b\x57\x73\x78\x62\x90\x58\x55\xcd\x78\x86\xdc\xa9\xfd\xe8\x84\x40\x94\xe7\xdd\x3a\xc3\x8c\x64\x99\xf9\xbb\xfa\xb9\x4e\xb9\xcc\x01\x00\x6b\x71\xa5\xdd"
   let expected = b"\x0e\x0e\x0d\x0b\x05\x01\x06\x0e\x01\x01\x06\x08\x08\x01\x0b\x0b\x0b\x07\x05\x0a\x0e\x0e\x04\x04\x0c\x0f\x0f\x01\x04\x0e\x0c\x03\x00\x05\x03\x08\x05\x08\x01\x07\x0c\x08\x08\x03\x02\x0b\x01\x02\x0b\x0c\x0c\x0c\x0d\x02\x03\x00\x0e\x05\x01\x0a\x08\x04\x06\x08"
-  let out = decompress(frame)
+  let out = @zstd.decompress(frame)
   assert_eq(out, expected)
 }
 
 ///|
 test "treeless literals block without previous Huffman tree is rejected" {
   let frame = b"\x28\xb5\x2f\xfd\x24\x40\xc5\x00\x00\x03\x04\x05\x82\x11\x10\x3d\x34\xf8\xdb\x1b\x6d\x3a\x68\xe4\xed\xe7\x48\xbd\x3c\x27\x9a\x01\x00\xe3\x43\x89\xf5"
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -329,7 +329,7 @@ test "decompress_with_dictionary handles real dictionary-compressed frame (zstd 
     Bytes::from_array(arr)
   }
   let no_checksum_result = try
-    decompress_with_dictionary(frame_no_checksum, dict)
+    @zstd.decompress_with_dictionary(frame_no_checksum, dict)
   catch {
     e => Err(e)
   } noraise {
@@ -346,7 +346,9 @@ test "decompress_with_dictionary handles real dictionary-compressed frame (zstd 
     Err(UnsupportedFeature(msg)) =>
       fail("no-checksum: UnsupportedFeature " + msg)
   }
-  let with_checksum_result = try decompress_with_dictionary(frame, dict) catch {
+  let with_checksum_result = try
+    @zstd.decompress_with_dictionary(frame, dict)
+  catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -359,7 +361,9 @@ test "decompress_with_dictionary handles real dictionary-compressed frame (zstd 
 
 ///|
 fn assert_real_vector_p01(frame : Bytes) -> Unit raise Error {
-  let result = try decompress_with_dictionary(frame, rv_dict_20260222()) catch {
+  let result = try
+    @zstd.decompress_with_dictionary(frame, rv_dict_20260222())
+  catch {
     e => Err(e)
   } noraise {
     value => Ok(value)
@@ -428,7 +432,7 @@ test "real dictionary vector p01 long27" {
 ///|
 fn assert_real_cli_vector_p02(frame : Bytes) -> Unit raise Error {
   let expected = rv_cli_p02_payload()
-  let result = try decompress(frame) catch {
+  let result = try @zstd.decompress(frame) catch {
     e => Err(e)
   } noraise {
     value => Ok(value)

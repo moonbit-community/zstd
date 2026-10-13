@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn sequence_cap_by_block(base_cap : Int, block_len : Int) -> Int {
+fn sequence_cap_by_block(base_cap : Int32, block_len : Int32) -> Int32 {
   if block_len <= 0 {
     return 1
   }
@@ -33,7 +33,7 @@ fn sequence_cap_by_block(base_cap : Int, block_len : Int) -> Int {
 }
 
 ///|
-fn general_rle_sequence_cap(level : Int, block_len : Int) -> Int {
+fn general_rle_sequence_cap(level : Int32, block_len : Int32) -> Int32 {
   let base = if level == 9 {
     255
   } else if level >= 20 {
@@ -47,25 +47,25 @@ fn general_rle_sequence_cap(level : Int, block_len : Int) -> Int {
 }
 
 ///|
-fn compressed_fse_sequence_cap(level : Int, block_len : Int) -> Int {
+fn compressed_fse_sequence_cap(level : Int32, block_len : Int32) -> Int32 {
   let base = if level == 9 { 255 } else if level >= 20 { 24 } else { 16 }
   sequence_cap_by_block(base, block_len)
 }
 
 ///|
-fn mixed_sequence_cap(level : Int, block_len : Int) -> Int {
+fn mixed_sequence_cap(level : Int32, block_len : Int32) -> Int32 {
   let base = if level == 9 { 255 } else if level >= 22 { 32 } else { 20 }
   sequence_cap_by_block(base, block_len)
 }
 
 ///|
-fn predefined_multi_sequence_cap(level : Int, block_len : Int) -> Int {
+fn predefined_multi_sequence_cap(level : Int32, block_len : Int32) -> Int32 {
   let base = if level == 9 { 255 } else if level >= 20 { 24 } else { 12 }
   sequence_cap_by_block(base, block_len)
 }
 
 ///|
-fn level_periodic_target_seq_count(level : Int, block_len : Int) -> Int {
+fn level_periodic_target_seq_count(level : Int32, block_len : Int32) -> Int32 {
   if block_len < 32 {
     1
   } else if level >= 24 {
@@ -82,26 +82,26 @@ fn level_periodic_target_seq_count(level : Int, block_len : Int) -> Int {
 }
 
 ///|
-fn prefer_compressed_fse_candidate(level : Int, block_len : Int) -> Bool {
+fn prefer_compressed_fse_candidate(level : Int32, block_len : Int32) -> Bool {
   level >= 22 || (level >= 21 && block_len >= 1024)
 }
 
 ///|
-fn prefer_mixed_candidate(level : Int, block_len : Int) -> Bool {
+fn prefer_mixed_candidate(level : Int32, block_len : Int32) -> Bool {
   level >= 20 || (level >= 19 && block_len >= 768)
 }
 
 ///|
-fn prefer_periodic_candidate(level : Int, block_len : Int) -> Bool {
+fn prefer_periodic_candidate(level : Int32, block_len : Int32) -> Bool {
   level >= 18 || (level >= 17 && block_len >= 384)
 }
 
 ///|
 fn greedy_sequence_search_depth(
-  level : Int,
-  block_len : Int,
-  enable_long_distance_matching? : Bool = false,
-) -> Int {
+  level : Int32,
+  block_len : Int32,
+  enable_long_distance_matching~ : Bool = false,
+) -> Int32 {
   let base0 = if level >= 22 {
     24
   } else if level >= 18 {
@@ -138,7 +138,7 @@ fn greedy_sequence_search_depth(
 }
 
 ///|
-fn greedy_sequence_min_match(level : Int, block_len : Int) -> Int {
+fn greedy_sequence_min_match(level : Int32, block_len : Int32) -> Int32 {
   ignore(block_len)
   if level <= 2 {
     5

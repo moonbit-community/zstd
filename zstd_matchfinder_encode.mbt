@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn single_match_default_search_depth(search_limit : Int) -> Int {
+fn single_match_default_search_depth(search_limit : Int32) -> Int32 {
   let cap = if search_limit > 0 { search_limit } else { 8192 }
   if cap >= 131072 {
     96
@@ -34,9 +34,9 @@ fn single_match_default_search_depth(search_limit : Int) -> Int {
 
 ///|
 fn level_single_match_search_depth(
-  level : Int,
+  level : Int32,
   enable_long_distance_matching : Bool,
-) -> Int {
+) -> Int32 {
   let base = if level >= 22 {
     64
   } else if level >= 18 {

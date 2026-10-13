@@ -13,7 +13,7 @@
 // limitations under the License.
 
 ///|
-fn read_u32_le(src : Bytes, offset : Int) -> UInt raise ZstdError {
+fn read_u32_le(src : Bytes, offset : Int32) -> UInt32 raise ZstdError {
   ensure_range(src.length(), offset, 4)
   src[offset].to_uint() +
   (src[offset + 1].to_uint() << 8) +
@@ -22,7 +22,7 @@ fn read_u32_le(src : Bytes, offset : Int) -> UInt raise ZstdError {
 }
 
 ///|
-fn read_u64_le(src : Bytes, offset : Int) -> UInt64 raise ZstdError {
+fn read_u64_le(src : Bytes, offset : Int32) -> UInt64 raise ZstdError {
   ensure_range(src.length(), offset, 8)
   src[offset].to_uint().to_uint64() +
   (src[offset + 1].to_uint().to_uint64() << 8) +
@@ -35,7 +35,11 @@ fn read_u64_le(src : Bytes, offset : Int) -> UInt64 raise ZstdError {
 }
 
 ///|
-fn ensure_range(total : Int, offset : Int, size : Int) -> Unit raise ZstdError {
+fn ensure_range(
+  total : Int32,
+  offset : Int32,
+  size : Int32,
+) -> Unit raise ZstdError {
   if offset < 0 || size < 0 || offset > total || size > total - offset {
     raise SrcSizeWrong
   }
@@ -51,7 +55,12 @@ fn min_u64(a : UInt64, b : UInt64) -> UInt64 {
 }
 
 ///|
-fn append_bytes(out : Array[Byte], src : Bytes, start : Int, len : Int) -> Unit {
+fn append_bytes(
+  out : Array[Byte],
+  src : Bytes,
+  start : Int32,
+  len : Int32,
+) -> Unit {
   if len <= 0 {
     return
   }
@@ -63,14 +72,14 @@ fn append_bytes(out : Array[Byte], src : Bytes, start : Int, len : Int) -> Unit 
 }
 
 ///|
-fn append_u24_le(out : Array[Byte], value : UInt) -> Unit {
+fn append_u24_le(out : Array[Byte], value : UInt32) -> Unit {
   out.push((value & 0xFF).to_byte())
   out.push(((value >> 8) & 0xFF).to_byte())
   out.push(((value >> 16) & 0xFF).to_byte())
 }
 
 ///|
-fn append_u32_le(out : Array[Byte], value : UInt) -> Unit {
+fn append_u32_le(out : Array[Byte], value : UInt32) -> Unit {
   out.push((value & 0xFF).to_byte())
   out.push(((value >> 8) & 0xFF).to_byte())
   out.push(((value >> 16) & 0xFF).to_byte())
